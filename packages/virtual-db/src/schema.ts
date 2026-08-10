@@ -1,10 +1,15 @@
 /**
- * Schema shapes for the virtual AOS database.
+ * Schema for the virtual AOS database.
  *
  * Table and field *names* mirror the real F&O public API surface, which is fine to
- * reference. Everything else — column sets, seed rows, relations — is hand-authored
- * here and deliberately smaller than the real thing. No extracted Microsoft metadata.
- * See CLAUDE.md > Legal rule.
+ * reference. Everything else — the column sets, the seed rows, the relations — is
+ * hand-authored here and deliberately far smaller than the real thing. No extracted
+ * Microsoft metadata, no Contoso data. See CLAUDE.md > Legal rule.
+ *
+ * Two columns are implicit on every table and are never listed in `fields`:
+ *   RECID      int64, unique within the table across all companies
+ *   DATAAREAID str 4, the legal entity — present even on shared tables, where it is
+ *              stored as the empty string and never filtered on
  */
 
 import type { CompanyId } from "@xpplab/xpp-core";
@@ -28,9 +33,17 @@ export const TABLE_NAMES = [
 
 export type TableName = (typeof TABLE_NAMES)[number];
 
+/** The system columns present on every table. */
+export const RECID_FIELD = "RECID";
+export const DATAAREAID_FIELD = "DATAAREAID";
+
+/** Shared tables store this in `DATAAREAID`, and reads never filter on it. */
+export const SHARED_DATAAREAID = "";
+
 /**
- * The X++ base types a simulated field can have. Each maps to a SQLite storage class
- * plus a conversion pair; the mapping lives in Phase 1's implementation.
+ * The X++ base types a simulated field can have. Each maps to a SQLite storage class:
+ * `str`/`date`/`utcdatetime`/`guid` to TEXT, `int`/`int64`/`enum` to INTEGER, `real` to
+ * REAL, `container` to BLOB.
  */
 export type FieldType =
   "str" | "int" | "int64" | "real" | "date" | "utcdatetime" | "enum" | "guid" | "container";
@@ -38,9 +51,9 @@ export type FieldType =
 export interface FieldSchema {
   name: string;
   type: FieldType;
-  /** For `str` fields. Purely informational until Phase 7 shows it in the property grid. */
+  /** For `str` fields. Informational until Phase 7 shows it in the property grid. */
   length?: number;
-  /** For `enum` fields — the base enum name in the virtual AOT. */
+  /** For `enum` fields — the base enum name in `enums.ts`. */
   enumName?: string;
   /** The EDT this field extends, when it has one. Drives Phase 7 lessons. */
   edt?: string;
@@ -53,13 +66,12 @@ export interface IndexSchema {
   name: string;
   fields: string[];
   unique: boolean;
-  /** The index F&O would use as the primary/clustered one. */
+  /** The index F&O would treat as the primary one. */
   primary?: boolean;
 }
 
 export interface RelationSchema {
   name: string;
-  /** The table this relation points at. */
   relatedTable: TableName;
   /** `[thisField, relatedField]` pairs. */
   fields: ReadonlyArray<readonly [string, string]>;
@@ -68,10 +80,6 @@ export interface RelationSchema {
 export interface TableSchema {
   name: TableName;
   label: string;
-  /**
-   * Fields *excluding* the two the engine adds to every table. `RECID` (int64,
-   * autoincrement) and `DATAAREAID` (str 4) are implicit, exactly as they are in F&O.
-   */
   fields: FieldSchema[];
   indexes: IndexSchema[];
   relations: RelationSchema[];
@@ -89,15 +97,324 @@ export interface CompanyDefinition {
   currency: string;
 }
 
-/** TODO(phase-1): the hand-authored table definitions. */
-export const SCHEMA: readonly TableSchema[] = [];
+/**
+ * Three fictional legal entities. Invented for this repo — any resemblance to a real
+ * Microsoft demo company is a bug, not a shortcut.
+ *
+ * `DATAAREAID` is `str 4` in F&O, so the ids are four characters.
+ */
+export const COMPANIES: readonly CompanyDefinition[] = [
+  { id: "HVND", name: "Havensdale Instruments Ltd", currency: "GBP" },
+  { id: "KELT", name: "Kelton Nordic AS", currency: "NOK" },
+  { id: "MRDA", name: "Meridia Trading BV", currency: "EUR" },
+];
+
+export const DEFAULT_COMPANY: CompanyId = COMPANIES[0]!.id;
+
+// ---------------------------------------------------------------------------
+// Field helpers — keep the table definitions below readable
+// ---------------------------------------------------------------------------
+
+const str = (name: string, length: number, label: string, edt?: string): FieldSchema => ({
+  name,
+  type: "str",
+  length,
+  label,
+  ...(edt === undefined ? {} : { edt }),
+});
+
+const int64 = (name: string, label: string): FieldSchema => ({ name, type: "int64", label });
+const real = (name: string, label: string): FieldSchema => ({ name, type: "real", label });
+const date = (name: string, label: string): FieldSchema => ({ name, type: "date", label });
+
+const enumField = (name: string, enumName: string, label: string): FieldSchema => ({
+  name,
+  type: "enum",
+  enumName,
+  label,
+});
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+export const SCHEMA: readonly TableSchema[] = [
+  {
+    name: "DirPartyTable",
+    label: "Parties",
+    saveDataPerCompany: false,
+    fields: [
+      str("PartyNumber", 20, "Party number"),
+      str("Name", 100, "Name"),
+      enumField("PartyType", "DirPartyType", "Party type"),
+      str("CountryRegionId", 10, "Country/region"),
+    ],
+    indexes: [{ name: "PartyNumberIdx", fields: ["PartyNumber"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "CustTable",
+    label: "Customers",
+    saveDataPerCompany: true,
+    fields: [
+      str("AccountNum", 20, "Customer account", "CustAccount"),
+      int64("Party", "Party"),
+      str("CustGroup", 10, "Customer group"),
+      str("CurrencyCode", 3, "Currency"),
+      str("PaymTermId", 10, "Terms of payment"),
+      real("CreditMax", "Credit limit"),
+      enumField("Blocked", "CustVendorBlocked", "Blocked"),
+    ],
+    indexes: [{ name: "AccountIdx", fields: ["AccountNum"], unique: true, primary: true }],
+    relations: [
+      { name: "DirPartyTable", relatedTable: "DirPartyTable", fields: [["Party", "RECID"]] },
+    ],
+  },
+
+  {
+    name: "CustTrans",
+    label: "Customer transactions",
+    saveDataPerCompany: true,
+    fields: [
+      str("AccountNum", 20, "Customer account", "CustAccount"),
+      str("Voucher", 20, "Voucher"),
+      date("TransDate", "Date"),
+      str("Invoice", 20, "Invoice"),
+      real("AmountMST", "Amount in accounting currency"),
+      real("AmountCur", "Amount in transaction currency"),
+      str("CurrencyCode", 3, "Currency"),
+      date("Closed", "Closed"),
+    ],
+    indexes: [
+      { name: "VoucherIdx", fields: ["Voucher", "TransDate"], unique: false, primary: true },
+      { name: "AccountIdx", fields: ["AccountNum", "TransDate"], unique: false },
+    ],
+    relations: [
+      { name: "CustTable", relatedTable: "CustTable", fields: [["AccountNum", "AccountNum"]] },
+    ],
+  },
+
+  {
+    name: "VendTable",
+    label: "Vendors",
+    saveDataPerCompany: true,
+    fields: [
+      str("AccountNum", 20, "Vendor account", "VendAccount"),
+      int64("Party", "Party"),
+      str("VendGroup", 10, "Vendor group"),
+      str("CurrencyCode", 3, "Currency"),
+      enumField("Blocked", "CustVendorBlocked", "Blocked"),
+    ],
+    indexes: [{ name: "AccountIdx", fields: ["AccountNum"], unique: true, primary: true }],
+    relations: [
+      { name: "DirPartyTable", relatedTable: "DirPartyTable", fields: [["Party", "RECID"]] },
+    ],
+  },
+
+  {
+    name: "InventTable",
+    label: "Released products",
+    saveDataPerCompany: true,
+    fields: [
+      str("ItemId", 20, "Item number", "ItemId"),
+      str("ItemName", 60, "Product name"),
+      str("ItemGroupId", 10, "Item group"),
+      enumField("ItemType", "ItemType", "Item type"),
+      enumField("Blocked", "NoYes", "Stopped"),
+      real("StandardCost", "Standard cost"),
+    ],
+    indexes: [{ name: "ItemIdx", fields: ["ItemId"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "InventSum",
+    label: "On-hand inventory",
+    saveDataPerCompany: true,
+    fields: [
+      str("ItemId", 20, "Item number", "ItemId"),
+      str("InventLocationId", 20, "Warehouse"),
+      real("PhysicalInvent", "Physical inventory"),
+      real("AvailPhysical", "Physical available"),
+      real("PostedQty", "Posted quantity"),
+    ],
+    indexes: [
+      {
+        name: "ItemLocationIdx",
+        fields: ["ItemId", "InventLocationId"],
+        unique: true,
+        primary: true,
+      },
+    ],
+    relations: [
+      { name: "InventTable", relatedTable: "InventTable", fields: [["ItemId", "ItemId"]] },
+      {
+        name: "InventLocation",
+        relatedTable: "InventLocation",
+        fields: [["InventLocationId", "InventLocationId"]],
+      },
+    ],
+  },
+
+  {
+    name: "SalesTable",
+    label: "Sales orders",
+    saveDataPerCompany: true,
+    fields: [
+      str("SalesId", 20, "Sales order"),
+      str("SalesName", 60, "Name"),
+      str("CustAccount", 20, "Customer account", "CustAccount"),
+      enumField("SalesStatus", "SalesStatus", "Status"),
+      date("DeliveryDate", "Delivery date"),
+      str("CurrencyCode", 3, "Currency"),
+    ],
+    indexes: [{ name: "SalesIdx", fields: ["SalesId"], unique: true, primary: true }],
+    relations: [
+      { name: "CustTable", relatedTable: "CustTable", fields: [["CustAccount", "AccountNum"]] },
+    ],
+  },
+
+  {
+    name: "SalesLine",
+    label: "Sales order lines",
+    saveDataPerCompany: true,
+    fields: [
+      str("SalesId", 20, "Sales order"),
+      real("LineNum", "Line number"),
+      str("ItemId", 20, "Item number", "ItemId"),
+      real("SalesQty", "Quantity"),
+      real("SalesPrice", "Unit price"),
+      real("LineAmount", "Net amount"),
+      str("InventLocationId", 20, "Warehouse"),
+    ],
+    indexes: [
+      { name: "SalesLineIdx", fields: ["SalesId", "LineNum"], unique: true, primary: true },
+    ],
+    relations: [
+      { name: "SalesTable", relatedTable: "SalesTable", fields: [["SalesId", "SalesId"]] },
+      { name: "InventTable", relatedTable: "InventTable", fields: [["ItemId", "ItemId"]] },
+    ],
+  },
+
+  {
+    name: "MainAccount",
+    label: "Main accounts",
+    saveDataPerCompany: true,
+    fields: [
+      str("MainAccountId", 20, "Main account"),
+      str("Name", 60, "Name"),
+      enumField("Type", "MainAccountType", "Main account type"),
+      str("CurrencyCode", 3, "Currency"),
+    ],
+    indexes: [{ name: "MainAccountIdx", fields: ["MainAccountId"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "LedgerJournalTable",
+    label: "Journal headers",
+    saveDataPerCompany: true,
+    fields: [
+      str("JournalNum", 20, "Journal batch number"),
+      str("JournalName", 10, "Name"),
+      str("Name", 60, "Description"),
+      enumField("Posted", "NoYes", "Posted"),
+      date("PostedDateTime", "Posted date"),
+    ],
+    indexes: [{ name: "JournalNumIdx", fields: ["JournalNum"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "LedgerJournalTrans",
+    label: "Journal lines",
+    saveDataPerCompany: true,
+    fields: [
+      str("JournalNum", 20, "Journal batch number"),
+      str("Voucher", 20, "Voucher"),
+      date("TransDate", "Date"),
+      enumField("AccountType", "LedgerJournalACType", "Account type"),
+      str("LedgerDimension", 30, "Account"),
+      str("Txt", 60, "Description"),
+      real("AmountCurDebit", "Debit"),
+      real("AmountCurCredit", "Credit"),
+      str("CurrencyCode", 3, "Currency"),
+    ],
+    indexes: [
+      {
+        name: "JournalVoucherIdx",
+        fields: ["JournalNum", "Voucher"],
+        unique: false,
+        primary: true,
+      },
+    ],
+    relations: [
+      {
+        name: "LedgerJournalTable",
+        relatedTable: "LedgerJournalTable",
+        fields: [["JournalNum", "JournalNum"]],
+      },
+    ],
+  },
+
+  {
+    name: "InventLocation",
+    label: "Warehouses",
+    saveDataPerCompany: true,
+    fields: [
+      str("InventLocationId", 20, "Warehouse"),
+      str("Name", 60, "Name"),
+      str("InventSiteId", 20, "Site"),
+      enumField("InventLocationType", "InventLocationType", "Warehouse type"),
+    ],
+    indexes: [{ name: "LocationIdx", fields: ["InventLocationId"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "WMSLocation",
+    label: "Warehouse locations",
+    saveDataPerCompany: true,
+    fields: [
+      str("WMSLocationId", 20, "Location"),
+      str("InventLocationId", 20, "Warehouse"),
+      str("Aisle", 10, "Aisle"),
+      str("Rack", 10, "Rack"),
+      str("Shelf", 10, "Shelf"),
+    ],
+    indexes: [
+      {
+        name: "WMSLocationIdx",
+        fields: ["InventLocationId", "WMSLocationId"],
+        unique: true,
+        primary: true,
+      },
+    ],
+    relations: [
+      {
+        name: "InventLocation",
+        relatedTable: "InventLocation",
+        fields: [["InventLocationId", "InventLocationId"]],
+      },
+    ],
+  },
+];
+
+const SCHEMA_INDEX = new Map<string, TableSchema>(SCHEMA.map((table) => [table.name, table]));
 
 /**
- * Three fictional legal entities, so cross-company lessons have something to show.
- * TODO(phase-1): author these.
+ * Look up a table by name, case-insensitively — X++ identifiers are case-insensitive and
+ * learners will type `custTable`.
  */
-export const COMPANIES: readonly CompanyDefinition[] = [];
+export function getTableSchema(name: string): TableSchema | undefined {
+  return SCHEMA_INDEX.get(name) ?? SCHEMA.find((t) => t.name.toLowerCase() === name.toLowerCase());
+}
 
-export function getTableSchema(_name: string): TableSchema | undefined {
-  throw new Error("not implemented");
+export function isTableName(name: string): name is TableName {
+  return getTableSchema(name) !== undefined;
+}
+
+export function getCompany(id: string): CompanyDefinition | undefined {
+  return COMPANIES.find((company) => company.id === id);
 }

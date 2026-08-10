@@ -19,7 +19,7 @@ interface even if unimplemented.
 
 ---
 
-## Phase 1 — Virtual database
+## Phase 1 — Virtual database ✅
 
 `packages/virtual-db`. sql.js in a Web Worker. Schema for a starter table set, each with
 `RECID` (autoincrement) and `DATAAREAID`:
@@ -34,6 +34,12 @@ and reset so every lesson run starts from a known state.
 
 **Accept:** a test seeds, opens nested transactions, aborts the inner one, and asserts the
 outer state is intact; company filtering returns only the active `DATAAREAID`.
+
+> **Amended during Phase 1.** "Abort the inner one, outer state intact" is SQLite
+> savepoint behaviour, not X++ behaviour — `ttsabort` discards the whole transaction from
+> any depth (VB-001). Both are implemented and tested at the layer where each is true:
+> `test/savepoints.test.ts` for the criterion as written, `test/transactions.test.ts` for
+> the X++ semantics. See the note in `docs/verified-behaviour.md`.
 
 ---
 

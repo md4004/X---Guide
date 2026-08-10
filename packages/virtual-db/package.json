@@ -14,6 +14,10 @@
   },
   "dependencies": {
     "@xpplab/xpp-core": "workspace:*",
-    "@xpplab/xpp-parser": "workspace:*"
+    "@xpplab/xpp-parser": "workspace:*",
+    "sql.js": "1.14.1"
+  },
+  "devDependencies": {
+    "@types/sql.js": "1.4.11"
   }
 }

@@ -6,8 +6,8 @@
 
 const phases = [
   { id: 0, name: "Scaffold", status: "done" },
-  { id: 1, name: "Virtual database", status: "next" },
-  { id: 2, name: "Lexer and parser", status: "todo" },
+  { id: 1, name: "Virtual database", status: "done" },
+  { id: 2, name: "Lexer and parser", status: "next" },
   { id: 3, name: "Interpreter", status: "todo" },
   { id: 4, name: "Playground UI", status: "todo" },
   { id: 5, name: "Lesson engine", status: "todo" },

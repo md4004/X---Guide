@@ -42,8 +42,13 @@ pnpm dev
 
 ## Status
 
-Phase 0 (scaffold) is complete: every engine package exports its typed public interface
-with unimplemented bodies, and CI runs typecheck, lint and tests.
+**Phase 0 (scaffold)** — every engine package exports its typed public interface, and CI
+runs typecheck, lint, format, tests and build.
 
-Phase 1 (virtual database) is next. See [PLAN.md](PLAN.md) for the full sequence and
-[docs/decisions.md](docs/decisions.md) for what still needs deciding.
+**Phase 1 (virtual database)** — sql.js in a Web Worker over 13 tables across three
+fictional legal entities, with real savepoint-backed nested transactions, X++ `ttsabort`
+semantics, company scoping, a SQL trace and snapshot/reset.
+
+Phase 2 (lexer and parser) is next, and is gated on signing off
+[docs/language-subset.md](docs/language-subset.md). See [PLAN.md](PLAN.md) for the full
+sequence and [docs/decisions.md](docs/decisions.md) for what still needs deciding.
