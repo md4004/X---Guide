@@ -1,0 +1,8 @@
+# Prettier is configured with endOfLine: "lf". Without this, a Windows checkout gets
+# CRLF working-copy files and `pnpm format:check` fails on a clean clone.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.wasm binary

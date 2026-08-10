@@ -1,0 +1,19 @@
+{
+  "name": "@xpplab/virtual-db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "sql.js-backed virtual AOS database: schema, seeds, savepoint transactions, select-to-SQL compiler.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xpplab/xpp-core": "workspace:*",
+    "@xpplab/xpp-parser": "workspace:*"
+  }
+}

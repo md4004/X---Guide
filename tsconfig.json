@@ -1,0 +1,37 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "verbatimModuleSyntax": false,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./*"],
+      "@xpplab/xpp-core": ["./packages/xpp-core/src/index.ts"],
+      "@xpplab/xpp-lexer": ["./packages/xpp-lexer/src/index.ts"],
+      "@xpplab/xpp-parser": ["./packages/xpp-parser/src/index.ts"],
+      "@xpplab/xpp-runtime": ["./packages/xpp-runtime/src/index.ts"],
+      "@xpplab/virtual-db": ["./packages/virtual-db/src/index.ts"],
+      "@xpplab/virtual-aot": ["./packages/virtual-aot/src/index.ts"],
+      "@xpplab/renderers": ["./packages/renderers/src/index.ts"],
+      "@xpplab/validators": ["./packages/validators/src/index.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "e2e/**/*.ts",
+    "*.ts",
+    "*.mts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "packages", ".next"]
+}

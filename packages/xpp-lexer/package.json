@@ -1,0 +1,18 @@
+{
+  "name": "@xpplab/xpp-lexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hand-written tokenizer for the X++ v1 teaching subset.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xpplab/xpp-core": "workspace:*"
+  }
+}

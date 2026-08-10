@@ -1,0 +1,20 @@
+{
+  "name": "@xpplab/renderers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure view-model builders for the form renderer, report renderer and OData console.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xpplab/xpp-core": "workspace:*",
+    "@xpplab/virtual-aot": "workspace:*",
+    "@xpplab/virtual-db": "workspace:*"
+  }
+}
