@@ -46,7 +46,7 @@ import type {
   SwitchCase,
   TypeReference,
   VariableDeclarator,
-} from "./ast.js";
+} from "./ast";
 
 export interface ParserOptions {
   maxErrors?: number;

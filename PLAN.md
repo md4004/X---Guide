@@ -83,7 +83,7 @@ expected SQL trace, and an expected final DB state. 30+ cases minimum.
 
 ---
 
-## Phase 4 — Playground UI
+## Phase 4 — Playground UI ✅
 
 Monaco with an X++ TextMate grammar, completions fed from the virtual AOT, inline error
 markers from the parser. Run button executes in the worker. Four result panels:
@@ -97,6 +97,11 @@ Reset-environment control. Shareable permalink encoding code + environment state
 
 **Accept:** paste a `while select` loop that updates rows, hit Run, and see all four panels
 populate correctly in under 500ms.
+
+> **Delivered** at `/playground`, asserted in `e2e/playground.spec.ts` including the
+> 500ms budget. The grammar is Monarch rather than TextMate — see docs/decisions.md — but
+> it and the completions are generated from the engine's own keyword and schema tables,
+> so the editor cannot disagree with the parser.
 
 ---
 

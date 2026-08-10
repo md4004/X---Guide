@@ -12,9 +12,9 @@
  */
 
 import type { CompanyId, SqlTraceEntry, SqlValue } from "@xpplab/xpp-core";
-import { DbCore, type DbCoreOptions, type ReadRowsOptions } from "../core/database.js";
-import type { SeedName } from "../seeds/index.js";
-import type { TableName } from "../schema.js";
+import { DbCore, type DbCoreOptions, type ReadRowsOptions } from "../core/database";
+import type { SeedName } from "../seeds/index";
+import type { TableName } from "../schema";
 
 export interface SnapshotPayload {
   seed: SeedName;

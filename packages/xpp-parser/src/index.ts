@@ -6,12 +6,12 @@
  * than one.
  */
 
-import type { Node } from "./ast.js";
+import type { Node } from "./ast";
 
-export * from "./ast.js";
-export { parse, parseExpression } from "./parser.js";
-export type { ParseResult, ParserOptions } from "./parser.js";
-export { walk, findAll, isInsideTransaction, childrenOf } from "./walk.js";
+export * from "./ast";
+export { parse, parseExpression } from "./parser";
+export type { ParseResult, ParserOptions } from "./parser";
+export { walk, findAll, isInsideTransaction, childrenOf } from "./walk";
 
 // ---------------------------------------------------------------------------
 // Traversal types

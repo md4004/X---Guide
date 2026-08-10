@@ -21,13 +21,13 @@
  *   interpreter.ts  the evaluator
  */
 
-export { run, Interpreter } from "./interpreter.js";
-export type { RunOptions, RunResult } from "./interpreter.js";
+export { run, Interpreter } from "./interpreter";
+export type { RunOptions, RunResult } from "./interpreter";
 
-export { createInfolog } from "./infolog.js";
-export type { Infolog } from "./infolog.js";
+export { createInfolog } from "./infolog";
+export type { Infolog } from "./infolog";
 
-export { Scope, closestName } from "./scope.js";
+export { Scope, closestName } from "./scope";
 
 export {
   RuntimeError,
@@ -35,11 +35,11 @@ export {
   BudgetExceeded,
   catchMatches,
   isCatchableInsideTransaction,
-} from "./errors.js";
-export type { XppExceptionName } from "./errors.js";
+} from "./errors";
+export type { XppExceptionName } from "./errors";
 
-export { BUILTINS, callBuiltin, isBuiltin, formatString } from "./builtins.js";
-export type { Builtin, BuiltinContext } from "./builtins.js";
+export { BUILTINS, callBuiltin, isBuiltin, formatString } from "./builtins";
+export type { Builtin, BuiltinContext } from "./builtins";
 
 export {
   VOID,
@@ -57,8 +57,8 @@ export {
   fromSqlValue,
   valuesEqual,
   arithmeticResult,
-} from "./values.js";
-export type { XppValue, TableBuffer, ObjectInstance, XppCollection } from "./values.js";
+} from "./values";
+export type { XppValue, TableBuffer, ObjectInstance, XppCollection } from "./values";
 
 /**
  * Parse and run in one call.
@@ -66,5 +66,5 @@ export type { XppValue, TableBuffer, ObjectInstance, XppCollection } from "./val
  * The lesson runner wants this: it has source, not an AST, and a parse failure means no
  * validators run at all (see the runner contract in docs/lesson-schema.md).
  */
-export { runSource } from "./runSource.js";
-export type { RunSourceOptions, RunSourceResult } from "./runSource.js";
+export { runSource } from "./runSource";
+export type { RunSourceOptions, RunSourceResult } from "./runSource";

@@ -59,5 +59,11 @@ operator precedence is implemented and pinned, and it is not C's — see VB-005 
 compiler whose output is a learner-facing feature. 55 golden cases pin the Infolog, the
 SQL trace and the resulting database state.
 
-Phase 4 (playground UI) is next. See [PLAN.md](PLAN.md) for the full sequence and
+**Phase 4 (playground UI)** — the sandbox at `/playground`: Monaco with X++ highlighting
+and schema-aware completions, inline parse markers, and four result panels (Infolog,
+Data, SQL trace, Errors). The whole engine runs in a Web Worker, so an infinite loop
+cannot freeze the tab. Shareable permalinks keep the code in the URL fragment, so nothing
+is ever sent to a server.
+
+Phase 5 (lesson engine) is next. See [PLAN.md](PLAN.md) for the full sequence and
 [docs/decisions.md](docs/decisions.md) for what still needs deciding.

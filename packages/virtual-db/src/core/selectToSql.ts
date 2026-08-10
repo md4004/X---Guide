@@ -19,8 +19,8 @@ import type {
   SelectJoin,
   SelectSource,
 } from "@xpplab/xpp-parser";
-import { DATAAREAID_FIELD, RECID_FIELD, getTableSchema, type TableName } from "../schema.js";
-import { getBaseEnum } from "../enums.js";
+import { DATAAREAID_FIELD, RECID_FIELD, getTableSchema, type TableName } from "../schema";
+import { getBaseEnum } from "../enums";
 
 export interface SelectToSqlOptions {
   /** The active company, injected as a `DATAAREAID` predicate unless `crosscompany`. */

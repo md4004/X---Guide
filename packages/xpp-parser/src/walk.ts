@@ -10,7 +10,7 @@
  * a node is one.
  */
 
-import type { Node, NodePath, SourceUnit, Statement, Visitor } from "./index.js";
+import type { Node, NodePath, SourceUnit, Statement, Visitor } from "./index";
 
 function isNode(value: unknown): value is Node {
   return (

@@ -1,8 +1,8 @@
-import { defaultSeed } from "./default.js";
-import type { SeedDefinition, SeedName } from "./types.js";
+import { defaultSeed } from "./default";
+import type { SeedDefinition, SeedName } from "./types";
 
-export type { SeedDefinition, SeedName } from "./types.js";
-export { defaultSeed } from "./default.js";
+export type { SeedDefinition, SeedName } from "./types";
+export { defaultSeed } from "./default";
 
 /**
  * Schema, no rows. For lessons that teach "what happens when the select finds nothing",

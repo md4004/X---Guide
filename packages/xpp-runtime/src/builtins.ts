@@ -8,9 +8,9 @@
  */
 
 import { XppErrorCodes } from "@xpplab/xpp-core";
-import { RuntimeError } from "./errors.js";
-import type { Infolog } from "./infolog.js";
-import { NULL, VOID, int, real, str, toDisplayString, toNumber, type XppValue } from "./values.js";
+import { RuntimeError } from "./errors";
+import type { Infolog } from "./infolog";
+import { NULL, VOID, int, real, str, toDisplayString, toNumber, type XppValue } from "./values";
 
 export interface BuiltinContext {
   infolog: Infolog;

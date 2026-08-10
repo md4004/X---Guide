@@ -16,13 +16,13 @@ import {
   getCompany,
   getTableSchema,
   type TableName,
-} from "../schema.js";
-import { getSeed, type SeedName } from "../seeds/index.js";
-import { createSchemaStatements, dropSchemaStatements } from "./ddl.js";
-import { SavepointStack } from "./savepoints.js";
-import { SqlTrace } from "./trace.js";
-import { TransactionManager, type TransactionState } from "./transactions.js";
-import { openDatabase, type SqliteHandle } from "./sqlite.js";
+} from "../schema";
+import { getSeed, type SeedName } from "../seeds/index";
+import { createSchemaStatements, dropSchemaStatements } from "./ddl";
+import { SavepointStack } from "./savepoints";
+import { SqlTrace } from "./trace";
+import { TransactionManager, type TransactionState } from "./transactions";
+import { openDatabase, type SqliteHandle } from "./sqlite";
 
 export interface QueryResult {
   columns: string[];

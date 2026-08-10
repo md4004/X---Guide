@@ -237,4 +237,4 @@ export interface LexResult {
  * `errors` and the scan resumes at the next character so the parser still gets a
  * usable stream.
  */
-export { tokenize } from "./lexer.js";
+export { tokenize } from "./lexer";

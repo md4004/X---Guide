@@ -23,7 +23,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["packages/*/test/**/*.test.ts"],
+    include: ["packages/*/test/**/*.test.ts", "lib/**/*.test.ts"],
     // Playwright owns everything under e2e/.
     exclude: ["**/node_modules/**", "e2e/**", ".next/**"],
   },

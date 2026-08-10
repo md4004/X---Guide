@@ -13,7 +13,7 @@
  * Sources for both are logged in docs/verified-behaviour.md.
  */
 
-import type { SavepointStack } from "./savepoints.js";
+import type { SavepointStack } from "./savepoints";
 
 export interface TransactionState {
   depth: number;

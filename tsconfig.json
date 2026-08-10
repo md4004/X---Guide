@@ -1,7 +1,10 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2017",
+    // Matches tsconfig.base.json. The app's tsconfig also governs the engine packages it
+    // imports through `paths`, so a lower target here would reject syntax those packages
+    // legitimately use.
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "jsx": "react-jsx",

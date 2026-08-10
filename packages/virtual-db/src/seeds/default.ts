@@ -18,9 +18,9 @@
  */
 
 import type { SqlValue } from "@xpplab/xpp-core";
-import { enumValue } from "../enums.js";
-import { SHARED_DATAAREAID, type TableName } from "../schema.js";
-import type { SeedDefinition } from "./types.js";
+import { enumValue } from "../enums";
+import { SHARED_DATAAREAID, type TableName } from "../schema";
+import type { SeedDefinition } from "./types";
 
 type Row = Record<string, SqlValue>;
 

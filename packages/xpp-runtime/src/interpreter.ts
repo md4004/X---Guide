@@ -41,7 +41,7 @@ import {
   type TableName,
   type VirtualDb,
 } from "@xpplab/virtual-db";
-import { callBuiltin, formatString, isBuiltin } from "./builtins.js";
+import { callBuiltin, formatString, isBuiltin } from "./builtins";
 import {
   BudgetExceeded,
   RuntimeError,
@@ -49,9 +49,9 @@ import {
   catchMatches,
   isCatchableInsideTransaction,
   type XppExceptionName,
-} from "./errors.js";
-import { createInfolog, type Infolog } from "./infolog.js";
-import { Scope, closestName } from "./scope.js";
+} from "./errors";
+import { createInfolog, type Infolog } from "./infolog";
+import { Scope, closestName } from "./scope";
 import {
   NULL,
   VOID,
@@ -69,7 +69,7 @@ import {
   valuesEqual,
   type TableBuffer,
   type XppValue,
-} from "./values.js";
+} from "./values";
 
 export interface RunOptions {
   ast: SourceUnit;
@@ -1449,7 +1449,8 @@ function literalOf(value: XppValue): Expression {
  * `AGG(alias.COLUMN)` — none can contain the word FROM.
  */
 function splitSelect(sql: string, span: SourceSpan): [string, string] {
-  const match = /^SELECT (.+?) (FROM .+)$/s.exec(sql);
+  // `[\s\S]` rather than `.` with the `s` flag: no dependency on the compile target.
+  const match = /^SELECT ([\s\S]+?) (FROM [\s\S]+)$/.exec(sql);
   if (match?.[1] === undefined || match[2] === undefined) {
     throw new RuntimeError(
       XppErrorCodes.ConstructOutsideSubset,
@@ -1467,7 +1468,7 @@ function splitSelect(sql: string, span: SourceSpan): [string, string] {
  * reuse it. The alias prefixes are stripped because a single-table UPDATE has no alias.
  */
 function extractWhere(sql: string, alias: string): string | undefined {
-  const match = /\bWHERE\b(.*?)(?:\s+(?:ORDER BY|GROUP BY|LIMIT)\b|$)/s.exec(sql);
+  const match = /\bWHERE\b([\s\S]*?)(?:\s+(?:ORDER BY|GROUP BY|LIMIT)\b|$)/.exec(sql);
   if (match?.[1] === undefined) return undefined;
   return match[1].trim().replaceAll(`${alias}.`, "");
 }

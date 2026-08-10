@@ -1,5 +1,5 @@
 import type { SqlValue } from "@xpplab/xpp-core";
-import type { TableName } from "../schema.js";
+import type { TableName } from "../schema";
 
 /**
  * Named dataset variants. A lesson picks one via `seed:` in its frontmatter, so a lesson

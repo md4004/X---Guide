@@ -13,16 +13,16 @@
  */
 
 import type { CompanyId, SqlTraceEntry, SqlValue } from "@xpplab/xpp-core";
-import { DEFAULT_COMPANY, getCompany, type TableName } from "./schema.js";
-import type { SeedName } from "./seeds/index.js";
-import type { QueryResult, ReadRowsOptions, Row } from "./core/database.js";
-import type { TransactionState } from "./core/transactions.js";
+import { DEFAULT_COMPANY, getCompany, type TableName } from "./schema";
+import type { SeedName } from "./seeds/index";
+import type { QueryResult, ReadRowsOptions, Row } from "./core/database";
+import type { TransactionState } from "./core/transactions";
 import {
   createRequestHandler,
   type DbRequest,
   type DbResult,
   type SnapshotPayload,
-} from "./worker/protocol.js";
+} from "./worker/protocol";
 
 export interface Transport {
   send(request: DbRequest): Promise<DbResult>;

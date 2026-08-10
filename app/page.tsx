@@ -9,8 +9,8 @@ const phases = [
   { id: 1, name: "Virtual database", status: "done" },
   { id: 2, name: "Lexer and parser", status: "done" },
   { id: 3, name: "Interpreter", status: "done" },
-  { id: 4, name: "Playground UI", status: "next" },
-  { id: 5, name: "Lesson engine", status: "todo" },
+  { id: 4, name: "Playground UI", status: "done" },
+  { id: 5, name: "Lesson engine", status: "next" },
   { id: 6, name: "X++ for NAV/BC developers", status: "todo" },
 ] as const;
 
@@ -32,6 +32,15 @@ export default function Home() {
           Write real X++ in the browser and immediately see what it did — the Infolog, the rows that
           changed, and the SQL your <code className="font-mono text-zinc-300">while select</code>{" "}
           actually generated. Built for developers arriving from Dynamics NAV and Business Central.
+        </p>
+
+        <p>
+          <a
+            href="/playground"
+            className="inline-flex items-center gap-2 rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-sky-950 transition hover:bg-sky-400"
+          >
+            Open the sandbox
+          </a>
         </p>
       </header>
 

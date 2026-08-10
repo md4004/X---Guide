@@ -8,8 +8,8 @@
  * Bundled by Phase 4 with `new Worker(new URL("...worker.js", import.meta.url))`.
  */
 
-import type { DbCoreOptions } from "../core/database.js";
-import { createRequestHandler, type DbRequest, type RequestHandler } from "./protocol.js";
+import type { DbCoreOptions } from "../core/database";
+import { createRequestHandler, type DbRequest, type RequestHandler } from "./protocol";
 
 export type WorkerMessage =
   | { id: number; kind: "init"; options: DbCoreOptions }

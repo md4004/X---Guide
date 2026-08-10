@@ -14,24 +14,24 @@
  *   client.ts        the async `VirtualDb` proxy over a transport
  */
 
-export * from "./schema.js";
-export * from "./enums.js";
-export * from "./seeds/index.js";
+export * from "./schema";
+export * from "./enums";
+export * from "./seeds/index";
 
-export { createVirtualDb, createInProcessTransport, createWorkerTransport } from "./client.js";
-export type { Snapshot, Transport, VirtualDb, VirtualDbOptions, WorkerLike } from "./client.js";
+export { createVirtualDb, createInProcessTransport, createWorkerTransport } from "./client";
+export type { Snapshot, Transport, VirtualDb, VirtualDbOptions, WorkerLike } from "./client";
 
-export { DbCore } from "./core/database.js";
-export type { DbCoreOptions, QueryResult, ReadRowsOptions, Row } from "./core/database.js";
+export { DbCore } from "./core/database";
+export type { DbCoreOptions, QueryResult, ReadRowsOptions, Row } from "./core/database";
 
-export { SavepointStack } from "./core/savepoints.js";
-export { TransactionManager } from "./core/transactions.js";
-export type { TransactionState } from "./core/transactions.js";
+export { SavepointStack } from "./core/savepoints";
+export { TransactionManager } from "./core/transactions";
+export type { TransactionState } from "./core/transactions";
 
-export { createSchemaStatements, createTableStatement, createIndexStatements } from "./core/ddl.js";
+export { createSchemaStatements, createTableStatement, createIndexStatements } from "./core/ddl";
 
-export { createRequestHandler } from "./worker/protocol.js";
-export type { DbRequest, DbResult, RequestHandler, SnapshotPayload } from "./worker/protocol.js";
+export { createRequestHandler } from "./worker/protocol";
+export type { DbRequest, DbResult, RequestHandler, SnapshotPayload } from "./worker/protocol";
 
-export { selectToSql, isCompiled } from "./core/selectToSql.js";
-export type { CompiledSelect, SelectCompilation, SelectToSqlOptions } from "./core/selectToSql.js";
+export { selectToSql, isCompiled } from "./core/selectToSql";
+export type { CompiledSelect, SelectCompilation, SelectToSqlOptions } from "./core/selectToSql";

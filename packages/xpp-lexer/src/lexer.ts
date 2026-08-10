@@ -16,7 +16,7 @@ import {
   type TriviaKind,
   type XppKeyword,
   type XppPunctuator,
-} from "./index.js";
+} from "./index";
 
 export function tokenize(source: string, options: LexerOptions = {}): LexResult {
   return new Lexer(source, options).run();

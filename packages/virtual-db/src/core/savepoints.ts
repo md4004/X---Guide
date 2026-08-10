@@ -10,7 +10,7 @@
  * means each can be tested for what it actually does.
  */
 
-import type { SqliteHandle } from "./sqlite.js";
+import type { SqliteHandle } from "./sqlite";
 
 /** Called for each statement so the caller can record it in the learner-visible trace. */
 export type SavepointObserver = (

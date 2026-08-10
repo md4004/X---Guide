@@ -7,7 +7,7 @@
  * error, because the real compiler would not give them one.
  */
 
-import type { XppValue } from "./values.js";
+import type { XppValue } from "./values";
 
 interface Binding {
   /** The name as it was written, for diagnostics. */

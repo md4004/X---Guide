@@ -9,7 +9,7 @@
 import { parse } from "@xpplab/xpp-parser";
 import type { VirtualDb } from "@xpplab/virtual-db";
 import type { CompanyId } from "@xpplab/xpp-core";
-import { run, type RunResult } from "./interpreter.js";
+import { run, type RunResult } from "./interpreter";
 
 export interface RunSourceOptions {
   source: string;

@@ -6,13 +6,7 @@
  * business fields first, system fields at the end.
  */
 
-import {
-  DATAAREAID_FIELD,
-  RECID_FIELD,
-  SCHEMA,
-  type FieldType,
-  type TableSchema,
-} from "../schema.js";
+import { DATAAREAID_FIELD, RECID_FIELD, SCHEMA, type FieldType, type TableSchema } from "../schema";
 
 /** SQLite storage class for each X++ base type. */
 function storageClass(type: FieldType): string {

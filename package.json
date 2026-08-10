@@ -4,24 +4,28 @@
   "private": true,
   "packageManager": "pnpm@11.21.0",
   "engines": {
-    "node": "\u003e=20.11"
+    "node": ">=20.11"
   },
   "scripts": {
+    "prepare:assets": "node scripts/copy-sql-wasm.mjs",
+    "predev": "pnpm run prepare:assets",
     "dev": "next dev",
+    "prebuild": "pnpm run prepare:assets",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typegen": "next typegen",
-    "typecheck": "next typegen \u0026\u0026 tsc --noEmit \u0026\u0026 pnpm -r --filter \"./packages/*\" typecheck",
+    "typecheck": "next typegen && tsc --noEmit && pnpm -r --filter \"./packages/*\" typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "ci": "pnpm run typecheck \u0026\u0026 pnpm run lint \u0026\u0026 pnpm run test"
+    "ci": "pnpm run typecheck && pnpm run lint && pnpm run test"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@monaco-editor/react": "4.7.0",
     "@xpplab/renderers": "workspace:*",
     "@xpplab/validators": "workspace:*",
     "@xpplab/virtual-aot": "workspace:*",
@@ -33,6 +37,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.30.0",
+    "monaco-editor": "0.56.0",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -49,9 +54,9 @@
     "eslint-config-next": "16.3.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.6",
+    "shadcn": "^4.16.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10",
-    "shadcn": "^4.16.2"
+    "vitest": "^4.1.10"
   }
 }
