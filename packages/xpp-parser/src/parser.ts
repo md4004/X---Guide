@@ -573,9 +573,7 @@ class Parser {
         case "retry":
           this.#next();
           this.#expectPunctuator(";", "after 'retry'");
-          // `retry` is modelled as a continue inside the catch handler; the runtime
-          // gives it its meaning in Phase 3.
-          return { kind: "continue", span: { start, end: this.#previousEnd() } };
+          return { kind: "retry", span: { start, end: this.#previousEnd() } };
         case "return":
           return this.#returnStatement();
         case "throw":

@@ -84,6 +84,7 @@ export const XppErrorCodes = {
   TransactionNotStarted: "XR103",
   DeadlockException: "XR104",
   UpdateConflictException: "XR105",
+  UnhandledException: "XR106",
   ExecutionTimeout: "XR200",
   StatementBudgetExceeded: "XR201",
 

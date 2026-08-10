@@ -83,7 +83,7 @@
                   "kind": "block",
                   "statements": [
                     {
-                      "kind": "continue"
+                      "kind": "retry"
                     }
                   ]
                 }

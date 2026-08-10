@@ -18,9 +18,7 @@ import {
   createTableStatement,
   getBaseEnum,
   getTableSchema,
-  selectToSql,
 } from "../src/index.js";
-import type { SelectClauses } from "@xpplab/xpp-parser";
 
 describe("table set", () => {
   it("defines every table named in the Phase 1 plan, and no others", () => {
@@ -199,10 +197,4 @@ describe("seed data", () => {
   });
 });
 
-describe("still unimplemented", () => {
-  it("selectToSql waits for the parser in Phase 3", () => {
-    expect(() =>
-      selectToSql({} as SelectClauses, { company: "HVND", resolveBuffer: () => undefined }),
-    ).toThrowError("not implemented");
-  });
-});
+// selectToSql is covered end to end in selectToSql.test.ts, against real parsed input.

@@ -29,6 +29,9 @@ against a real environment.
 | Index selection                   | Our indexes lead with `DATAAREAID` on company-scoped tables, mirroring F&O                                                                                                           | Compare against a real table's index definitions. Cosmetic today; matters if Phase 7 ever shows index metadata                    |
 | `%` as a modulo operator          | The MS Learn precedence table lists `%` among the multiplicative operators, but the arithmetic operators table and every code example use `mod`. The same page disagrees with itself | Compile `int x = 7 % 3;` in a real environment. Until then the lexer accepts `mod` only, and `%` lexes as an unexpected character |
 
+| ttsLevel check across _nested_ scopes | Selecting `forupdate` in an outer transaction and writing inside a nested one is allowed. The documented failure (VB-004) is two _sibling_ blocks; the nested case is not stated either way | Select forupdate at ttsLevel 1, open a nested ttsBegin, then update. If a real AOS rejects it, tighten the check in `#requireSelectedForUpdate` to compare against the innermost scope only |
+| Date literal component order | `31\12\2026` is lexed and kept as source text without deciding whether it is day\month\year. Nothing depends on the interpretation yet | Assign a date literal and print it with `date2Str` in a real environment |
+
 ## Deliberately not modelled in Phase 1
 
 - **Referential integrity.** The schema declares relations, but `PRAGMA foreign_keys` is

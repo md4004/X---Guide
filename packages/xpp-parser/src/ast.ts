@@ -115,6 +115,7 @@ export type Statement =
   | SwitchStatement
   | BreakStatement
   | ContinueStatement
+  | RetryStatement
   | ReturnStatement
   | ThrowStatement
   | TryCatchStatement
@@ -198,6 +199,18 @@ export interface BreakStatement extends NodeBase {
 
 export interface ContinueStatement extends NodeBase {
   kind: "continue";
+}
+
+/**
+ * `retry` — jump back to the first line of the enclosing `try` block.
+ *
+ * Not a `continue`. Two things make it its own statement (VB-009, VB-011): it is valid
+ * only inside a `catch`, and it erases every Infolog message written since control
+ * entered the `try` block. That erasure is startling the first time you meet it, which
+ * makes it worth modelling exactly rather than approximating.
+ */
+export interface RetryStatement extends NodeBase {
+  kind: "retry";
 }
 
 export interface ReturnStatement extends NodeBase {

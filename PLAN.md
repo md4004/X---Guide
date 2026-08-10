@@ -60,7 +60,7 @@ ASTs, including 10 deliberately broken snippets that produce the expected error 
 
 ---
 
-## Phase 3 — Interpreter
+## Phase 3 — Interpreter ✅
 
 `packages/xpp-runtime`. Tree-walking evaluator over the AST. Scope chain, table buffers as
 first-class values, method dispatch, Infolog sink, transaction integration with Phase 1.
@@ -74,6 +74,12 @@ update.
 
 **Accept:** a golden-file suite where each `.xpp` input has an expected Infolog output, an
 expected SQL trace, and an expected final DB state. 30+ cases minimum.
+
+> **Delivered:** 55 golden cases in `packages/xpp-runtime/fixtures/`. Three of them —
+> VB-008, VB-009, VB-010 — reproduce worked examples whose expected Infolog output
+> Microsoft publishes, so their expectation is not ours. One of those caught a real
+> inversion in the VB-008 logic that a self-authored expectation would have blessed;
+> they are re-asserted explicitly in `test/sourced.test.ts` for that reason.
 
 ---
 

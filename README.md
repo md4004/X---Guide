@@ -54,5 +54,10 @@ a 66-snippet fixture corpus, with error recovery and teaching-grade diagnostics.
 operator precedence is implemented and pinned, and it is not C's — see VB-005 in
 [docs/verified-behaviour.md](docs/verified-behaviour.md).
 
-Phase 3 (interpreter) is next. See [PLAN.md](PLAN.md) for the full sequence and
+**Phase 3 (interpreter)** — tree-walking evaluator with real transaction semantics, the
+`forUpdate` and `ttsLevel` integrity checks, X++ exception rules, and a `select`→SQL
+compiler whose output is a learner-facing feature. 55 golden cases pin the Infolog, the
+SQL trace and the resulting database state.
+
+Phase 4 (playground UI) is next. See [PLAN.md](PLAN.md) for the full sequence and
 [docs/decisions.md](docs/decisions.md) for what still needs deciding.

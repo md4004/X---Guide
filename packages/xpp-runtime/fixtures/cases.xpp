@@ -1,0 +1,533 @@
+// The golden-file corpus.
+//
+// Each `//== name` snippet is executed against a freshly seeded database. The test
+// records three things per case and commits them as a golden file:
+//   1. the Infolog, in order
+//   2. the SQL trace, parameterised and in order
+//   3. the rows that changed, and any errors
+//
+// Three cases are marked SOURCED: their expected Infolog output is published by
+// Microsoft in the X++ exception-handling reference, so the golden file is not our
+// opinion of what should happen. Those are the strongest tests in the engine — do not
+// "fix" one by editing its expected output.
+
+//== hello-infolog
+info("Hello from X++");
+
+//== infolog-levels
+info("an informational message");
+warning("something to look at");
+error("something went wrong");
+
+//== strfmt-placeholders
+info(strFmt("%1 owes %2", "C-1000", 4188.50));
+info(strFmt("%1 and again %1", "repeated"));
+
+//== primitives-defaults
+str name;
+int counter;
+real price;
+boolean flag;
+info(strFmt("[%1] [%2] [%3] [%4]", name, counter, price, flag));
+
+//== arithmetic
+info(strFmt("%1", 1 + 2 * 3));
+info(strFmt("%1", 100 div 21));
+info(strFmt("%1", 100 mod 21));
+info(strFmt("%1", 7 / 2));
+
+//== precedence-logical
+// VB-005: && and || share a level and run left to right.
+info(strFmt("%1", 0 && 0 || 1));
+info(strFmt("%1", 1 || 0 && 0));
+
+//== string-concatenation
+str greeting = "Hello" + ", " + "world";
+info(greeting);
+info(strFmt("%1", strLen(greeting)));
+info(strUpr(greeting));
+info(subStr(greeting, 1, 5));
+
+//== boolean-display
+info(strFmt("%1", true));
+info(strFmt("%1", false));
+
+//== enum-display
+// Enums render as their value name, not their ordinal.
+info(strFmt("%1", NoYes::Yes));
+info(strFmt("%1", NoYes::No));
+
+//== control-flow-if
+int counter = 5;
+if (counter > 3)
+{
+    info("greater");
+}
+else
+{
+    info("not greater");
+}
+
+//== control-flow-while
+int n = 0;
+while (n < 3)
+{
+    info(strFmt("n is %1", n));
+    n++;
+}
+
+//== control-flow-for
+int i;
+for (i = 0; i < 3; i++)
+{
+    info(strFmt("i is %1", i));
+}
+
+//== control-flow-switch
+int value = 2;
+switch (value)
+{
+    case 1:
+        info("one");
+        break;
+
+    case 2:
+        info("two");
+        break;
+
+    default:
+        info("many");
+}
+
+//== control-flow-break-continue
+int i;
+for (i = 0; i < 6; i++)
+{
+    if (i == 2)
+    {
+        continue;
+    }
+    if (i == 4)
+    {
+        break;
+    }
+    info(strFmt("%1", i));
+}
+
+//== container-operations
+container packed = [1, "two", 3.0];
+info(strFmt("%1", conLen(packed)));
+info(strFmt("%1", conPeek(packed, 2)));
+
+//== select-firstonly
+CustTable custTable;
+select firstonly custTable where custTable.AccountNum == "C-1000";
+info(strFmt("%1 in %2", custTable.AccountNum, custTable.CurrencyCode));
+
+//== select-not-found
+CustTable custTable;
+select firstonly custTable where custTable.AccountNum == "NOT-A-CUSTOMER";
+if (!custTable.AccountNum)
+{
+    info("no such customer");
+}
+
+//== while-select-count
+InventTable inventTable;
+int counter;
+while select inventTable
+{
+    counter++;
+}
+info(strFmt("%1 items", counter));
+
+//== while-select-where
+InventTable inventTable;
+while select inventTable where inventTable.ItemGroupId == "FURNITURE"
+{
+    info(inventTable.ItemId);
+}
+
+//== select-field-list
+CustTable custTable;
+while select AccountNum, CreditMax from custTable where custTable.CustGroup == "RETAIL"
+{
+    info(strFmt("%1 %2", custTable.AccountNum, custTable.CreditMax));
+}
+
+//== select-order-by
+CustTrans custTrans;
+while select custTrans order by custTrans.TransDate desc
+{
+    info(strFmt("%1 %2", custTrans.TransDate, custTrans.Voucher));
+}
+
+//== select-firstonly10
+CustTrans custTrans;
+int counter;
+while select firstonly10 custTrans
+{
+    counter++;
+}
+info(strFmt("%1 rows", counter));
+
+//== select-inner-join
+SalesTable salesTable;
+SalesLine salesLine;
+while select salesTable
+    join salesLine
+    where salesLine.SalesId == salesTable.SalesId
+{
+    info(strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId));
+}
+
+//== select-exists-join
+CustTable custTable;
+SalesTable salesTable;
+while select custTable
+    exists join salesTable
+    where salesTable.CustAccount == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}
+
+//== select-notexists-join
+CustTable custTable;
+SalesTable salesTable;
+while select custTable
+    notexists join salesTable
+    where salesTable.CustAccount == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}
+
+//== select-like
+InventTable inventTable;
+while select inventTable where inventTable.ItemId like "F-1*"
+{
+    info(inventTable.ItemId);
+}
+
+//== select-compound-where
+InventTable inventTable;
+while select inventTable
+    where inventTable.ItemGroupId == "FURNITURE"
+       && inventTable.Blocked == NoYes::No
+{
+    info(inventTable.ItemId);
+}
+
+//== company-scoping-default
+CustTable custTable;
+int counter;
+while select custTable
+{
+    counter++;
+}
+info(strFmt("%1 customers in %2", counter, curExt()));
+
+//== company-scoping-changecompany
+CustTable custTable;
+int counter;
+changecompany ("KELT")
+{
+    while select custTable
+    {
+        counter++;
+    }
+}
+info(strFmt("%1 customers in KELT", counter));
+
+//== company-scoping-crosscompany
+CustTable custTable;
+int counter;
+while select crosscompany custTable
+{
+    counter++;
+}
+info(strFmt("%1 customers across all companies", counter));
+
+//== transaction-insert
+CustTable custTable;
+ttsbegin;
+custTable.AccountNum = "C-9999";
+custTable.CustGroup = "RETAIL";
+custTable.CurrencyCode = "GBP";
+custTable.insert();
+ttscommit;
+info("inserted");
+
+//== transaction-update-forupdate
+InventTable inventTable;
+ttsbegin;
+select forupdate inventTable where inventTable.ItemId == "F-100";
+inventTable.ItemName = "Renamed desk";
+inventTable.update();
+ttscommit;
+info("updated");
+
+//== error-update-without-forupdate
+// VB-003: the forUpdate check. Reading without forupdate gives a read-only buffer.
+InventTable inventTable;
+ttsbegin;
+select inventTable where inventTable.ItemId == "F-100";
+inventTable.ItemName = "Should not stick";
+inventTable.update();
+ttscommit;
+
+//== error-write-outside-transaction
+CustTable custTable;
+custTable.AccountNum = "C-8888";
+custTable.insert();
+
+//== error-uncommitted-transaction
+// An open transaction at the end of a run is a defect, and the changes are rolled back.
+CustTable custTable;
+ttsbegin;
+custTable.AccountNum = "C-7777";
+custTable.insert();
+info("about to end without committing");
+
+//== transaction-abort-discards-everything
+// VB-001: ttsabort discards the whole transaction, from any depth.
+InventTable inventTable;
+ttsbegin;
+delete_from inventTable where inventTable.ItemGroupId == "FURNITURE";
+ttsabort;
+
+int remaining;
+while select inventTable where inventTable.ItemGroupId == "FURNITURE"
+{
+    remaining++;
+}
+info(strFmt("%1 furniture items survived the abort", remaining));
+
+//== transaction-nested-abort-from-depth-two
+// VB-001 again, from depth 2: the outer insert goes too.
+CustTable custTable;
+ttsbegin;
+custTable.AccountNum = "C-OUTER";
+custTable.insert();
+ttsbegin;
+custTable.clear();
+custTable.AccountNum = "C-INNER";
+custTable.insert();
+ttsabort;
+
+int counter;
+while select custTable where custTable.AccountNum like "C-*"
+{
+    counter++;
+}
+info(strFmt("%1 matching customers after the abort", counter));
+
+//== set-based-update-recordset
+InventTable inventTable;
+ttsbegin;
+update_recordset inventTable
+    setting Blocked = NoYes::Yes
+    where inventTable.ItemGroupId == "FURNITURE";
+ttscommit;
+info("blocked the furniture group");
+
+//== set-based-vs-loop
+// The state is identical to the loop below; the SQL trace is not. That contrast is
+// lesson 6, and it is why the trace is a headline feature.
+InventTable inventTable;
+ttsbegin;
+while select forupdate inventTable where inventTable.ItemGroupId == "FURNITURE"
+{
+    inventTable.Blocked = NoYes::Yes;
+    inventTable.update();
+}
+ttscommit;
+info("blocked the furniture group, one row at a time");
+
+//== set-based-delete-from
+InventTable inventTable;
+ttsbegin;
+delete_from inventTable where inventTable.ItemGroupId == "COMPONENT";
+ttscommit;
+
+int remaining;
+while select inventTable where inventTable.ItemGroupId == "COMPONENT"
+{
+    remaining++;
+}
+info(strFmt("%1 components remain", remaining));
+
+//== set-based-insert-recordset
+// Copies HVND's raw materials into KELT. The target has to be a different company,
+// because ItemId is unique per company — copying onto itself is the duplicate-key case
+// below.
+InventTable source;
+InventTable target;
+int counter;
+
+ttsbegin;
+changecompany ("KELT")
+{
+    insert_recordset target (ItemId, ItemName, ItemGroupId)
+        select ItemId, ItemName, ItemGroupId from source
+        where source.ItemGroupId == "RAWMAT";
+}
+ttscommit;
+
+changecompany ("KELT")
+{
+    while select target where target.ItemGroupId == "RAWMAT"
+    {
+        counter++;
+    }
+}
+info(strFmt("%1 raw material rows in KELT after the copy", counter));
+
+//== error-duplicate-key
+// A unique index violation surfaces as DuplicateKeyException, not as a SQLite message.
+CustTable custTable;
+ttsbegin;
+custTable.AccountNum = "C-1000";
+custTable.CustGroup = "RETAIL";
+custTable.insert();
+ttscommit;
+
+//== duplicate-key-caught
+// VB-008's carve-out: DuplicateKeyException is one of the two exceptions that CAN be
+// caught inside the transaction that raised it.
+CustTable custTable;
+try
+{
+    ttsbegin;
+    custTable.AccountNum = "C-1000";
+    custTable.insert();
+    ttscommit;
+}
+catch (Exception::DuplicateKeyException)
+{
+    info("caught the duplicate");
+}
+
+//== try-catch-basic
+try
+{
+    throw error("something went wrong");
+}
+catch (Exception::Error)
+{
+    info("caught it");
+}
+
+//== try-catch-unqualified
+try
+{
+    throw error("anything at all");
+}
+catch
+{
+    info("caught anything");
+}
+
+//== throw-inside-transaction
+// SOURCED — VB-008. Expected Infolog published by Microsoft in the X++
+// exception-handling reference. The inner catch does NOT fire.
+try
+{
+    try
+    {
+        ttsbegin;
+        try
+        {
+            throw error("Throwing exception inside transaction.");
+        }
+        catch (Exception::Error)
+        {
+            info("Catch_1: Unexpected, caught in 'catch' inside the transaction block.");
+        }
+        ttscommit;
+    }
+    catch (Exception::Error)
+    {
+        info("Catch_2: Expected, caught in the innermost 'catch' that is outside of the transaction block.");
+    }
+}
+catch (Exception::Error)
+{
+    info("Catch_3: Unexpected, caught in 'catch' far outside the transaction block.");
+}
+info("End of job.");
+
+//== throw-enum-vs-error
+// SOURCED — VB-010. `throw Exception::Error` writes nothing to the Infolog;
+// `throw error("…")` writes first, because error() is what logs.
+try
+{
+    info("In the 'try' block. (j1)");
+    throw Exception::Error;
+}
+catch (Exception::Error)
+{
+    info("Caught 'Exception::Error'.");
+}
+
+try
+{
+    info("In the 'try' block. (j2)");
+    throw error("Written to the Infolog.");
+}
+catch (Exception::Error)
+{
+    info("Caught 'Exception::Error'.");
+}
+
+//== retry-erases-infolog
+// SOURCED — VB-009. retry erases every Infolog message written since entering the try.
+int attempts;
+try
+{
+    info(strFmt("In the 'try' block, attempt %1", attempts));
+    attempts++;
+    if (attempts < 3)
+    {
+        throw error("Not yet.");
+    }
+    info("Succeeded on the last attempt.");
+}
+catch (Exception::Error)
+{
+    retry;
+}
+info("End of job.");
+
+//== error-unhandled-throw
+throw error("nobody catches this");
+
+//== error-undeclared-variable
+info(strFmt("%1", nosuchvariable));
+
+//== error-unknown-function
+info(FORMAT("%1", 1));
+
+//== error-unknown-field
+CustTable custTable;
+select firstonly custTable;
+info(custTable.NoSuchField);
+
+//== error-divide-by-zero
+int zero;
+info(strFmt("%1", 10 div zero));
+
+//== error-endless-loop
+// Stopped by the statement budget rather than running forever.
+int n;
+while (n >= 0)
+{
+    n++;
+}
+
+//== error-where-with-method-call
+// A `where` becomes SQL, so it cannot contain arbitrary expressions.
+InventTable inventTable;
+while select inventTable where strLen(inventTable.ItemId) > 3
+{
+    info(inventTable.ItemId);
+}

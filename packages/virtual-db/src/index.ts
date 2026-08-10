@@ -33,42 +33,5 @@ export { createSchemaStatements, createTableStatement, createIndexStatements } f
 export { createRequestHandler } from "./worker/protocol.js";
 export type { DbRequest, DbResult, RequestHandler, SnapshotPayload } from "./worker/protocol.js";
 
-// ---------------------------------------------------------------------------
-// select → SQL
-// ---------------------------------------------------------------------------
-
-import type { SqlValue, XppError } from "@xpplab/xpp-core";
-import type { SelectClauses } from "@xpplab/xpp-parser";
-import type { CompanyId } from "@xpplab/xpp-core";
-import type { TableName } from "./schema.js";
-
-export interface SelectToSqlOptions {
-  /** The active company, injected as a `DATAAREAID` predicate unless `crosscompany`. */
-  company: CompanyId;
-  /** Resolves a buffer variable name to the table it was declared as. */
-  resolveBuffer: (name: string) => TableName | undefined;
-}
-
-export interface CompiledSelect {
-  sql: string;
-  parameters: SqlValue[];
-  /** Buffer name to the columns it will be populated from, in `sql` column order. */
-  outputs: Record<string, string[]>;
-  /** `forupdate` was requested — the interpreter marks the buffer writable. */
-  forUpdate: boolean;
-}
-
-/**
- * Compile a parsed `select` into parameterised SQL.
- *
- * Implemented in Phase 3, once the parser exists to produce a `SelectClauses`.
- * Independently tested and independently readable on purpose: its output is a
- * user-visible feature, not an implementation detail. When a learner asks "why did my
- * loop run 400 statements", this function's output is the answer.
- */
-export function selectToSql(
-  _clauses: SelectClauses,
-  _options: SelectToSqlOptions,
-): CompiledSelect | { errors: XppError[] } {
-  throw new Error("not implemented");
-}
+export { selectToSql, isCompiled } from "./core/selectToSql.js";
+export type { CompiledSelect, SelectCompilation, SelectToSqlOptions } from "./core/selectToSql.js";
