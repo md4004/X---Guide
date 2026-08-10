@@ -1,0 +1,99 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "SalesEventHandlers",
+      "attributes": [],
+      "modifiers": [],
+      "implementsInterfaces": [],
+      "fields": [],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "SalesTable_Post_insert",
+          "attributes": [
+            {
+              "kind": "attribute",
+              "name": "PostHandlerFor",
+              "arguments": [
+                {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "tableStr"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "identifier",
+                      "name": "SalesTable"
+                    }
+                  ]
+                },
+                {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "tableMethodStr"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "identifier",
+                      "name": "SalesTable"
+                    },
+                    {
+                      "kind": "identifier",
+                      "name": "insert"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "modifiers": [
+            "public",
+            "static"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "void"
+          },
+          "parameters": [
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "XppPrePostArgs"
+              },
+              "name": "args"
+            }
+          ],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "literal",
+                      "literalType": "str",
+                      "value": "a sales order was inserted",
+                      "raw": "\"a sales order was inserted\""
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

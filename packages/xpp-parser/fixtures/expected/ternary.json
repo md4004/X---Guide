@@ -1,0 +1,92 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "m",
+          "initializer": {
+            "kind": "conditional",
+            "test": {
+              "kind": "binary",
+              "operator": ">",
+              "left": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 400,
+                "raw": "400"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 4,
+                "raw": "4"
+              }
+            },
+            "consequent": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 1,
+              "raw": "1"
+            },
+            "alternate": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 5,
+              "raw": "5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "label",
+          "initializer": {
+            "kind": "conditional",
+            "test": {
+              "kind": "binary",
+              "operator": ">",
+              "left": {
+                "kind": "identifier",
+                "name": "counter"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 0,
+                "raw": "0"
+              }
+            },
+            "consequent": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "some",
+              "raw": "\"some\""
+            },
+            "alternate": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "none",
+              "raw": "\"none\""
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "formatted",
+          "initializer": {
+            "kind": "call",
+            "callee": {
+              "kind": "identifier",
+              "name": "strFmt"
+            },
+            "arguments": [
+              {
+                "kind": "literal",
+                "literalType": "str",
+                "value": "%1 owes %2",
+                "raw": "\"%1 owes %2\""
+              },
+              {
+                "kind": "memberAccess",
+                "object": {
+                  "kind": "identifier",
+                  "name": "custTable"
+                },
+                "member": "AccountNum"
+              },
+              {
+                "kind": "memberAccess",
+                "object": {
+                  "kind": "identifier",
+                  "name": "custTable"
+                },
+                "member": "CreditMax"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

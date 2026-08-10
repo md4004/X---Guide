@@ -1,0 +1,40 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str",
+        "length": 30
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "shortName"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str",
+        "length": 60
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "description",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "A longer field",
+            "raw": "\"A longer field\""
+          }
+        }
+      ]
+    }
+  ]
+}

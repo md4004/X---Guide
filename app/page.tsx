@@ -7,8 +7,8 @@
 const phases = [
   { id: 0, name: "Scaffold", status: "done" },
   { id: 1, name: "Virtual database", status: "done" },
-  { id: 2, name: "Lexer and parser", status: "next" },
-  { id: 3, name: "Interpreter", status: "todo" },
+  { id: 2, name: "Lexer and parser", status: "done" },
+  { id: 3, name: "Interpreter", status: "next" },
   { id: 4, name: "Playground UI", status: "todo" },
   { id: 5, name: "Lesson engine", status: "todo" },
   { id: 6, name: "X++ for NAV/BC developers", status: "todo" },

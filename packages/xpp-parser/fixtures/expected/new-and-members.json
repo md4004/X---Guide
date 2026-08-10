@@ -1,0 +1,91 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "List"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "items",
+          "initializer": {
+            "kind": "new",
+            "className": "List",
+            "arguments": [
+              {
+                "kind": "enumAccess",
+                "enumName": "Types",
+                "valueName": "String"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "memberAccess",
+          "object": {
+            "kind": "identifier",
+            "name": "items"
+          },
+          "member": "addEnd"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "first",
+            "raw": "\"first\""
+          }
+        ]
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "call",
+            "callee": {
+              "kind": "identifier",
+              "name": "strFmt"
+            },
+            "arguments": [
+              {
+                "kind": "literal",
+                "literalType": "str",
+                "value": "%1",
+                "raw": "\"%1\""
+              },
+              {
+                "kind": "call",
+                "callee": {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "items"
+                  },
+                  "member": "elements"
+                },
+                "arguments": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

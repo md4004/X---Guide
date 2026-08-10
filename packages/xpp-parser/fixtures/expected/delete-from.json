@@ -1,0 +1,48 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "InventTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "inventTable"
+        }
+      ]
+    },
+    {
+      "kind": "deleteFrom",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "inventTable",
+          "joins": []
+        },
+        "where": {
+          "kind": "binary",
+          "operator": "==",
+          "left": {
+            "kind": "memberAccess",
+            "object": {
+              "kind": "identifier",
+              "name": "inventTable"
+            },
+            "member": "Blocked"
+          },
+          "right": {
+            "kind": "enumAccess",
+            "enumName": "NoYes",
+            "valueName": "Yes"
+          }
+        }
+      }
+    }
+  ]
+}

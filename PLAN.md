@@ -43,7 +43,7 @@ outer state is intact; company filtering returns only the active `DATAAREAID`.
 
 ---
 
-## Phase 2 — Lexer and parser
+## Phase 2 — Lexer and parser ✅
 
 `packages/xpp-lexer`, `packages/xpp-parser`. Hand-written, no parser generator — you need
 error messages good enough to teach with. Full AST for the v1 subset in
@@ -51,6 +51,12 @@ error messages good enough to teach with. Full AST for the v1 subset in
 
 **Accept:** a corpus of 40+ snippets in `packages/xpp-parser/fixtures/` parses to expected
 ASTs, including 10 deliberately broken snippets that produce the expected error codes.
+
+> **Delivered:** 66 valid snippets and 14 broken ones. Valid ASTs are committed as golden
+> files under `fixtures/expected/`; error expectations are hand-written in
+> `test/errors.test.ts` with exact codes and lines, because "whatever the parser happened
+> to say" is not a specification. Precedence is asserted directly rather than
+> snapshotted — see VB-005.
 
 ---
 

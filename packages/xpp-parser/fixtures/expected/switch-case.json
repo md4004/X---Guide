@@ -1,0 +1,106 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "switch",
+      "discriminant": {
+        "kind": "identifier",
+        "name": "counter"
+      },
+      "cases": [
+        {
+          "kind": "switchCase",
+          "tests": [
+            {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 1,
+              "raw": "1"
+            }
+          ],
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "one",
+                    "raw": "\"one\""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "break"
+            }
+          ]
+        },
+        {
+          "kind": "switchCase",
+          "tests": [
+            {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 2,
+              "raw": "2"
+            }
+          ],
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "two",
+                    "raw": "\"two\""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "break"
+            }
+          ]
+        },
+        {
+          "kind": "switchCase",
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "many",
+                    "raw": "\"many\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

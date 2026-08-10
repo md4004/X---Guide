@@ -1,0 +1,67 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "changeCompany",
+      "company": {
+        "kind": "literal",
+        "literalType": "str",
+        "value": "KELT",
+        "raw": "\"KELT\""
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "select",
+            "clauses": {
+              "kind": "selectClauses",
+              "modifiers": [
+                "firstonly"
+              ],
+              "source": {
+                "kind": "selectSource",
+                "buffer": "custTable",
+                "joins": []
+              }
+            }
+          },
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "custTable"
+                  },
+                  "member": "AccountNum"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

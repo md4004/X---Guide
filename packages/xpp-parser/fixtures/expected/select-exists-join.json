@@ -1,0 +1,99 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "SalesTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "salesTable"
+        }
+      ]
+    },
+    {
+      "kind": "whileSelect",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "custTable",
+          "joins": [
+            {
+              "kind": "selectJoin",
+              "joinKind": "exists",
+              "source": {
+                "kind": "selectSource",
+                "buffer": "salesTable",
+                "joins": []
+              },
+              "on": {
+                "kind": "binary",
+                "operator": "==",
+                "left": {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "salesTable"
+                  },
+                  "member": "CustAccount"
+                },
+                "right": {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "custTable"
+                  },
+                  "member": "AccountNum"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "custTable"
+                  },
+                  "member": "AccountNum"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

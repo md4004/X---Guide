@@ -1,0 +1,57 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTrans"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTrans"
+        }
+      ]
+    },
+    {
+      "kind": "select",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "custTrans",
+          "fieldList": {
+            "kind": "selectFieldList",
+            "all": false,
+            "fields": [
+              {
+                "kind": "selectField",
+                "name": "RECID",
+                "aggregate": "count"
+              },
+              {
+                "kind": "selectField",
+                "name": "AmountMST",
+                "aggregate": "maxof"
+              },
+              {
+                "kind": "selectField",
+                "name": "AmountMST",
+                "aggregate": "minof"
+              },
+              {
+                "kind": "selectField",
+                "name": "AmountMST",
+                "aggregate": "avg"
+              }
+            ]
+          },
+          "joins": []
+        }
+      }
+    }
+  ]
+}

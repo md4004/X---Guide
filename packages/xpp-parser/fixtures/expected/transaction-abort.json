@@ -1,0 +1,30 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "ttsBegin"
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "about to give up",
+            "raw": "\"about to give up\""
+          }
+        ]
+      }
+    },
+    {
+      "kind": "ttsAbort"
+    }
+  ]
+}

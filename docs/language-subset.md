@@ -1,10 +1,16 @@
 # docs/language-subset.md
 
-> **Status: DRAFT — not frozen.** Derived from the in/out lists in CLAUDE.md and from the
-> token set already declared in `packages/xpp-lexer/src/index.ts`. PLAN.md says the owner
-> writes and freezes this before Phase 2. Read it, change what's wrong, then delete this
-> banner. Once the banner is gone this file is immutable for v1 and widening it requires
-> an explicit subset-extension task with tests.
+> **Status: DRAFT — not frozen.** Derived from the in/out lists in CLAUDE.md, from the
+> token set in `packages/xpp-lexer/src/index.ts`, and from the Microsoft Learn X++
+> language reference. PLAN.md says the owner writes and freezes this. Read it, change
+> what's wrong, then delete this banner. Once the banner is gone this file is immutable
+> for v1 and widening it requires an explicit subset-extension task with tests.
+>
+> Phase 2 was built against this draft. The two questions previously flagged for the owner
+> — declaration placement and operator precedence — have since been **resolved against
+> documented sources** and are logged as VB-005 and VB-006 in `docs/verified-behaviour.md`.
+> What remains open is scope, not correctness: which constructs earn their place, not how
+> the ones listed here behave.
 
 This is a contract, not documentation. The parser accepts exactly what is listed here and
 rejects the rest with a teaching error (`XP100 ConstructOutsideSubset`) that says what to
@@ -31,10 +37,11 @@ attributes including `[ExtensionOf(...)]` and event handler attributes.
 **Out:** `#macro` and every preprocessor directive; nested classes; `interface` bodies
 beyond method signatures; delegates.
 
-> X++ traditionally requires all declarations at the top of a method. The parser accepts
-> declarations anywhere and does **not** enforce the top-of-method rule — deliberately, so
-> a learner's first lesson is not a style violation. Lesson 1 mentions the real rule in
-> prose. **Owner: confirm this is the call you want.**
+> **Resolved (VB-006).** Declarations may appear anywhere in a code block — Microsoft's
+> own reference says so explicitly: "You can declare variables anywhere in a code block in
+> a method. You don't have to declare them at the beginning of a method." The parser
+> accepts them anywhere, and there is no top-of-method rule to enforce. The older AX
+> convention is worth a sentence of prose in lesson 1, not a compiler error.
 
 ## Statements
 
@@ -78,9 +85,20 @@ beyond method signatures; delegates.
 `+= -= *= /=`; ternary `?:`; `::` enum access; member access; indexing; container literals
 `[a, b, c]`; `new ClassName(...)`.
 
-**Precedence** follows X++, not C. Notably `&&` and `||` bind tighter than comparison in
-some legacy X++ readings — the parser uses the modern documented precedence and the
-lexer's fixture corpus pins it. **Owner: verify against a real compiler before freeze.**
+**Precedence follows X++, not C** (VB-005), and the difference is not cosmetic:
+
+| Level | Operators                                    |
+| ----- | -------------------------------------------- |
+| 1     | `-` `~` `!` (unary)                          |
+| 2     | `*` `/` `div` `mod` `<<` `>>` `&` `^`        |
+| 3     | `+` `-` `\|`                                 |
+| 4     | `<` `<=` `==` `!=` `>` `>=` `like` `as` `is` |
+| 5     | `&&` `\|\|` — same level, left to right      |
+| 6     | `?:`                                         |
+
+`&&` does **not** bind tighter than `||`, `&` and `^` bind as tightly as `*`, and `|`
+binds as tightly as `+`. All three trip up anyone arriving from C#, JavaScript or C/AL.
+Pinned by `packages/xpp-parser/test/precedence.test.ts`.
 
 ## Built-in functions
 

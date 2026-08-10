@@ -1,0 +1,171 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "a",
+          "initializer": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 1,
+                "raw": "1"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 2,
+                "raw": "2"
+              }
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 3,
+              "raw": "3"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "b",
+          "initializer": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 4,
+                "raw": "4"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 5,
+                "raw": "5"
+              }
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 2,
+              "raw": "2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "c",
+          "initializer": {
+            "kind": "binary",
+            "operator": "div",
+            "left": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 100,
+              "raw": "100"
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 21,
+              "raw": "21"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "d",
+          "initializer": {
+            "kind": "binary",
+            "operator": "mod",
+            "left": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 100,
+              "raw": "100"
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 21,
+              "raw": "21"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "real"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "e",
+          "initializer": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "literal",
+              "literalType": "real",
+              "value": 1.5,
+              "raw": "1.5"
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "real",
+              "value": 2,
+              "raw": "2.0"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

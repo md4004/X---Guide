@@ -1,0 +1,99 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "SalesTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "salesTable"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "SalesLine"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "salesLine"
+        }
+      ]
+    },
+    {
+      "kind": "whileSelect",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "salesTable",
+          "joins": [
+            {
+              "kind": "selectJoin",
+              "joinKind": "inner",
+              "source": {
+                "kind": "selectSource",
+                "buffer": "salesLine",
+                "joins": []
+              },
+              "on": {
+                "kind": "binary",
+                "operator": "==",
+                "left": {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "salesLine"
+                  },
+                  "member": "SalesId"
+                },
+                "right": {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "salesTable"
+                  },
+                  "member": "SalesId"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "salesLine"
+                  },
+                  "member": "ItemId"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

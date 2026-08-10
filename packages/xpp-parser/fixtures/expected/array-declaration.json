@@ -1,0 +1,35 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int",
+        "arrayBound": 10
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "values"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str",
+        "length": 20,
+        "arrayBound": 5
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "codes"
+        }
+      ]
+    }
+  ]
+}

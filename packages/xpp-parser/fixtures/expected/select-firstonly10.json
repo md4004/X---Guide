@@ -1,0 +1,44 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTrans"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTrans"
+        }
+      ]
+    },
+    {
+      "kind": "select",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [
+          "firstonly10"
+        ],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "custTrans",
+          "joins": []
+        },
+        "orderBy": {
+          "kind": "orderBy",
+          "entries": [
+            {
+              "kind": "orderByEntry",
+              "field": "TransDate",
+              "direction": "desc"
+            }
+          ],
+          "grouping": false
+        }
+      }
+    }
+  ]
+}

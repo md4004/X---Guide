@@ -109,6 +109,11 @@ export const XPP_KEYWORDS = [
   // Company scoping
   "changecompany",
 
+  // Chain of Command. Reserved so `next insert();` parses as a call down the chain
+  // rather than as two identifiers in a row. `buffer.next()` still works, because a
+  // keyword is allowed after `.`.
+  "next",
+
   // Operators that are spelled as words
   "as",
   "div",
@@ -232,6 +237,4 @@ export interface LexResult {
  * `errors` and the scan resumes at the next character so the parser still gets a
  * usable stream.
  */
-export function tokenize(_source: string, _options?: LexerOptions): LexResult {
-  throw new Error("not implemented");
-}
+export { tokenize } from "./lexer.js";

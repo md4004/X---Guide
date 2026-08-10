@@ -1,0 +1,65 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "tryCatch",
+      "block": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "throw",
+            "argument": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "error"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "something went wrong",
+                  "raw": "\"something went wrong\""
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "handlers": [
+        {
+          "kind": "catchClause",
+          "exception": {
+            "kind": "enumAccess",
+            "enumName": "Exception",
+            "valueName": "Error"
+          },
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "literal",
+                      "literalType": "str",
+                      "value": "caught it",
+                      "raw": "\"caught it\""
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

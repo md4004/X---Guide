@@ -1,0 +1,64 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "boolean"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "matches",
+          "initializer": {
+            "kind": "binary",
+            "operator": "like",
+            "left": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "Jones",
+              "raw": "\"Jones\""
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "Jo?es",
+              "raw": "\"Jo?es\""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "boolean"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "prefixed",
+          "initializer": {
+            "kind": "binary",
+            "operator": "like",
+            "left": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "Havensdale",
+              "raw": "\"Havensdale\""
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "Hav*",
+              "raw": "\"Hav*\""
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

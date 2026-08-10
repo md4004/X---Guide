@@ -1,0 +1,69 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "if",
+      "test": {
+        "kind": "binary",
+        "operator": ">",
+        "left": {
+          "kind": "identifier",
+          "name": "counter"
+        },
+        "right": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 0,
+          "raw": "0"
+        }
+      },
+      "consequent": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "positive",
+                  "raw": "\"positive\""
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "alternate": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "zero or negative",
+                  "raw": "\"zero or negative\""
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

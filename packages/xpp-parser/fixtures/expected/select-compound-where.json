@@ -1,0 +1,95 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "InventTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "inventTable"
+        }
+      ]
+    },
+    {
+      "kind": "whileSelect",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "inventTable",
+          "joins": []
+        },
+        "where": {
+          "kind": "binary",
+          "operator": "&&",
+          "left": {
+            "kind": "binary",
+            "operator": "==",
+            "left": {
+              "kind": "memberAccess",
+              "object": {
+                "kind": "identifier",
+                "name": "inventTable"
+              },
+              "member": "ItemGroupId"
+            },
+            "right": {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "FURNITURE",
+              "raw": "\"FURNITURE\""
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "==",
+            "left": {
+              "kind": "memberAccess",
+              "object": {
+                "kind": "identifier",
+                "name": "inventTable"
+              },
+              "member": "Blocked"
+            },
+            "right": {
+              "kind": "enumAccess",
+              "enumName": "NoYes",
+              "valueName": "No"
+            }
+          }
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "memberAccess",
+                  "object": {
+                    "kind": "identifier",
+                    "name": "inventTable"
+                  },
+                  "member": "ItemId"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

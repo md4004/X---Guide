@@ -1,0 +1,24 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "throw",
+      "argument": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "error"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "Cannot post an empty journal.",
+            "raw": "\"Cannot post an empty journal.\""
+          }
+        ]
+      }
+    }
+  ]
+}

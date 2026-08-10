@@ -1,0 +1,63 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "select",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "custTable",
+          "fieldList": {
+            "kind": "selectFieldList",
+            "all": false,
+            "fields": [
+              {
+                "kind": "selectField",
+                "name": "AccountNum"
+              },
+              {
+                "kind": "selectField",
+                "name": "CreditMax"
+              }
+            ]
+          },
+          "joins": []
+        },
+        "where": {
+          "kind": "binary",
+          "operator": "==",
+          "left": {
+            "kind": "memberAccess",
+            "object": {
+              "kind": "identifier",
+              "name": "custTable"
+            },
+            "member": "CustGroup"
+          },
+          "right": {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "RETAIL",
+            "raw": "\"RETAIL\""
+          }
+        }
+      }
+    }
+  ]
+}

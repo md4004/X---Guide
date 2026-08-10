@@ -27,7 +27,36 @@ instead. See CLAUDE.md > Fidelity rule.
 | VB-003 | A record may only be updated or deleted if it was first selected for update (`forUpdate` check)                                      | [MS Learn, X++ transactional integrity][1] | 2026-08-10 | Enforced in Phase 3; the buffer's `selectedForUpdate` flag exists in the runtime types for it                                              |
 | VB-004 | A record may only be updated or deleted in the same transaction scope in which it was selected for update (`ttsLevel` check)         | [MS Learn, X++ transactional integrity][1] | 2026-08-10 | Enforced in Phase 3. Phase 1 supplies the `ttsLevel` the check reads                                                                       |
 
+| VB-005 | X++ operator precedence has six levels, and `&&` and `||` sit at the **same** level, evaluated left to right | [MS Learn, X++ operators][2] | 2026-08-10 | The page states outright that "the operator precedence of X++ isn't the same as the operator precedence of other languages, such as C# and Java", and gives `0 && 0 \|\| 1 == 1` and `1 \|\| 0 && 0 == 0` as worked examples |
+| VB-006 | Variables may be declared anywhere in a code block, not only at the top of a method | [MS Learn, X++ variables][3] | 2026-08-10 | "You can declare variables anywhere in a code block in a method. You don't have to declare them at the beginning of a method." |
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
+[2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
+[3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
+
+### On VB-005
+
+The precedence table, highest binding first:
+
+| Level | Operators                                    | Note                                                   |
+| ----- | -------------------------------------------- | ------------------------------------------------------ |
+| 1     | `-` `~` `!` (unary)                          |                                                        |
+| 2     | `*` `/` `div` `mod` `<<` `>>` `&` `^`        | Shifts and bitwise AND/XOR share a level with multiply |
+| 3     | `+` `-` `\|`                                 | Bitwise OR shares a level with addition                |
+| 4     | `<` `<=` `==` `!=` `>` `>=` `like` `as` `is` |                                                        |
+| 5     | `&&` `\|\|`                                  | **Same level**, left to right                          |
+| 6     | `?:`                                         |                                                        |
+
+Three of these differ from C, C#, JavaScript and TypeScript, and every one of them is a
+trap for the audience this site is for:
+
+- `&&` does not bind tighter than `||`. `a || b && c` parses as `(a || b) && c`.
+- `&` and `^` bind as tightly as `*`, not far below equality.
+- `|` binds as tightly as `+`.
+
+`packages/xpp-parser/test/precedence.test.ts` asserts each of these directly, including
+both worked examples from the source page. This is prime lesson material — a NAV or C#
+developer will read `a || b && c` wrongly, and the parse tree proves it.
 
 ### On VB-001 and PLAN.md's Phase 1 acceptance criterion
 

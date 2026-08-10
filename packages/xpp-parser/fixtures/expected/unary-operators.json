@@ -1,0 +1,75 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "negated",
+          "initializer": {
+            "kind": "unary",
+            "operator": "-",
+            "argument": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 5,
+              "raw": "5"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "flipped",
+          "initializer": {
+            "kind": "unary",
+            "operator": "~",
+            "argument": {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 1,
+              "raw": "1"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "boolean"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "opposite",
+          "initializer": {
+            "kind": "unary",
+            "operator": "!",
+            "argument": {
+              "kind": "literal",
+              "literalType": "boolean",
+              "value": true,
+              "raw": "true"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

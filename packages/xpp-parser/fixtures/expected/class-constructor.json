@@ -1,0 +1,87 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "Counter",
+      "attributes": [],
+      "modifiers": [],
+      "implementsInterfaces": [],
+      "fields": [
+        {
+          "kind": "fieldDeclaration",
+          "modifiers": [],
+          "type": {
+            "kind": "typeReference",
+            "name": "int"
+          },
+          "names": [
+            "total"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "new",
+          "attributes": [],
+          "modifiers": [
+            "public"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "void"
+          },
+          "parameters": [
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "int"
+              },
+              "name": "start"
+            }
+          ],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "assignment",
+                  "operator": "=",
+                  "target": {
+                    "kind": "identifier",
+                    "name": "total"
+                  },
+                  "value": {
+                    "kind": "identifier",
+                    "name": "start"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "methodDeclaration",
+          "name": "finalize",
+          "attributes": [],
+          "modifiers": [
+            "public"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "void"
+          },
+          "parameters": [],
+          "body": {
+            "kind": "block",
+            "statements": []
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

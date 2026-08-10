@@ -1,0 +1,89 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "block",
+      "statements": [
+        {
+          "kind": "variableDeclaration",
+          "type": {
+            "kind": "typeReference",
+            "name": "int"
+          },
+          "declarators": [
+            {
+              "kind": "variableDeclarator",
+              "name": "inner",
+              "initializer": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 1,
+                "raw": "1"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "block",
+          "statements": [
+            {
+              "kind": "variableDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "int"
+              },
+              "declarators": [
+                {
+                  "kind": "variableDeclarator",
+                  "name": "deeper",
+                  "initializer": {
+                    "kind": "literal",
+                    "literalType": "int",
+                    "value": 2,
+                    "raw": "2"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "call",
+                    "callee": {
+                      "kind": "identifier",
+                      "name": "strFmt"
+                    },
+                    "arguments": [
+                      {
+                        "kind": "literal",
+                        "literalType": "str",
+                        "value": "%1 %2",
+                        "raw": "\"%1 %2\""
+                      },
+                      {
+                        "kind": "identifier",
+                        "name": "inner"
+                      },
+                      {
+                        "kind": "identifier",
+                        "name": "deeper"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

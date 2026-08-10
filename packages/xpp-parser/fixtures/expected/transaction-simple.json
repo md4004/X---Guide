@@ -1,0 +1,61 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "ttsBegin"
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "=",
+        "target": {
+          "kind": "memberAccess",
+          "object": {
+            "kind": "identifier",
+            "name": "custTable"
+          },
+          "member": "AccountNum"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "str",
+          "value": "C-9999",
+          "raw": "\"C-9999\""
+        }
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "memberAccess",
+          "object": {
+            "kind": "identifier",
+            "name": "custTable"
+          },
+          "member": "insert"
+        },
+        "arguments": []
+      }
+    },
+    {
+      "kind": "ttsCommit"
+    }
+  ]
+}

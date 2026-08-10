@@ -1,0 +1,80 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "BaseClass"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "basec"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "DerivedClass"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "derivedc"
+        }
+      ]
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "=",
+        "target": {
+          "kind": "identifier",
+          "name": "derivedc"
+        },
+        "value": {
+          "kind": "binary",
+          "operator": "as",
+          "left": {
+            "kind": "identifier",
+            "name": "basec"
+          },
+          "right": {
+            "kind": "identifier",
+            "name": "DerivedClass"
+          }
+        }
+      }
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "boolean"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "check",
+          "initializer": {
+            "kind": "binary",
+            "operator": "is",
+            "left": {
+              "kind": "identifier",
+              "name": "basec"
+            },
+            "right": {
+              "kind": "identifier",
+              "name": "DerivedClass"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

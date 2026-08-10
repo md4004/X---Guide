@@ -1,0 +1,42 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "NoYes"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "blocked",
+          "initializer": {
+            "kind": "enumAccess",
+            "enumName": "NoYes",
+            "valueName": "Yes"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "SalesStatus"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "status",
+          "initializer": {
+            "kind": "enumAccess",
+            "enumName": "SalesStatus",
+            "valueName": "Backorder"
+          }
+        }
+      ]
+    }
+  ]
+}

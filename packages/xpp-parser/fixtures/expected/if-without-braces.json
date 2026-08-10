@@ -1,0 +1,41 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "if",
+      "test": {
+        "kind": "binary",
+        "operator": ">",
+        "left": {
+          "kind": "identifier",
+          "name": "counter"
+        },
+        "right": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 0,
+          "raw": "0"
+        }
+      },
+      "consequent": {
+        "kind": "expressionStatement",
+        "expression": {
+          "kind": "call",
+          "callee": {
+            "kind": "identifier",
+            "name": "info"
+          },
+          "arguments": [
+            {
+              "kind": "literal",
+              "literalType": "str",
+              "value": "positive",
+              "raw": "\"positive\""
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "CustTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "custTable"
+        }
+      ]
+    },
+    {
+      "kind": "select",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [
+          "firstonly"
+        ],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "custTable",
+          "joins": []
+        },
+        "where": {
+          "kind": "binary",
+          "operator": "==",
+          "left": {
+            "kind": "memberAccess",
+            "object": {
+              "kind": "identifier",
+              "name": "custTable"
+            },
+            "member": "AccountNum"
+          },
+          "right": {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "C-1000",
+            "raw": "\"C-1000\""
+          }
+        }
+      }
+    }
+  ]
+}

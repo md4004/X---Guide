@@ -1,0 +1,97 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "InventTable_Extension",
+      "attributes": [
+        {
+          "kind": "attribute",
+          "name": "ExtensionOf",
+          "arguments": [
+            {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "tableStr"
+              },
+              "arguments": [
+                {
+                  "kind": "identifier",
+                  "name": "InventTable"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "modifiers": [
+        "final"
+      ],
+      "implementsInterfaces": [],
+      "fields": [],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "insert",
+          "attributes": [],
+          "modifiers": [
+            "public"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "void"
+          },
+          "parameters": [],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "literal",
+                      "literalType": "str",
+                      "value": "before the base insert",
+                      "raw": "\"before the base insert\""
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "nextCall",
+                "methodName": "insert",
+                "arguments": []
+              },
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "literal",
+                      "literalType": "str",
+                      "value": "after the base insert",
+                      "raw": "\"after the base insert\""
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

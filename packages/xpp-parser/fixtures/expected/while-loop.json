@@ -1,0 +1,59 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "n",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 0,
+            "raw": "0"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "while",
+      "test": {
+        "kind": "binary",
+        "operator": "<",
+        "left": {
+          "kind": "identifier",
+          "name": "n"
+        },
+        "right": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 10,
+          "raw": "10"
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "update",
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "kind": "identifier",
+                "name": "n"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

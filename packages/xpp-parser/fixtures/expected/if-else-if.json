@@ -1,0 +1,109 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "if",
+      "test": {
+        "kind": "binary",
+        "operator": ">",
+        "left": {
+          "kind": "identifier",
+          "name": "counter"
+        },
+        "right": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 10,
+          "raw": "10"
+        }
+      },
+      "consequent": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "big",
+                  "raw": "\"big\""
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "alternate": {
+        "kind": "if",
+        "test": {
+          "kind": "binary",
+          "operator": ">",
+          "left": {
+            "kind": "identifier",
+            "name": "counter"
+          },
+          "right": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 0,
+            "raw": "0"
+          }
+        },
+        "consequent": {
+          "kind": "block",
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "small",
+                    "raw": "\"small\""
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "alternate": {
+          "kind": "block",
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "none",
+                    "raw": "\"none\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

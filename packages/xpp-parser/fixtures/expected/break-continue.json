@@ -1,0 +1,114 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "i"
+        }
+      ]
+    },
+    {
+      "kind": "for",
+      "init": {
+        "kind": "assignment",
+        "operator": "=",
+        "target": {
+          "kind": "identifier",
+          "name": "i"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 0,
+          "raw": "0"
+        }
+      },
+      "test": {
+        "kind": "binary",
+        "operator": "<",
+        "left": {
+          "kind": "identifier",
+          "name": "i"
+        },
+        "right": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 10,
+          "raw": "10"
+        }
+      },
+      "update": {
+        "kind": "update",
+        "operator": "++",
+        "prefix": false,
+        "argument": {
+          "kind": "identifier",
+          "name": "i"
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "if",
+            "test": {
+              "kind": "binary",
+              "operator": "==",
+              "left": {
+                "kind": "identifier",
+                "name": "i"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 3,
+                "raw": "3"
+              }
+            },
+            "consequent": {
+              "kind": "block",
+              "statements": [
+                {
+                  "kind": "continue"
+                }
+              ]
+            }
+          },
+          {
+            "kind": "if",
+            "test": {
+              "kind": "binary",
+              "operator": "==",
+              "left": {
+                "kind": "identifier",
+                "name": "i"
+              },
+              "right": {
+                "kind": "literal",
+                "literalType": "int",
+                "value": 7,
+                "raw": "7"
+              }
+            },
+            "consequent": {
+              "kind": "block",
+              "statements": [
+                {
+                  "kind": "break"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

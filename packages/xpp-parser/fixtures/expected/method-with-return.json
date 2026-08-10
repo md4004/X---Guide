@@ -1,0 +1,66 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "Calculator",
+      "attributes": [],
+      "modifiers": [],
+      "implementsInterfaces": [],
+      "fields": [],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "add",
+          "attributes": [],
+          "modifiers": [
+            "public"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "int"
+          },
+          "parameters": [
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "int"
+              },
+              "name": "left"
+            },
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "int"
+              },
+              "name": "right"
+            }
+          ],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "return",
+                "argument": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "identifier",
+                    "name": "left"
+                  },
+                  "right": {
+                    "kind": "identifier",
+                    "name": "right"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

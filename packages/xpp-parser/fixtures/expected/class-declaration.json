@@ -1,0 +1,83 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "InventoryHelper",
+      "attributes": [],
+      "modifiers": [],
+      "implementsInterfaces": [],
+      "fields": [
+        {
+          "kind": "fieldDeclaration",
+          "modifiers": [],
+          "type": {
+            "kind": "typeReference",
+            "name": "int"
+          },
+          "names": [
+            "callCount"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "logItem",
+          "attributes": [],
+          "modifiers": [
+            "public"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "void"
+          },
+          "parameters": [
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "str"
+              },
+              "name": "itemId"
+            }
+          ],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "update",
+                  "operator": "++",
+                  "prefix": false,
+                  "argument": {
+                    "kind": "identifier",
+                    "name": "callCount"
+                  }
+                }
+              },
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "identifier",
+                      "name": "itemId"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

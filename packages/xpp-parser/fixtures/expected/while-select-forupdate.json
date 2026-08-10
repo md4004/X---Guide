@@ -1,0 +1,153 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "InventTable"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "inventTable"
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "counter"
+        }
+      ]
+    },
+    {
+      "kind": "ttsBegin"
+    },
+    {
+      "kind": "whileSelect",
+      "clauses": {
+        "kind": "selectClauses",
+        "modifiers": [
+          "forupdate"
+        ],
+        "source": {
+          "kind": "selectSource",
+          "buffer": "inventTable",
+          "joins": []
+        },
+        "where": {
+          "kind": "binary",
+          "operator": "==",
+          "left": {
+            "kind": "memberAccess",
+            "object": {
+              "kind": "identifier",
+              "name": "inventTable"
+            },
+            "member": "ItemGroupId"
+          },
+          "right": {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "FURNITURE",
+            "raw": "\"FURNITURE\""
+          }
+        }
+      },
+      "body": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "assignment",
+              "operator": "=",
+              "target": {
+                "kind": "memberAccess",
+                "object": {
+                  "kind": "identifier",
+                  "name": "inventTable"
+                },
+                "member": "Blocked"
+              },
+              "value": {
+                "kind": "enumAccess",
+                "enumName": "NoYes",
+                "valueName": "Yes"
+              }
+            }
+          },
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "memberAccess",
+                "object": {
+                  "kind": "identifier",
+                  "name": "inventTable"
+                },
+                "member": "update"
+              },
+              "arguments": []
+            }
+          },
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "update",
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "kind": "identifier",
+                "name": "counter"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "ttsCommit"
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "call",
+            "callee": {
+              "kind": "identifier",
+              "name": "strFmt"
+            },
+            "arguments": [
+              {
+                "kind": "literal",
+                "literalType": "str",
+                "value": "Blocked %1 items",
+                "raw": "\"Blocked %1 items\""
+              },
+              {
+                "kind": "identifier",
+                "name": "counter"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

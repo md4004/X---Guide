@@ -122,6 +122,7 @@ export type Statement =
   | TtsCommitStatement
   | TtsAbortStatement
   | ChangeCompanyStatement
+  | NextCallStatement
   | SelectStatement
   | WhileSelectStatement
   | InsertRecordsetStatement
@@ -242,6 +243,20 @@ export interface ChangeCompanyStatement extends NodeBase {
 
 export interface EmptyStatement extends NodeBase {
   kind: "emptyStatement";
+}
+
+/**
+ * `next insert();` — a call down the Chain of Command to the link this method wraps.
+ *
+ * Modelled as its own statement rather than an ordinary call because omitting it is the
+ * defect Phase 8's lesson is built around, and the chain visualiser needs to find it
+ * without pattern-matching on a call expression.
+ */
+export interface NextCallStatement extends NodeBase {
+  kind: "nextCall";
+  /** The wrapped method being continued into, e.g. `insert`. */
+  methodName: string;
+  arguments: Expression[];
 }
 
 // ---------------------------------------------------------------------------

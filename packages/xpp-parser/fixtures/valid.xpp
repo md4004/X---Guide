@@ -1,0 +1,502 @@
+// The valid-parse corpus.
+//
+// Snippets are separated by a `//== name` marker. `fixtures/load.ts` splits on it and
+// the golden-file test parses each one and compares the AST against
+// fixtures/expected/<name>.json.
+//
+// Everything here must be inside the subset in docs/language-subset.md. If you add a
+// snippet that needs a construct the subset does not list, that is a subset-extension
+// task, not a fixture.
+
+//== hello-infolog
+info("Hello from X++");
+
+//== primitives
+str  name    = "Havensdale";
+int  counter = 42;
+int64 bigNumber = 9000000000;
+real price   = 184.50;
+boolean isReady = true;
+date dueDate = 31\12\2026;
+
+//== str-with-length
+str 30 shortName;
+str 60 description = "A longer field";
+
+//== declaration-anywhere
+// VB-006: X++ does not require declarations at the top of a method.
+info("before");
+int counter = 1;
+counter++;
+info("after");
+
+//== arithmetic
+int a = 1 + 2 - 3;
+int b = 4 * 5 / 2;
+int c = 100 div 21;
+int d = 100 mod 21;
+real e = 1.5 * 2.0;
+
+//== compound-assignment
+int total = 0;
+total += 10;
+total -= 3;
+total *= 2;
+total /= 7;
+
+//== increment-decrement
+int i = 0;
+i++;
+++i;
+i--;
+--i;
+
+//== precedence-logical
+// VB-005: && and || share a precedence level and go left to right, so this is
+// (0 && 0) || 1, not 0 && (0 || 1).
+boolean first  = 0 && 0 || 1;
+boolean second = 1 || 0 && 0;
+
+//== precedence-bitwise
+// & and ^ bind as tightly as *, and | binds as tightly as +. Not C's ordering.
+int masked = 1 | 2 & 3;
+int shifted = 1 + 2 << 3;
+
+//== precedence-comparison
+boolean inRange = 1 + 2 < 3 * 4;
+
+//== unary-operators
+int negated = -5;
+int flipped = ~1;
+boolean opposite = !true;
+
+//== ternary
+int m = (400 > 4) ? 1 : 5;
+str label = counter > 0 ? "some" : "none";
+
+//== like-operator
+boolean matches = "Jones" like "Jo?es";
+boolean prefixed = "Havensdale" like "Hav*";
+
+//== is-as-operators
+BaseClass basec;
+DerivedClass derivedc;
+derivedc = basec as DerivedClass;
+boolean check = basec is DerivedClass;
+
+//== if-else
+if (counter > 0)
+{
+    info("positive");
+}
+else
+{
+    info("zero or negative");
+}
+
+//== if-else-if
+if (counter > 10)
+{
+    info("big");
+}
+else if (counter > 0)
+{
+    info("small");
+}
+else
+{
+    info("none");
+}
+
+//== if-without-braces
+if (counter > 0)
+    info("positive");
+
+//== while-loop
+int n = 0;
+while (n < 10)
+{
+    n++;
+}
+
+//== do-while
+int n = 0;
+do
+{
+    n++;
+}
+while (n < 10);
+
+//== for-loop
+int i;
+for (i = 0; i < 10; i++)
+{
+    info(strFmt("%1", i));
+}
+
+//== switch-case
+switch (counter)
+{
+    case 1:
+        info("one");
+        break;
+
+    case 2:
+        info("two");
+        break;
+
+    default:
+        info("many");
+}
+
+//== switch-multi-case
+switch (counter)
+{
+    case 1, 2, 3:
+        info("small");
+        break;
+
+    default:
+        info("large");
+}
+
+//== break-continue
+int i;
+for (i = 0; i < 10; i++)
+{
+    if (i == 3)
+    {
+        continue;
+    }
+
+    if (i == 7)
+    {
+        break;
+    }
+}
+
+//== nested-blocks
+{
+    int inner = 1;
+    {
+        int deeper = 2;
+        info(strFmt("%1 %2", inner, deeper));
+    }
+}
+
+//== array-declaration
+int values[10];
+str 20 codes[5];
+
+//== container-literal
+container packed = [1, "two", 3.0];
+container empty = [];
+
+//== enum-access
+NoYes blocked = NoYes::Yes;
+SalesStatus status = SalesStatus::Backorder;
+
+//== method-call-chain
+CustTable custTable;
+str formatted = strFmt("%1 owes %2", custTable.AccountNum, custTable.CreditMax);
+
+//== new-and-members
+List items = new List(Types::String);
+items.addEnd("first");
+info(strFmt("%1", items.elements()));
+
+//== collections
+List names = new List(Types::String);
+Map lookup = new Map(Types::String, Types::Integer);
+Set unique = new Set(Types::Integer);
+
+//== select-firstonly
+CustTable custTable;
+select firstonly custTable where custTable.AccountNum == "C-1000";
+
+//== select-star
+CustTable custTable;
+select * from custTable;
+
+//== select-field-list
+CustTable custTable;
+select AccountNum, CreditMax from custTable where custTable.CustGroup == "RETAIL";
+
+//== select-forupdate
+InventTable inventTable;
+select forupdate inventTable where inventTable.ItemId == "F-100";
+
+//== select-firstonly10
+CustTrans custTrans;
+select firstonly10 custTrans order by custTrans.TransDate desc;
+
+//== select-reverse
+CustTrans custTrans;
+select reverse custTrans order by custTrans.TransDate;
+
+//== while-select
+InventTable inventTable;
+while select inventTable
+{
+    info(inventTable.ItemName);
+}
+
+//== while-select-forupdate
+InventTable inventTable;
+int counter;
+
+ttsbegin;
+while select forupdate inventTable
+    where inventTable.ItemGroupId == "FURNITURE"
+{
+    inventTable.Blocked = NoYes::Yes;
+    inventTable.update();
+    counter++;
+}
+ttscommit;
+
+info(strFmt("Blocked %1 items", counter));
+
+//== select-inner-join
+SalesTable salesTable;
+SalesLine salesLine;
+while select salesTable
+    join salesLine
+    where salesLine.SalesId == salesTable.SalesId
+{
+    info(salesLine.ItemId);
+}
+
+//== select-outer-join
+CustTable custTable;
+CustTrans custTrans;
+while select custTable
+    outer join custTrans
+    where custTrans.AccountNum == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}
+
+//== select-exists-join
+CustTable custTable;
+SalesTable salesTable;
+while select custTable
+    exists join salesTable
+    where salesTable.CustAccount == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}
+
+//== select-notexists-join
+CustTable custTable;
+SalesTable salesTable;
+while select custTable
+    notexists join salesTable
+    where salesTable.CustAccount == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}
+
+//== select-order-by
+CustTrans custTrans;
+while select custTrans
+    order by custTrans.AccountNum asc, custTrans.TransDate desc
+{
+    info(custTrans.Voucher);
+}
+
+//== select-group-by-aggregate
+CustTrans custTrans;
+while select sum(AmountMST) from custTrans
+    group by custTrans.AccountNum
+{
+    info(strFmt("%1", custTrans.AmountMST));
+}
+
+//== select-aggregates
+CustTrans custTrans;
+select count(RECID), maxof(AmountMST), minof(AmountMST), avg(AmountMST) from custTrans;
+
+//== select-crosscompany
+CustTable custTable;
+while select crosscompany custTable
+{
+    info(custTable.AccountNum);
+}
+
+//== select-compound-where
+InventTable inventTable;
+while select inventTable
+    where inventTable.ItemGroupId == "FURNITURE"
+       && inventTable.Blocked == NoYes::No
+{
+    info(inventTable.ItemId);
+}
+
+//== insert-recordset
+InventTable source;
+InventTable target;
+insert_recordset target (ItemId, ItemName)
+    select ItemId, ItemName from source
+    where source.ItemGroupId == "RAWMAT";
+
+//== update-recordset
+InventTable inventTable;
+update_recordset inventTable
+    setting Blocked = NoYes::Yes
+    where inventTable.ItemGroupId == "FURNITURE";
+
+//== delete-from
+InventTable inventTable;
+delete_from inventTable where inventTable.Blocked == NoYes::Yes;
+
+//== transaction-simple
+CustTable custTable;
+ttsbegin;
+custTable.AccountNum = "C-9999";
+custTable.insert();
+ttscommit;
+
+//== transaction-nested
+ttsbegin;
+info("outer");
+ttsbegin;
+info("inner");
+ttscommit;
+ttscommit;
+
+//== transaction-abort
+ttsbegin;
+info("about to give up");
+ttsabort;
+
+//== try-catch
+try
+{
+    throw error("something went wrong");
+}
+catch (Exception::Error)
+{
+    info("caught it");
+}
+
+//== try-catch-retry
+int attempts;
+try
+{
+    attempts++;
+    info("trying");
+}
+catch (Exception::Deadlock)
+{
+    if (attempts < 3)
+    {
+        retry;
+    }
+}
+
+//== try-catch-bare
+try
+{
+    info("risky");
+}
+catch
+{
+    info("caught anything");
+}
+
+//== throw-statement
+throw error("Cannot post an empty journal.");
+
+//== changecompany
+CustTable custTable;
+changecompany ("KELT")
+{
+    select firstonly custTable;
+    info(custTable.AccountNum);
+}
+
+//== class-declaration
+class InventoryHelper
+{
+    int callCount;
+
+    public void logItem(str itemId)
+    {
+        callCount++;
+        info(itemId);
+    }
+}
+
+//== class-inheritance
+class SpecialHelper extends InventoryHelper
+{
+    public void logItem(str itemId)
+    {
+        super(itemId);
+        info("and again");
+    }
+}
+
+//== class-static-method
+class MathHelper
+{
+    public static int doubled(int value)
+    {
+        return value * 2;
+    }
+}
+
+//== class-constructor
+class Counter
+{
+    int total;
+
+    public void new(int start)
+    {
+        total = start;
+    }
+
+    public void finalize()
+    {
+    }
+}
+
+//== extension-of-coc
+[ExtensionOf(tableStr(InventTable))]
+final class InventTable_Extension
+{
+    public void insert()
+    {
+        info("before the base insert");
+        next insert();
+        info("after the base insert");
+    }
+}
+
+//== event-handler
+class SalesEventHandlers
+{
+    [PostHandlerFor(tableStr(SalesTable), tableMethodStr(SalesTable, insert))]
+    public static void SalesTable_Post_insert(XppPrePostArgs args)
+    {
+        info("a sales order was inserted");
+    }
+}
+
+//== comments
+// A line comment.
+int counter = 1; // A trailing comment.
+
+/* A block comment
+   spanning lines. */
+counter++;
+
+//== method-with-return
+class Calculator
+{
+    public int add(int left, int right)
+    {
+        return left + right;
+    }
+}

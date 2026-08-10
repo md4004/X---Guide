@@ -1,0 +1,84 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "switch",
+      "discriminant": {
+        "kind": "identifier",
+        "name": "counter"
+      },
+      "cases": [
+        {
+          "kind": "switchCase",
+          "tests": [
+            {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 1,
+              "raw": "1"
+            },
+            {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 2,
+              "raw": "2"
+            },
+            {
+              "kind": "literal",
+              "literalType": "int",
+              "value": 3,
+              "raw": "3"
+            }
+          ],
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "small",
+                    "raw": "\"small\""
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "break"
+            }
+          ]
+        },
+        {
+          "kind": "switchCase",
+          "statements": [
+            {
+              "kind": "expressionStatement",
+              "expression": {
+                "kind": "call",
+                "callee": {
+                  "kind": "identifier",
+                  "name": "info"
+                },
+                "arguments": [
+                  {
+                    "kind": "literal",
+                    "literalType": "str",
+                    "value": "large",
+                    "raw": "\"large\""
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

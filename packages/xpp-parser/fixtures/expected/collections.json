@@ -1,0 +1,83 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "List"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "names",
+          "initializer": {
+            "kind": "new",
+            "className": "List",
+            "arguments": [
+              {
+                "kind": "enumAccess",
+                "enumName": "Types",
+                "valueName": "String"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "Map"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "lookup",
+          "initializer": {
+            "kind": "new",
+            "className": "Map",
+            "arguments": [
+              {
+                "kind": "enumAccess",
+                "enumName": "Types",
+                "valueName": "String"
+              },
+              {
+                "kind": "enumAccess",
+                "enumName": "Types",
+                "valueName": "Integer"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "Set"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "unique",
+          "initializer": {
+            "kind": "new",
+            "className": "Set",
+            "arguments": [
+              {
+                "kind": "enumAccess",
+                "enumName": "Types",
+                "valueName": "Integer"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+// The broken-snippet corpus.
+//
+// Every snippet here must fail, and must fail with the exact code, line and column in
+// fixtures/errors.expected.json. These are the messages a learner actually meets, so
+// they get the same care as the working paths — a bare "syntax error" is a bug.
+//
+// Line numbers in the expectations are relative to the start of each snippet, so adding
+// a snippet never renumbers the ones below it.
+
+//== missing-semicolon
+int counter = 1
+counter++;
+
+//== unclosed-brace
+if (counter > 0)
+{
+    info("positive");
+
+//== stray-closing-brace
+info("fine");
+}
+
+//== unterminated-string
+info("this string never ends);
+
+//== unexpected-character
+int counter = 1;
+counter = counter @ 2;
+
+//== unterminated-block-comment
+info("before");
+/* this comment never closes
+info("after");
+
+//== macro-directive
+#define.MaxRetries(3)
+info("macros are out of subset");
+
+//== missing-expression
+int counter = ;
+
+//== missing-closing-paren
+if (counter > 0
+{
+    info("positive");
+}
+
+//== select-without-buffer
+select firstonly where AccountNum == "C-1000";
+
+//== forceliterals-out-of-subset
+CustTable custTable;
+select forceliterals custTable where custTable.AccountNum == "C-1000";
+
+//== query-object-out-of-subset
+Query query = new Query();
+QueryRun queryRun = new QueryRun(query);
+
+//== invalid-numeric-literal
+real price = 12.34.56;
+
+//== missing-condition
+if ()
+{
+    info("nothing to test");
+}

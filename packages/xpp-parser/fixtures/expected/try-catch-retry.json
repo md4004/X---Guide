@@ -1,0 +1,97 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "attempts"
+        }
+      ]
+    },
+    {
+      "kind": "tryCatch",
+      "block": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "update",
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "kind": "identifier",
+                "name": "attempts"
+              }
+            }
+          },
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "trying",
+                  "raw": "\"trying\""
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "handlers": [
+        {
+          "kind": "catchClause",
+          "exception": {
+            "kind": "enumAccess",
+            "enumName": "Exception",
+            "valueName": "Deadlock"
+          },
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "if",
+                "test": {
+                  "kind": "binary",
+                  "operator": "<",
+                  "left": {
+                    "kind": "identifier",
+                    "name": "attempts"
+                  },
+                  "right": {
+                    "kind": "literal",
+                    "literalType": "int",
+                    "value": 3,
+                    "raw": "3"
+                  }
+                },
+                "consequent": {
+                  "kind": "block",
+                  "statements": [
+                    {
+                      "kind": "continue"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

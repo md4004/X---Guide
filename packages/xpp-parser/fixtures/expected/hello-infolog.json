@@ -1,0 +1,24 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "Hello from X++",
+            "raw": "\"Hello from X++\""
+          }
+        ]
+      }
+    }
+  ]
+}

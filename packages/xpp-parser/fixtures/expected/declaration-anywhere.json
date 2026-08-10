@@ -1,0 +1,73 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "before",
+            "raw": "\"before\""
+          }
+        ]
+      }
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "counter",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 1,
+            "raw": "1"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "update",
+        "operator": "++",
+        "prefix": false,
+        "argument": {
+          "kind": "identifier",
+          "name": "counter"
+        }
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "after",
+            "raw": "\"after\""
+          }
+        ]
+      }
+    }
+  ]
+}

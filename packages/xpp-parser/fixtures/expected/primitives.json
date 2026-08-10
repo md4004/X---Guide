@@ -1,0 +1,120 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "str"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "name",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "Havensdale",
+            "raw": "\"Havensdale\""
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "counter",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 42,
+            "raw": "42"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int64"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "bigNumber",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 9000000000,
+            "raw": "9000000000"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "real"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "price",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "real",
+            "value": 184.5,
+            "raw": "184.50"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "boolean"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "isReady",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "boolean",
+            "value": true,
+            "raw": "true"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "date"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "dueDate",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "date",
+            "value": "31\\12\\2026",
+            "raw": "31\\12\\2026"
+          }
+        }
+      ]
+    }
+  ]
+}

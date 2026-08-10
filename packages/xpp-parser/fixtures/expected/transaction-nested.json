@@ -1,0 +1,54 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "ttsBegin"
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "outer",
+            "raw": "\"outer\""
+          }
+        ]
+      }
+    },
+    {
+      "kind": "ttsBegin"
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "call",
+        "callee": {
+          "kind": "identifier",
+          "name": "info"
+        },
+        "arguments": [
+          {
+            "kind": "literal",
+            "literalType": "str",
+            "value": "inner",
+            "raw": "\"inner\""
+          }
+        ]
+      }
+    },
+    {
+      "kind": "ttsCommit"
+    },
+    {
+      "kind": "ttsCommit"
+    }
+  ]
+}

@@ -49,6 +49,10 @@ runs typecheck, lint, format, tests and build.
 fictional legal entities, with real savepoint-backed nested transactions, X++ `ttsabort`
 semantics, company scoping, a SQL trace and snapshot/reset.
 
-Phase 2 (lexer and parser) is next, and is gated on signing off
-[docs/language-subset.md](docs/language-subset.md). See [PLAN.md](PLAN.md) for the full
-sequence and [docs/decisions.md](docs/decisions.md) for what still needs deciding.
+**Phase 2 (lexer and parser)** — hand-written tokenizer and recursive-descent parser over
+a 66-snippet fixture corpus, with error recovery and teaching-grade diagnostics. X++
+operator precedence is implemented and pinned, and it is not C's — see VB-005 in
+[docs/verified-behaviour.md](docs/verified-behaviour.md).
+
+Phase 3 (interpreter) is next. See [PLAN.md](PLAN.md) for the full sequence and
+[docs/decisions.md](docs/decisions.md) for what still needs deciding.

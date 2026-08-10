@@ -1,0 +1,61 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [
+    {
+      "kind": "classDeclaration",
+      "name": "MathHelper",
+      "attributes": [],
+      "modifiers": [],
+      "implementsInterfaces": [],
+      "fields": [],
+      "methods": [
+        {
+          "kind": "methodDeclaration",
+          "name": "doubled",
+          "attributes": [],
+          "modifiers": [
+            "public",
+            "static"
+          ],
+          "returnType": {
+            "kind": "typeReference",
+            "name": "int"
+          },
+          "parameters": [
+            {
+              "kind": "parameterDeclaration",
+              "type": {
+                "kind": "typeReference",
+                "name": "int"
+              },
+              "name": "value"
+            }
+          ],
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "return",
+                "argument": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "identifier",
+                    "name": "value"
+                  },
+                  "right": {
+                    "kind": "literal",
+                    "literalType": "int",
+                    "value": 2,
+                    "raw": "2"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "statements": []
+}

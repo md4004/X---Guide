@@ -1,0 +1,60 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "tryCatch",
+      "block": {
+        "kind": "block",
+        "statements": [
+          {
+            "kind": "expressionStatement",
+            "expression": {
+              "kind": "call",
+              "callee": {
+                "kind": "identifier",
+                "name": "info"
+              },
+              "arguments": [
+                {
+                  "kind": "literal",
+                  "literalType": "str",
+                  "value": "risky",
+                  "raw": "\"risky\""
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "handlers": [
+        {
+          "kind": "catchClause",
+          "body": {
+            "kind": "block",
+            "statements": [
+              {
+                "kind": "expressionStatement",
+                "expression": {
+                  "kind": "call",
+                  "callee": {
+                    "kind": "identifier",
+                    "name": "info"
+                  },
+                  "arguments": [
+                    {
+                      "kind": "literal",
+                      "literalType": "str",
+                      "value": "caught anything",
+                      "raw": "\"caught anything\""
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

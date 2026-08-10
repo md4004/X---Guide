@@ -1,0 +1,93 @@
+{
+  "kind": "sourceUnit",
+  "declarations": [],
+  "statements": [
+    {
+      "kind": "variableDeclaration",
+      "type": {
+        "kind": "typeReference",
+        "name": "int"
+      },
+      "declarators": [
+        {
+          "kind": "variableDeclarator",
+          "name": "total",
+          "initializer": {
+            "kind": "literal",
+            "literalType": "int",
+            "value": 0,
+            "raw": "0"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "+=",
+        "target": {
+          "kind": "identifier",
+          "name": "total"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 10,
+          "raw": "10"
+        }
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "-=",
+        "target": {
+          "kind": "identifier",
+          "name": "total"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 3,
+          "raw": "3"
+        }
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "*=",
+        "target": {
+          "kind": "identifier",
+          "name": "total"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 2,
+          "raw": "2"
+        }
+      }
+    },
+    {
+      "kind": "expressionStatement",
+      "expression": {
+        "kind": "assignment",
+        "operator": "/=",
+        "target": {
+          "kind": "identifier",
+          "name": "total"
+        },
+        "value": {
+          "kind": "literal",
+          "literalType": "int",
+          "value": 7,
+          "raw": "7"
+        }
+      }
+    }
+  ]
+}
