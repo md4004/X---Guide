@@ -1,0 +1,73 @@
+# Publishes the site to GitHub Pages.
+#
+# The app is entirely client-side — no API routes, no middleware, no server actions — so
+# it exports to plain files and needs no server at all. `NEXT_PUBLIC_BASE_PATH` is set
+# because a project site is served from /<repo>/ rather than a domain root, and the engine
+# worker reads it to find sql-wasm.wasm.
+#
+# CI (ci.yml) still runs the full gate on push; this only deploys. Keeping them apart
+# means a red test suite is visible as a red test suite rather than as a failed deploy.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read the repo, mint the Pages token. Nothing here needs write access to the repo.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. `cancel-in-progress: false` so a queued deploy finishes rather
+# than being dropped halfway through publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/configure-pages@v5
+
+      # `prebuild` copies sql-wasm.wasm into public/, so the export includes it.
+      - name: Build the static export
+        env:
+          NEXT_STATIC_EXPORT: "1"
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: pnpm build
+
+      # Next 16 exports prefetch payloads under a path the client does not ask for. See
+      # the script's header — without it every link prefetch 404s.
+      - run: node scripts/fix-prefetch-payloads.mjs out
+
+      # Pages runs no Jekyll on artifact deploys, but Jekyll would skip `_next/` entirely
+      # — and that is the whole bundle. Cheap insurance against ever losing it.
+      - run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

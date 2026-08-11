@@ -28,9 +28,19 @@ const aot = createVirtualAot();
 
 let db: VirtualDb | undefined;
 
+/**
+ * Where `sql-wasm.wasm` is served from.
+ *
+ * Resolved here rather than in `virtual-db` because a base path is a deployment fact, and
+ * the engine packages are not allowed to know anything about Next — the point at which
+ * the app meets its host belongs in the app. Inlined at build time, so it survives into
+ * the worker bundle.
+ */
+const WASM_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/sql-wasm.wasm`;
+
 async function database(): Promise<VirtualDb> {
   if (db === undefined) {
-    db = createVirtualDb({ wasmUrl: "/sql-wasm.wasm" });
+    db = createVirtualDb({ wasmUrl: WASM_URL });
     await db.init();
   }
   return db;
