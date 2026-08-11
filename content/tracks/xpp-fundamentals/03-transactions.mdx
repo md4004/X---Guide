@@ -12,7 +12,6 @@ seed: default
 
 <Step id="explicit">
 
-## Nothing is implicit
 
 X++ opens no transaction for you. Every write has to say so:
 
@@ -44,7 +43,6 @@ thing in a transaction. Then log:
 
 <Step id="nesting">
 
-## Nesting counts, but only the outside matters
 
 `ttsbegin` can nest. Each one raises a counter called **ttsLevel**, and each `ttscommit`
 lowers it. Nothing reaches the database until the level returns to zero:
@@ -82,7 +80,6 @@ so the second record does not inherit the first one's values.
 
 <Step id="abort">
 
-## ttsabort throws everything away
 
 Here is the part that catches people.
 
@@ -133,7 +130,7 @@ export const steps = [
   { id: "wrap-a-write", title: "Wrap a write", taskId: "wrap-a-write" },
   {
     id: "nesting",
-    title: "Nesting",
+    title: "Nesting counts, but only the outside matters",
     example: 'ttsbegin;\ninfo("outer");\nttsbegin;\ninfo("inner");\nttscommit;\nttscommit;\n',
   },
   { id: "nested-commit", title: "Nested transactions", taskId: "nested-commit" },

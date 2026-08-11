@@ -12,7 +12,6 @@ seed: default
 
 <Step id="intro">
 
-## The Infolog
 
 Everything an X++ program prints goes to the **Infolog**. It is a running list, not a
 popup, so you can write to it as often as you like without interrupting anything.
@@ -23,8 +22,9 @@ There are three levels:
 warning("worth a second look");
 error("something went wrong");`}</Snippet>
 
-Press **Check** to run the code on the left, then open the **Infolog** tab underneath the
-editor to see all three.
+Press **Run** to execute the code on the left, then open the **Infolog** tab underneath the
+editor to see all three. Nothing on this step is marked — change the code and run it again
+as often as you like.
 
 <Aside title="Careful">
   `error()` does **not** stop your program. It writes a red line and carries on to the next
@@ -49,7 +49,6 @@ Each is a function call ending in a semicolon.
 
 <Step id="strfmt-intro">
 
-## Building a message
 
 You rarely log a fixed string. `strFmt` puts values into a template:
 
@@ -82,7 +81,6 @@ Use `strFmt` rather than joining strings together with `+`.
 
 <Step id="types">
 
-## Variables start with a value
 
 X++ has no null and no "not yet assigned". Declare a variable and it is immediately
 usable, holding the empty value for its type:

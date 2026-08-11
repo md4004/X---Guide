@@ -12,7 +12,6 @@ seed: default
 
 <Step id="two-buffers">
 
-## Two buffers, one statement
 
 Reading a header table and then querying its lines inside the loop costs one query per
 header. X++ joins in the `select` itself, so it costs one:
@@ -59,7 +58,6 @@ Keep it to a single query — a `select` inside the loop defeats the point.
 
 <Step id="four-kinds">
 
-## The four kinds
 
 | Written          | Means                                                                            |
 | ---------------- | -------------------------------------------------------------------------------- |
@@ -116,7 +114,6 @@ There is a keyword for this. Do not collect the matches and subtract them yourse
 
 <Step id="reading-the-trace">
 
-## Reading the trace
 
 Open the SQL trace on the last two tasks. `exists join` compiled to an
 `EXISTS (SELECT 1 ...)` subquery rather than a join — which is how F&O compiles it, and

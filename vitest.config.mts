@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import mdx from "@mdx-js/rollup";
 import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { defineConfig } from "vitest/config";
 
@@ -18,7 +19,13 @@ const pkg = (name: string) =>
 export default defineConfig({
   plugins: [
     mdx({
-      remarkPlugins: [remarkFrontmatter, [remarkMdxFrontmatter, { name: "frontmatter" }]],
+      // Must match next.config.ts, or a lesson can pass here and render differently in
+      // the browser. remark-gfm is what turns pipe tables into tables.
+      remarkPlugins: [
+        remarkFrontmatter,
+        [remarkMdxFrontmatter, { name: "frontmatter" }],
+        remarkGfm,
+      ],
     }),
   ],
   resolve: {

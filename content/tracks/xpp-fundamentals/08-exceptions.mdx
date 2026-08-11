@@ -12,7 +12,6 @@ seed: default
 
 <Step id="throw">
 
-## throw error(...) is two things on one line
 
 You have used `error()` since the first lesson. It writes a red line and returns — it stops
 nothing. What stops things is `throw`:
@@ -48,7 +47,6 @@ one does.
 
 <Step id="the-rule">
 
-## The rule that catches everyone
 
 A `try`/`catch` looks ordinary:
 
@@ -126,7 +124,6 @@ The catch has to be somewhere that actually runs.
 
 <Step id="retry-intro">
 
-## retry, and the thing it erases
 
 `retry` is only valid inside a `catch`, and it jumps back to the first line of the associated
 `try`. It exists for optimistic-concurrency failures: catch the conflict, try again.
@@ -178,7 +175,7 @@ Then look carefully at what actually ends up in the Infolog.
 export const steps = [
   {
     id: "throw",
-    title: "throw error(...)",
+    title: "throw error(...) is two things on one line",
     example:
       'info("before");\nerror("this one does not stop anything");\ninfo("after");\n',
   },
@@ -196,7 +193,7 @@ export const steps = [
   },
   {
     id: "retry-intro",
-    title: "retry, and what it erases",
+    title: "retry, and the thing it erases",
     example:
       'int attempts;\n\ntry\n{\n    info(strFmt("attempt %1", attempts));\n    attempts++;\n\n    if (attempts < 3)\n    {\n        throw error("not yet");\n    }\n\n    info("succeeded");\n}\ncatch (Exception::Error)\n{\n    retry;\n}\n',
   },

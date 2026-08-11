@@ -12,7 +12,6 @@ seed: default
 
 <Step id="one-table">
 
-## One table, every company
 
 F&O has exactly **one** `InventTable`, however many legal entities are configured. Every row
 carries a `DataAreaId` — a short legal entity code — and every query you write is silently
@@ -44,7 +43,6 @@ the key.
 
 <Step id="changecompany">
 
-## changecompany: borrow a company for a moment
 
 <Snippet lang="xpp">{`CustTable custTable;
 
@@ -96,7 +94,6 @@ If your second line says `GBP`, re-read the warning in the previous step.
 
 <Step id="crosscompany">
 
-## crosscompany: all of them at once
 
 <Snippet lang="xpp">{`CustTable custTable;
 
@@ -143,7 +140,7 @@ export const steps = [
   },
   {
     id: "changecompany",
-    title: "changecompany",
+    title: "changecompany: borrow a company for a moment",
     example:
       'CustTable custTable;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\ninfo(strFmt("here:  %1", custTable.CurrencyCode));\n\nchangecompany ("KELT")\n{\n    select firstonly custTable where custTable.AccountNum == "C-1000";\n    info(strFmt("KELT:  %1", custTable.CurrencyCode));\n}\n',
   },
@@ -155,7 +152,7 @@ export const steps = [
   { id: "same-key-different-row", title: "Same key, different row", taskId: "same-key-different-row" },
   {
     id: "crosscompany",
-    title: "crosscompany",
+    title: "crosscompany: all of them at once",
     example:
       'CustTable custTable;\n\nwhile select crosscompany custTable\n{\n    info(strFmt("%1 in %2", custTable.AccountNum, custTable.DataAreaId));\n}\n',
   },

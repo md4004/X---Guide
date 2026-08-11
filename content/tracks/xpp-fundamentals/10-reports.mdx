@@ -12,7 +12,6 @@ seed: default
 
 <Step id="two-halves">
 
-## A report is two halves that meet at a table
 
 An F&O report is not one thing. It is:
 
@@ -64,7 +63,6 @@ totalled the amounts, and you never told it to.
 
 <Step id="shape-is-yours">
 
-## The shape of the data is a decision
 
 The design groups and totals. That does not mean the provider should hand it everything and
 shrug.
@@ -103,7 +101,6 @@ a line, with an inner loop summing that item's lines, is the readable one.
 
 <Step id="empty-report">
 
-## An empty report is a real answer
 
 A provider that finds nothing writes nothing, and the design prints an empty report. That is
 correct behaviour, and it is worth seeing on purpose — because in production it is the
@@ -121,7 +118,7 @@ SQL trace, which is right there in the next tab.
 export const steps = [
   {
     id: "two-halves",
-    title: "A report is two halves",
+    title: "A report is two halves that meet at a table",
     example:
       "SalesLine salesLine;\nint counter;\n\nwhile select salesLine\n{\n    counter++;\n}\n\ninfo(strFmt(\"There are %1 sales lines to report on.\", counter));\n",
   },

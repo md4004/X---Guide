@@ -12,7 +12,6 @@ seed: default
 
 <Step id="buffers">
 
-## A table buffer is a variable
 
 To touch a table you declare a variable of that table's type:
 
@@ -50,7 +49,6 @@ Use `firstonly` — you only want one record.
 
 <Step id="empty">
 
-## When nothing matches
 
 A `select` that finds nothing does not raise anything. It leaves the buffer empty, and
 every field comes back as the starting value for its type — `""` for a `str`, `0` for an
@@ -74,7 +72,6 @@ zero.
 
 <Step id="loops">
 
-## Reading many records
 
 `while select` opens a cursor and loops it in a single statement:
 
@@ -108,7 +105,6 @@ A counter variable is declared for you.
 
 <Step id="forupdate">
 
-## Reading is not writing
 
 A buffer filled by a plain `select` is **read-only**. If you intend to change what you
 read, say so when you read it:

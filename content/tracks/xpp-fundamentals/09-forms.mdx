@@ -12,7 +12,6 @@ seed: default
 
 <Step id="what-a-form-is">
 
-## A form is metadata over a query
 
 There is no HTML behind an F&O form and no layout code you write by hand. A form is a
 small pile of declarations:
@@ -25,7 +24,7 @@ Everything else the form does — fetching rows, rendering a grid, showing an en
 name rather than its number, greying out a read-only field — is the platform reading that
 metadata and acting on it.
 
-Press **Check** and open the **Form** tab. That grid is `InventTableListPage` rendered from
+Press **Run** and open the **Form** tab. That grid is `InventTableListPage` rendered from
 its metadata over the rows that are actually in the database right now.
 
 <Aside title="What this is not">
@@ -38,7 +37,6 @@ its metadata over the rows that are actually in the database right now.
 
 <Step id="properties-render">
 
-## Properties are not decoration
 
 Every column in that grid got its appearance from a property, not from a guess:
 
@@ -74,7 +72,6 @@ because the form resolves the enum through its metadata.
 
 <Step id="validatewrite">
 
-## validateWrite is the check a form runs
 
 When a user saves a record on a form, the form engine calls `validateWrite()` on the table
 first. That method returns a **boolean**: `true` if the record may be written.
@@ -112,7 +109,6 @@ Do not insert anything. The whole point is to find out *before* writing.
 
 <Step id="nothing-calls-it">
 
-## Nothing calls it for you
 
 Here is the part that costs people data.
 
@@ -152,7 +148,6 @@ Then check the **Form** tab: your record is in the grid.
 
 <Step id="not-modelled">
 
-## What is deliberately missing
 
 Worth knowing about, and not simulated here, because a simulation of them would be
 guesswork:
