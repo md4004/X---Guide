@@ -41,6 +41,27 @@ export interface LessonFrontmatter {
   seed?: string;
 }
 
+/**
+ * One step of a lesson.
+ *
+ * A lesson is a sequence of these rather than one long page: the learner reads the
+ * instructions on the right, writes code on the left, and moves on. A step with no
+ * `taskId` is a reading step — it explains something and the editor holds an example to
+ * play with.
+ */
+export interface LessonStep {
+  id: string;
+  /** Shown in the step header and in the progress rail. */
+  title: string;
+  /** The task the learner must pass before this step is complete. */
+  taskId?: string;
+  /**
+   * Code to put in the editor for a reading step, so there is always something to run.
+   * Ignored when `taskId` is set — the task's `starter` wins.
+   */
+  example?: string;
+}
+
 export interface TrackDefinition {
   slug: string;
   title: string;

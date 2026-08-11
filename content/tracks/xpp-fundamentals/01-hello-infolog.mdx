@@ -1,0 +1,238 @@
+---
+slug: 01-hello-infolog
+title: Output and variables
+minutes: 15
+objectives:
+  - Write to the Infolog at three severity levels
+  - Build a message with strFmt and its numbered placeholders
+  - Know what value a variable starts with
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="intro">
+
+## The Infolog
+
+Everything an X++ program prints goes to the **Infolog**. It is a running list, not a
+popup, so you can write to it as often as you like without interrupting anything.
+
+There are three levels:
+
+<Snippet lang="xpp">{`info("ordinary output");
+warning("worth a second look");
+error("something went wrong");`}</Snippet>
+
+Press **Check** to run the code on the left, then open the **Infolog** tab underneath the
+editor to see all three.
+
+<Aside title="Careful">
+  `error()` does **not** stop your program. It writes a red line and carries on to the next
+  statement. Stopping is a separate job, done by `throw`, and the last lesson covers it.
+</Aside>
+
+</Step>
+
+<Step id="three-levels">
+
+## Your turn
+
+Write one line at each level.
+
+- an **info** reading `Starting`
+- a **warning** reading `Careful`
+- an **error** reading `Stopped`
+
+Each is a function call ending in a semicolon.
+
+</Step>
+
+<Step id="strfmt-intro">
+
+## Building a message
+
+You rarely log a fixed string. `strFmt` puts values into a template:
+
+<Snippet lang="xpp">{`str name = "Havensdale";
+int count = 4;
+
+info(strFmt("%1 has %2 items", name, count));`}</Snippet>
+
+The placeholders are **numbered** — `%1`, `%2`, `%3` — not positional. Because they are
+numbered, you can use one twice:
+
+<Snippet lang="xpp">{`info(strFmt("%1, and again %1", "twice"));`}</Snippet>
+
+If a placeholder has no matching argument, X++ leaves it in the output exactly as written.
+That is useful: a stray `%2` on screen means you forgot an argument.
+
+</Step>
+
+<Step id="format-a-message">
+
+## Your turn
+
+Two variables are already declared on the left. Log exactly:
+
+`Havensdale has 4 items`
+
+Use `strFmt` rather than joining strings together with `+`.
+
+</Step>
+
+<Step id="types">
+
+## Variables start with a value
+
+X++ has no null and no "not yet assigned". Declare a variable and it is immediately
+usable, holding the empty value for its type:
+
+| Type      | Starts as | Notes                                          |
+| --------- | --------- | ---------------------------------------------- |
+| `int`     | `0`       | 32-bit; `int64` when you need bigger           |
+| `real`    | `0.00`    | Decimal                                        |
+| `str`     | `""`      | `str 30` fixes a maximum length                |
+| `boolean` | `false`   | Displays as `No`                               |
+| `date`    | empty     | Compared and assigned like any other value     |
+
+So you never test whether something was set — you test whether it is still empty. That is
+why so much X++ reads `if (custTable.AccountNum)`.
+
+The other type you will meet constantly is an **enum**: a named set of values, like
+`NoYes` with `NoYes::No` and `NoYes::Yes`. Enums are stored as numbers but display as
+their name, so `NoYes::Yes` prints as `Yes`.
+
+</Step>
+
+<Step id="defaults-and-enums">
+
+## Your turn
+
+Declare an `int`, a `str` and a `boolean` and assign nothing to any of them. Log all three
+in one `strFmt`, wrapping each placeholder in square brackets so the empty string is
+visible:
+
+`[0] [] [No]`
+
+Then, on a second line, log `NoYes::Yes` on its own and notice that it prints as a word.
+
+</Step>
+
+export const steps = [
+  {
+    id: "intro",
+    title: "The Infolog",
+    example: 'info("ordinary output");\nwarning("worth a second look");\nerror("something went wrong");\n',
+  },
+  { id: "three-levels", title: "Write all three levels", taskId: "three-levels" },
+  {
+    id: "strfmt-intro",
+    title: "Building a message",
+    example:
+      'str name = "Havensdale";\nint count = 4;\n\ninfo(strFmt("%1 has %2 items", name, count));\n',
+  },
+  { id: "format-a-message", title: "Format a message", taskId: "format-a-message" },
+  {
+    id: "types",
+    title: "Variables start with a value",
+    example: 'int number;\nstr text;\nboolean flag;\n\ninfo(strFmt("[%1] [%2] [%3]", number, text, flag));\n',
+  },
+  { id: "defaults-and-enums", title: "Defaults and enums", taskId: "defaults-and-enums" },
+];
+
+export const tasks = [
+  {
+    id: "three-levels",
+    prompt:
+      "Write one line to the Infolog at each of the three levels: an info reading Starting, a warning reading Careful, and an error reading Stopped.",
+    starter: "// Three lines, three levels.\n",
+    solution: 'info("Starting");\nwarning("Careful");\nerror("Stopped");\n',
+    hints: [
+      "The three functions are info(), warning() and error(). Each takes one string.",
+      "Every X++ statement ends with a semicolon, including the last one.",
+      'All three lines: info("Starting"); then warning("Careful"); then error("Stopped");',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^Starting$",
+        type: "info",
+        message:
+          "No info line reading exactly Starting. info() is the ordinary level — check the spelling and the capital S.",
+      },
+      {
+        kind: "output",
+        match: "^Careful$",
+        type: "warning",
+        message:
+          "Nothing was written at warning level. warning() is its own function, not info() with different text.",
+      },
+      {
+        kind: "output",
+        match: "^Stopped$",
+        type: "error",
+        message:
+          "Nothing was written at error level. Note that error() writes a red line and carries on — it does not stop your program.",
+      },
+    ],
+  },
+
+  {
+    id: "format-a-message",
+    prompt: "Log exactly: Havensdale has 4 items. Build it with strFmt rather than joining strings.",
+    starter: 'str company = "Havensdale";\nint itemCount = 4;\n\n// Log: Havensdale has 4 items\n',
+    solution:
+      'str company = "Havensdale";\nint itemCount = 4;\n\ninfo(strFmt("%1 has %2 items", company, itemCount));\n',
+    hints: [
+      "strFmt takes the template first, then one argument per placeholder, in order.",
+      "Placeholders are %1 and %2 — numbered, not braces and not a plus sign.",
+      'The line is info(strFmt("%1 has %2 items", company, itemCount));',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "strFmt",
+        message:
+          "Build the message with strFmt rather than joining strings with +. It keeps the text in one readable piece, and it is what every X++ codebase uses.",
+      },
+      {
+        kind: "output",
+        match: "^Havensdale has 4 items$",
+        type: "info",
+        message:
+          "The output does not read exactly: Havensdale has 4 items. Check the spacing, and that both placeholders got an argument — a leftover %2 in the output means one is missing.",
+      },
+    ],
+  },
+
+  {
+    id: "defaults-and-enums",
+    prompt:
+      "Declare an int, a str and a boolean without assigning anything, log all three with one strFmt as [0] [] [No], then log NoYes::Yes on its own line.",
+    starter: "// Declare three variables, log their defaults, then log NoYes::Yes.\n",
+    solution:
+      'int number;\nstr text;\nboolean flag;\n\ninfo(strFmt("[%1] [%2] [%3]", number, text, flag));\ninfo(strFmt("%1", NoYes::Yes));\n',
+    hints: [
+      "Declare them with a type and a name and no equals sign — X++ gives them their starting value for you.",
+      "Wrap each placeholder in square brackets in the template so the empty string is visible.",
+      'Two lines: info(strFmt("[%1] [%2] [%3]", number, text, flag)); then info(strFmt("%1", NoYes::Yes));',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^\\[0\\] \\[\\] \\[No\\]$",
+        type: "info",
+        message:
+          "The defaults line should read [0] [] [No] — an int starts at 0, a str at the empty string, and a boolean displays as No. Use the template [%1] [%2] [%3] so the empty one is visible.",
+      },
+      {
+        kind: "output",
+        match: "^Yes$",
+        type: "info",
+        message:
+          "NoYes::Yes should log as Yes, not as 1. Enums display by name even though they are stored as numbers — log it on its own line with strFmt.",
+      },
+    ],
+  },
+];

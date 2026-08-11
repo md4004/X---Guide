@@ -1,0 +1,18 @@
+{
+  "slug": "xpp-fundamentals",
+  "title": "X++ fundamentals",
+  "summary": "Write X++ that reads, writes and queries a real database — and see exactly what it does.",
+  "level": "beginner",
+  "estimatedMinutes": 180,
+  "lessons": [
+    "01-hello-infolog",
+    "02-buffers-and-select",
+    "03-transactions",
+    "04-insert-update-delete",
+    "05-joins",
+    "06-set-based",
+    "07-companies",
+    "08-exceptions"
+  ],
+  "requiresEngine": ["db", "runtime"]
+}
