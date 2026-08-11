@@ -13,8 +13,18 @@
 
 import { createVirtualDb, RECID_FIELD, type TableName, type VirtualDb } from "@xpplab/virtual-db";
 import { runSource } from "@xpplab/xpp-runtime";
-import { runTask } from "@xpplab/validators";
+import { runTask, type StepView } from "@xpplab/validators";
+import { createVirtualAot } from "@xpplab/virtual-aot";
+import {
+  buildFormView,
+  buildReportView,
+  type FormViewModel,
+  type ReportColumn,
+  type ReportViewModel,
+} from "@xpplab/renderers";
 import type { EngineReply, EngineRequest, TableSnapshot } from "./run-protocol.js";
+
+const aot = createVirtualAot();
 
 let db: VirtualDb | undefined;
 
@@ -68,13 +78,65 @@ async function fingerprint(
   return before;
 }
 
+/**
+ * Builds whatever viewer the step asked for, from the state the run just produced.
+ *
+ * Called from `runTask`'s `observe` hook, which is the only moment the learner's changes
+ * are still in the database — the runner restores its snapshot immediately after.
+ */
+async function buildView(
+  view: StepView,
+  instance: VirtualDb,
+): Promise<{ form?: FormViewModel; report?: ReportViewModel }> {
+  if (view.kind === "form") {
+    const form = aot.getForm(view.form);
+    if (form === undefined) throw new Error(`There is no form called ${view.form}.`);
+    return { form: await buildFormView({ form, aot, db: instance }) };
+  }
+
+  const table = aot.getTable(view.table);
+  if (table === undefined) throw new Error(`There is no table called ${view.table}.`);
+
+  const rows = await instance.readRows(view.table as TableName);
+  const columns: ReportColumn[] = table.fields.map((field) => ({
+    name: field.name,
+    label: field.label,
+    type: field.baseType === "real" ? "real" : field.baseType === "date" ? "date" : "str",
+  }));
+
+  return {
+    report: buildReportView(
+      { columns, rows },
+      { title: view.title, groupBy: view.groupBy, totals: view.totals, pageSize: 40 },
+    ),
+  };
+}
+
 async function handle(request: EngineRequest): Promise<EngineReply> {
   const instance = await database();
 
   if (request.kind === "task") {
+    let view: { form?: FormViewModel; report?: ReportViewModel } = {};
+    let viewError: string | undefined;
+
     // `runTask` snapshots and restores around the run, so a lesson attempt never leaves
     // the environment changed for the next one — the runner contract, step 1 and 5.
-    const result = await runTask({ task: request.task, source: request.source, db: instance });
+    const result = await runTask({
+      task: request.task,
+      source: request.source,
+      db: instance,
+      ...(request.view === undefined
+        ? {}
+        : {
+            observe: async (db) => {
+              try {
+                view = await buildView(request.view!, db);
+              } catch (error: unknown) {
+                viewError = error instanceof Error ? error.message : String(error);
+              }
+            },
+          }),
+    });
 
     return {
       id: request.id,
@@ -86,8 +148,46 @@ async function handle(request: EngineRequest): Promise<EngineReply> {
         runtimeErrors: result.runtimeErrors,
         infolog: result.run?.infolog ?? [],
         sqlTrace: result.run?.sqlTrace ?? [],
+        ...view,
+        ...(viewError === undefined ? {} : { viewError }),
       },
     };
+  }
+
+  if (request.kind === "preview") {
+    // Snapshotted like a task: an example the learner ran must not change the data the
+    // next exercise is checked against.
+    const snapshot = await instance.snapshot();
+    try {
+      const result = await runSource({ source: request.source, db: instance });
+
+      let view: { form?: FormViewModel; report?: ReportViewModel } = {};
+      let viewError: string | undefined;
+      if (request.view !== undefined) {
+        try {
+          view = await buildView(request.view, instance);
+        } catch (error: unknown) {
+          viewError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      return {
+        id: request.id,
+        ok: true,
+        task: {
+          passed: true,
+          preview: true,
+          parseErrors: result.parseFailed ? result.errors : [],
+          runtimeErrors: result.parseFailed ? [] : result.errors,
+          infolog: result.infolog,
+          sqlTrace: result.sqlTrace,
+          ...view,
+          ...(viewError === undefined ? {} : { viewError }),
+        },
+      };
+    } finally {
+      await instance.restore(snapshot);
+    }
   }
 
   if (request.kind === "reset") {

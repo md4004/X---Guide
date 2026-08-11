@@ -72,9 +72,15 @@ sql), progressive hints, solution reveal after three attempts, and progress in
 localStorage. Every task's solution is run through its own validators in CI, so a broken
 lesson fails the build rather than a learner.
 
-**Phase 6 (first guided track)** — all eight lessons of _X++ fundamentals_, at
-`/learn/xpp-fundamentals`. 23 validated tasks; every solution and 23 plausible wrong
-answers are checked in CI.
+**Phase 6 (first guided track)** — _X++ fundamentals_, at `/learn/xpp-fundamentals`. Ten
+lessons, 29 validated tasks; every solution and 27 plausible wrong answers are checked in
+CI.
+
+**Phase 7 / 9 (metadata, forms and reports)** — `@xpplab/virtual-aot` holds a metadata
+model derived from the database schema, so the two cannot drift. `validateWrite()` is real
+and enforces mandatory fields and EDT string sizes — and, as in a real environment,
+`insert()` does not call it for you. `@xpplab/renderers` builds form and report view models
+from that metadata, and lessons 9 and 10 teach against them.
 
 Phase 6's acceptance criterion is **not** met: it asks that a developer with no F&O
 experience completes the track in under three hours, and nobody has tried it yet. That is

@@ -31,16 +31,19 @@ against a real environment.
 | ttsLevel check across nested scopes | Selecting `forupdate` in an outer transaction and writing inside a nested one is allowed. The documented failure (VB-004) is two _sibling_ blocks; the nested case is not stated either way | Select forupdate at ttsLevel 1, open a nested ttsBegin, then update. If a real AOS rejects it, tighten the check in `#requireSelectedForUpdate` to compare against the innermost scope only |
 | Date literal component order        | `31\12\2026` is lexed and kept as source text without deciding whether it is day\month\year. Nothing depends on the interpretation yet                                                      | Assign a date literal and print it with `date2Str` in a real environment                                                                                                                    |
 | Exact runtime error wording         | Our messages are modelled on the documented behaviour, but Microsoft does not publish the literal text for "not selected for update", update conflicts or deadlocks                         | Trigger each in a real environment and copy the Infolog text. The behaviour is right; only the wording is ours                                                                              |
+| `validateWrite` failure text        | We emit `Field '<label>' must be filled in.` — naming the field by its label, which is what a user sees. The convention is right; the literal string is not published                       | Leave a mandatory field empty on a form in a real environment and copy the Infolog text                                                                                                     |
+| Which fields are mandatory          | `mandatory` is an AOT property, not a database one, so it is authored in `virtual-aot/src/model.ts`. Our set is a plausible teaching choice, not a copy of any real table                   | Compare against a real `InventTable`/`CustTable`. It cannot be copied in either — see CLAUDE.md > Legal rule — so this stays a deliberate difference rather than a defect                   |
 
 ## Still not modelled
 
 - **Referential integrity.** The schema declares relations, but `PRAGMA foreign_keys` is
   off. Duplicate keys are caught and surfaced as `DuplicateKeyException`; orphan rows are
-  not checked at all yet. That needs the metadata layer to know which relations are
-  mandatory, so it waits for Phase 7.
-- **Field-level validation.** `mandatory` and string lengths are recorded in the schema
-  but nothing enforces them. `validateWrite()` and `validateDelete()` deliberately refuse
-  to run rather than return a meaningless `true` — also Phase 7.
+  not checked at all. The metadata model does not record which relations are mandatory,
+  so `validateWrite()` does not check them either — it checks mandatory fields and EDT
+  string sizes, and claims nothing more.
+- **`validateDelete()`.** Still refused. It is about delete actions — what a delete
+  cascades to — and the model does not carry them. Returning `true` would say "safe to
+  delete" about a check nobody ran.
 - **Deadlock and update conflict.** Real X++ exceptions, and in the `Exception` enum we
   model, but a single-threaded in-browser SQLite cannot produce either. They stay out of
   the engine and belong in prose.

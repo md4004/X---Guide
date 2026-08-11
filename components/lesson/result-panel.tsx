@@ -12,8 +12,10 @@
 import { useState } from "react";
 import type { TaskOutcome } from "@/lib/run-protocol";
 import { InfologPanel, SqlTracePanel } from "@/components/playground/panels";
+import { FormView } from "@/components/renderers/form-view";
+import { ReportView } from "@/components/renderers/report-view";
 
-type Tab = "result" | "infolog" | "sql";
+type Tab = "result" | "infolog" | "sql" | "view";
 
 export function ResultPanel({
   outcome,
@@ -22,7 +24,26 @@ export function ResultPanel({
   outcome: TaskOutcome | undefined;
   onSelectLine: (line: number, column: number) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("result");
+  const [selected, setSelected] = useState<Tab | undefined>(undefined);
+  const [lastOutcome, setLastOutcome] = useState(outcome);
+
+  const hasView =
+    outcome?.form !== undefined ||
+    outcome?.report !== undefined ||
+    outcome?.viewError !== undefined;
+
+  // Every new run drops the learner's tab choice, so the panel opens on whatever that run
+  // is actually about. Adjusted during render rather than in an effect: an effect would
+  // paint the old tab first and then visibly swap.
+  if (outcome !== lastOutcome) {
+    setLastOutcome(outcome);
+    setSelected(undefined);
+  }
+
+  // A step that renders a form or a report wants it on screen, not behind a tab to hunt
+  // for. Steps without one have no such tab, so this never hides the result.
+  const tab: Tab = selected ?? (hasView ? "view" : "result");
+  const setTab = setSelected;
 
   if (outcome === undefined) {
     return (
@@ -34,13 +55,15 @@ export function ResultPanel({
 
   const sqlCount = outcome.sqlTrace?.length ?? 0;
   const infologCount = outcome.infolog?.length ?? 0;
+  const viewLabel = outcome.report === undefined ? "Form" : "Report";
 
   return (
     <div className="flex flex-col">
       <nav className="flex shrink-0 gap-1 border-b border-zinc-800 px-3">
         {(
           [
-            ["result", outcome.passed ? "Passed" : "Result", 0],
+            ["result", outcome.passed && outcome.preview !== true ? "Passed" : "Result", 0],
+            ...(hasView ? ([["view", viewLabel, 0]] as const) : []),
             ["infolog", "Infolog", infologCount],
             ["sql", "SQL trace", sqlCount],
           ] as const
@@ -70,6 +93,17 @@ export function ResultPanel({
         {tab === "result" && <Verdict outcome={outcome} onSelectLine={onSelectLine} />}
         {tab === "infolog" && <InfologPanel entries={outcome.infolog ?? []} />}
         {tab === "sql" && <SqlTracePanel entries={outcome.sqlTrace ?? []} />}
+        {tab === "view" && (
+          <>
+            {outcome.form !== undefined && <FormView view={outcome.form} />}
+            {outcome.report !== undefined && <ReportView view={outcome.report} />}
+            {outcome.viewError !== undefined && (
+              <p className="rounded border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                {outcome.viewError}
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -82,6 +116,19 @@ function Verdict({
   outcome: TaskOutcome;
   onSelectLine: (line: number, column: number) => void;
 }) {
+  // A reading step's example is run, not judged, so it gets no verdict — only whatever
+  // went wrong, if anything. Calling it "passed" would imply there was something to pass.
+  if (outcome.preview === true) {
+    const failure = outcome.parseErrors?.[0] ?? outcome.runtimeErrors?.[0];
+    if (failure === undefined) {
+      return (
+        <p data-testid="example-ran" className="px-1 text-xs text-zinc-500">
+          Ran. Look at the Infolog and the SQL trace — and change the code, nothing here is marked.
+        </p>
+      );
+    }
+  }
+
   if (outcome.passed) {
     return (
       <p

@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TaskDefinition } from "@xpplab/validators";
+import type { StepView, TaskDefinition } from "@xpplab/validators";
 import {
   PANEL_TABLES,
   type EngineReply,
@@ -110,7 +110,11 @@ export function useEngine() {
    * not, which one thing should they be told".
    */
   const runTask = useCallback(
-    async (task: TaskDefinition, source: string): Promise<TaskOutcome | undefined> => {
+    async (
+      task: TaskDefinition,
+      source: string,
+      view?: StepView,
+    ): Promise<TaskOutcome | undefined> => {
       const worker = workerRef.current;
       if (worker === null) return undefined;
 
@@ -119,7 +123,13 @@ export function useEngine() {
       const id = nextIdRef.current++;
       const reply = await new Promise<EngineReply>((resolve) => {
         pendingRef.current.set(id, resolve);
-        worker.postMessage({ kind: "task", task, source, id } satisfies EngineRequest);
+        worker.postMessage({
+          kind: "task",
+          task,
+          source,
+          id,
+          ...(view === undefined ? {} : { view }),
+        } satisfies EngineRequest);
       });
 
       setState((current) => ({
@@ -133,5 +143,40 @@ export function useEngine() {
     [],
   );
 
-  return { ...state, run, reset, read, runTask };
+  /**
+   * Runs a reading step's example. Same panels as a task, no verdict.
+   *
+   * Kept beside `runTask` rather than folded into `run`, because the playground's `run`
+   * deliberately does not restore — it is a sandbox, and a lesson example is not.
+   */
+  const preview = useCallback(
+    async (source: string, view?: StepView): Promise<TaskOutcome | undefined> => {
+      const worker = workerRef.current;
+      if (worker === null) return undefined;
+
+      setState((current) => ({ ...current, busy: true, failure: undefined }));
+
+      const id = nextIdRef.current++;
+      const reply = await new Promise<EngineReply>((resolve) => {
+        pendingRef.current.set(id, resolve);
+        worker.postMessage({
+          kind: "preview",
+          source,
+          id,
+          ...(view === undefined ? {} : { view }),
+        } satisfies EngineRequest);
+      });
+
+      setState((current) => ({
+        ...current,
+        busy: false,
+        ...(reply.ok ? {} : { failure: reply.error ?? "The engine failed." }),
+      }));
+
+      return reply.task;
+    },
+    [],
+  );
+
+  return { ...state, run, reset, read, runTask, preview };
 }

@@ -60,7 +60,30 @@ export interface LessonStep {
    * Ignored when `taskId` is set — the task's `starter` wins.
    */
   example?: string;
+  /**
+   * An extra viewer to show beside the result, for steps where the point is what the
+   * code *produced* rather than what it logged.
+   */
+  view?: StepView;
 }
+
+/**
+ * A rendered view of what a run left behind.
+ *
+ * `form` renders a form from AOT metadata over the current data. `report` groups and
+ * totals the rows a data provider wrote into its table, the way a report design would.
+ * Both are built inside the run window, before the task runner restores its snapshot.
+ */
+export type StepView =
+  | { kind: "form"; form: string }
+  | {
+      kind: "report";
+      /** The table the learner's data provider fills. */
+      table: string;
+      title: string;
+      groupBy: string[];
+      totals: { column: string; aggregate: "sum" | "count" | "avg" }[];
+    };
 
 export interface TrackDefinition {
   slug: string;

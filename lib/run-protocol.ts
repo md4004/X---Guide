@@ -6,7 +6,8 @@
 
 import type { InfologEntry, SqlTraceEntry, XppError } from "@xpplab/xpp-core";
 import type { Row, TableName } from "@xpplab/virtual-db";
-import type { TaskDefinition } from "@xpplab/validators";
+import type { StepView, TaskDefinition } from "@xpplab/validators";
+import type { FormViewModel, ReportViewModel } from "@xpplab/renderers";
 
 export interface RunRequest {
   id: number;
@@ -37,9 +38,29 @@ export interface TaskRequest {
   /** The whole task, so the worker needs no content of its own. */
   task: TaskDefinition;
   source: string;
+  /**
+   * Built by the worker while the run's changes are still in the database — the task
+   * runner restores its snapshot immediately afterwards, so the main thread has no window
+   * in which to read them.
+   */
+  view?: StepView;
 }
 
-export type EngineRequest = RunRequest | ResetRequest | ReadRequest | TaskRequest;
+/**
+ * Runs a reading step's example.
+ *
+ * No validators and no verdict — just the Infolog, the SQL trace and whatever viewer the
+ * step declared. Snapshotted and restored like a task, because an example is for looking
+ * at: it must not leave the lesson's data changed for the exercise that follows.
+ */
+export interface PreviewRequest {
+  id: number;
+  kind: "preview";
+  source: string;
+  view?: StepView;
+}
+
+export type EngineRequest = RunRequest | ResetRequest | ReadRequest | TaskRequest | PreviewRequest;
 
 /**
  * What a lesson task reports back.
@@ -49,6 +70,8 @@ export type EngineRequest = RunRequest | ResetRequest | ReadRequest | TaskReques
  */
 export interface TaskOutcome {
   passed: boolean;
+  /** `true` for a reading step's example: it ran, but nothing judged it. */
+  preview?: boolean;
   /** The authored message for the first validator that failed. */
   message?: string;
   parseErrors?: XppError[];
@@ -57,6 +80,11 @@ export interface TaskOutcome {
   sqlTrace?: SqlTraceEntry[];
   /** Set when the pass was read from localStorage rather than just earned. */
   restored?: boolean;
+  /** Present when the step declared a `view`, and it built. */
+  form?: FormViewModel;
+  report?: ReportViewModel;
+  /** Why the view could not be built, when it could not. */
+  viewError?: string;
 }
 
 export interface TableSnapshot {

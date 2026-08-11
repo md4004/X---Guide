@@ -32,14 +32,17 @@ depending on app-level component types to do that.
   "title": "X++ fundamentals",
   "summary": "Write X++ that reads, writes and queries a real database — and see exactly what it did.",
   "level": "beginner",
-  "estimatedMinutes": 180,
+  "estimatedMinutes": 230,
   "lessons": ["01-hello-infolog", "02-buffers-and-select"],
-  "requiresEngine": ["db", "runtime"]
+  "requiresEngine": ["db", "runtime", "aot", "forms", "reports"]
 }
 ```
 
 `requiresEngine` gates a lesson from publishing before its engine capability exists.
 Valid values: `db`, `runtime`, `aot`, `forms`, `classes`, `reports`, `odata`.
+
+`db`, `runtime`, `aot`, `forms` and `reports` exist today. `classes` and `odata` do not,
+and `lesson.test.ts` fails any lesson that claims them.
 
 ## Lesson frontmatter
 
@@ -97,6 +100,24 @@ export const steps = [
   { id: "select-one-item", title: "Read one record", taskId: "select-one-item" },
 ];
 ```
+
+A step may also declare a **view**, for when the point is what the code produced rather
+than what it logged:
+
+```ts
+// Renders a form from AOT metadata over the data as the run left it.
+{ id: "see-your-change", title: "...", taskId: "...",
+  view: { kind: "form", form: "InventTableListPage" } }
+
+// Groups and totals the rows a data provider wrote, the way a design would.
+{ id: "fill-the-table", title: "...", taskId: "...",
+  view: { kind: "report", table: "TmpItemSales", title: "Item sales by group",
+          groupBy: ["ItemGroupId"], totals: [{ column: "LineAmount", aggregate: "sum" }] } }
+```
+
+Views are built in the worker, inside `runTask`'s `observe` hook — the only moment the
+learner's changes are still in the database, since the runner restores its snapshot
+immediately afterwards.
 
 Rules, enforced in `packages/validators/test/lesson.test.ts`:
 
@@ -230,12 +251,13 @@ solutions: the loop passes the state check but fails the SQL check, and the lear
 exactly why in the trace panel. This is the single highest-value validator on the site —
 use it deliberately.
 
-### `metadata` (Phase 7+)
+### `metadata` (not implemented)
 
 Assertions on the virtual AOT: field exists on table, EDT assigned, property value,
-relation defined.
+relation defined. The AOT model exists, but nothing needs to assert on it yet — the forms
+lesson checks behaviour (`validateWrite` outcomes) rather than metadata shape.
 
-### `odata` (Phase 10+)
+### `odata` (not implemented)
 
 Assertions on a request/response pair from the mock endpoint.
 

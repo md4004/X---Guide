@@ -621,6 +621,19 @@ const salesLines: Row[] = [
       LineAmount: 11940.0,
       InventLocationId: "MAIN",
     },
+    // F-100 a second time, on a different order. Deliberate: without an item that
+    // appears on more than one line, the reporting lesson's "aggregate in the provider"
+    // exercise would produce exactly the same row count as the detail one and teach
+    // nothing.
+    {
+      SalesId: "SO-0002",
+      LineNum: 2,
+      ItemId: "F-100",
+      SalesQty: 5,
+      SalesPrice: 349.0,
+      LineAmount: 1745.0,
+      InventLocationId: "MAIN",
+    },
     {
       SalesId: "SO-0003",
       LineNum: 1,

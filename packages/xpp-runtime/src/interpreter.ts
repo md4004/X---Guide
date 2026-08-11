@@ -41,6 +41,7 @@ import {
   type TableName,
   type VirtualDb,
 } from "@xpplab/virtual-db";
+import { createVirtualAot, validateWrite, type VirtualAot } from "@xpplab/virtual-aot";
 import { callBuiltin, formatString, isBuiltin } from "./builtins";
 import {
   BudgetExceeded,
@@ -80,6 +81,11 @@ export interface RunOptions {
   /** Fixed date for `today()`, so golden files stay stable. Defaults to 2026-08-10. */
   today?: string;
   onStatement?: (line: number) => boolean | void;
+  /**
+   * The metadata model `validateWrite()` checks against. Defaults to the authored
+   * baseline; a caller supplies one when a lesson has extended it.
+   */
+  aot?: VirtualAot;
 }
 
 export interface RunResult {
@@ -110,6 +116,7 @@ export class Interpreter {
   readonly infolog: Infolog = createInfolog();
   readonly #options: RunOptions;
   readonly #db: VirtualDb;
+  readonly #aot: VirtualAot;
   readonly #globals = new Scope();
   readonly #errors: XppError[] = [];
   readonly #today: string;
@@ -133,6 +140,7 @@ export class Interpreter {
   constructor(options: RunOptions) {
     this.#options = options;
     this.#db = options.db;
+    this.#aot = options.aot ?? createVirtualAot();
     this.#scope = this.#globals;
     this.#today = options.today ?? "2026-08-10";
     this.#maxStatements = options.maxStatements ?? EXECUTION_LIMITS.maxStatements;
@@ -1342,13 +1350,16 @@ export class Interpreter {
         return { type: "int64", value: Number(buffer.row?.[RECID_FIELD] ?? 0) };
 
       case "validatewrite":
+        return this.#validateWrite(buffer, span);
+
       case "validatedelete":
-        // Field-level validation is Phase 7's, once the metadata layer knows what
-        // "mandatory" means. Returning true here would be a lie, so it is refused.
+        // Delete validation is about DeleteActions — what a delete cascades to — and the
+        // metadata model does not carry them. Returning `true` would say "safe to delete"
+        // about a check nobody ran.
         throw new RuntimeError(
           XppErrorCodes.ConstructOutsideSubset,
-          `${method}() is not available yet.`,
-          "Field validation needs the metadata layer, which arrives with the forms track.",
+          "validateDelete() is not available yet.",
+          "It depends on delete actions between tables, which this environment does not model. validateWrite() does work.",
           "Error",
           span,
         );
@@ -1362,6 +1373,55 @@ export class Interpreter {
           span,
         );
     }
+  }
+
+  /**
+   * `buffer.validateWrite()` — the check a form runs before it saves.
+   *
+   * Three verified behaviours meet here:
+   *
+   *   VB-012  it returns a boolean. It reports; it does not write and does not throw.
+   *   VB-013  nothing calls it for you from X++ code. `insert()` does not, which is
+   *           exactly why lessons exist about it — this method is only ever reached
+   *           because the learner typed it.
+   *   VB-014  field checks run first and every failing field is reported.
+   *
+   * Failures go to the Infolog as errors, which is what `checkFailed` does in a real
+   * table method, and then `false` comes back. Deciding what to do about `false` is the
+   * caller's job — which is the entire point.
+   */
+  #validateWrite(buffer: TableBuffer, span: SourceSpan): XppValue {
+    const table = this.#aot.getTable(buffer.tableName);
+    if (table === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `There is no metadata for ${buffer.tableName}, so it cannot be validated.`,
+        "Only the tables in this environment's AOT can be validated.",
+        "Error",
+        span,
+      );
+    }
+
+    const result = validateWrite({
+      table,
+      values: buffer.row ?? {},
+      edtStringSizes: this.#edtStringSizes(),
+    });
+
+    for (const failure of result.failures) {
+      this.infolog.add("error", failure.message, span.start.line);
+    }
+
+    return bool(result.ok);
+  }
+
+  /** String sizes by EDT name, so validateWrite can check a field against its type. */
+  #edtStringSizes(): Record<string, number> {
+    const sizes: Record<string, number> = {};
+    for (const edt of this.#aot.getModel().edts) {
+      if (edt.stringSize !== undefined) sizes[edt.name] = edt.stringSize;
+    }
+    return sizes;
   }
 
   /** VB-003 and VB-004, the two checks that make transactional integrity real. */

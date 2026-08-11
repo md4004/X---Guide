@@ -1,0 +1,354 @@
+---
+slug: 09-forms
+title: Forms and metadata
+minutes: 25
+objectives:
+  - Explain what a form is made of, and what it is not
+  - Read field properties from metadata and see them change what renders
+  - Call validateWrite and know why nothing calls it for you
+requiresEngine: [db, runtime, aot, forms]
+seed: default
+---
+
+<Step id="what-a-form-is">
+
+## A form is metadata over a query
+
+There is no HTML behind an F&O form and no layout code you write by hand. A form is a
+small pile of declarations:
+
+- **data sources** — which tables it reads, and whether they are editable
+- **a design** — a tree of controls, each bound to a data source field
+- **a pattern** — `SimpleList`, `Details` and friends, which fix the overall shape
+
+Everything else the form does — fetching rows, rendering a grid, showing an enum by its
+name rather than its number, greying out a read-only field — is the platform reading that
+metadata and acting on it.
+
+Press **Check** and open the **Form** tab. That grid is `InventTableListPage` rendered from
+its metadata over the rows that are actually in the database right now.
+
+<Aside title="What this is not">
+  This renders a form's data and layout. It does not run a form: there are no data source
+  events, no `element.args()`, no lookup forms, no `super()`. You will learn what a form is
+  made of, which is genuinely useful, and you will not learn to write form code here.
+</Aside>
+
+</Step>
+
+<Step id="properties-render">
+
+## Properties are not decoration
+
+Every column in that grid got its appearance from a property, not from a guess:
+
+| Property     | What the form does with it                             |
+| ------------ | ------------------------------------------------------ |
+| `Mandatory`  | marks the field, and refuses to save the record without it |
+| `AllowEdit`  | `No` renders the control read-only                     |
+| enum type    | `NoYes` becomes a checkbox, anything else a combo box  |
+| EDT          | supplies the label, the help text and the string length |
+
+Look at the form again. `Item number` carries a red `*` and is greyed — it is mandatory and
+`AllowEdit` is `No`, because a primary key you can retype is a primary key you can corrupt.
+`Stopped` shows `Yes`/`No`, not `1`/`0`.
+
+An **EDT** — extended data type — is the reason `ItemId` looks the same everywhere it
+appears. Define the type once with its size and label, use it on twenty tables, change it in
+one place.
+
+</Step>
+
+<Step id="see-your-change">
+
+## Your turn
+
+Change some data and watch the form follow it.
+
+Rename `F-100` to `Ashwood desk, refreshed` and set its `Blocked` to `NoYes::Yes`.
+
+Then open the **Form** tab. Your row is highlighted, and `Stopped` reads `Yes` — not `1`,
+because the form resolves the enum through its metadata.
+
+</Step>
+
+<Step id="validatewrite">
+
+## validateWrite is the check a form runs
+
+When a user saves a record on a form, the form engine calls `validateWrite()` on the table
+first. That method returns a **boolean**: `true` if the record may be written.
+
+<Snippet lang="xpp">{`InventTable inventTable;
+
+inventTable.ItemName = "A desk with no item number";
+
+if (!inventTable.validateWrite())
+{
+    info("The form would have refused to save this.");
+}`}</Snippet>
+
+It reports; it does not write, and it does not throw. That is what lets you write
+`if (buffer.validateWrite())` at all.
+
+Run the example. The Infolog gets an error naming the missing field, and then the `info`
+line — because `validateWrite` returning `false` is a value, not an exception.
+
+</Step>
+
+<Step id="reject-a-record">
+
+## Your turn
+
+Build an item that is missing its `ItemId`, ask `validateWrite()` about it, and log
+
+`Rejected`
+
+when it says no.
+
+Do not insert anything. The whole point is to find out *before* writing.
+
+</Step>
+
+<Step id="nothing-calls-it">
+
+## Nothing calls it for you
+
+Here is the part that costs people data.
+
+`insert()` does **not** call `validateWrite()`. Neither does `update()`. The form engine
+calls it, and the data-entity paths call it — but a plain buffer write from X++ calls
+nothing and checks nothing:
+
+<Snippet lang="xpp">{`ttsbegin;
+inventTable.ItemName = "No item number at all";
+inventTable.insert();      // succeeds. Nothing validated anything.
+ttscommit;`}</Snippet>
+
+So a record that a user could never have created through the form lands in the table,
+because your job wrote it directly.
+
+<Aside title="The habit">
+  If your code writes what a user would otherwise type, call `validateWrite()` yourself and
+  respect the answer. The one-line version is
+  `if (!buffer.validateWrite()) throw error("...");` — check it, and stop if it fails.
+</Aside>
+
+</Step>
+
+<Step id="validate-then-insert">
+
+## Your turn
+
+Do it properly. Insert item `F-700` named `Validated desk` in group `FURNITURE`, but only
+after `validateWrite()` agrees.
+
+- if it agrees, insert and log `Inserted after validating`
+- if it does not, log `Refused` and insert nothing
+
+Then check the **Form** tab: your record is in the grid.
+
+</Step>
+
+<Step id="not-modelled">
+
+## What is deliberately missing
+
+Worth knowing about, and not simulated here, because a simulation of them would be
+guesswork:
+
+- **`validateDelete()`** — depends on delete actions between tables, which this environment
+  does not model. It refuses to run rather than tell you a delete is safe.
+- **Relations and mandatory foreign keys** — declared in the schema, not enforced.
+- **Form extensions, data source events, `super()`** — the customisation track.
+
+The rule this project follows: an incomplete simulation is fine, a wrong one is not.
+
+</Step>
+
+export const steps = [
+  {
+    id: "what-a-form-is",
+    title: "A form is metadata over a query",
+    example: 'info("Run this, then open the Form tab.");\n',
+    view: { kind: "form", form: "InventTableListPage" },
+  },
+  {
+    id: "properties-render",
+    title: "Properties are not decoration",
+    example: 'info("Look at Item number and Stopped in the Form tab.");\n',
+    view: { kind: "form", form: "InventTableListPage" },
+  },
+  {
+    id: "see-your-change",
+    title: "Change the data, watch the form",
+    taskId: "see-your-change",
+    view: { kind: "form", form: "InventTableListPage" },
+  },
+  {
+    id: "validatewrite",
+    title: "validateWrite is the check a form runs",
+    example:
+      'InventTable inventTable;\n\ninventTable.ItemName = "A desk with no item number";\n\nif (!inventTable.validateWrite())\n{\n    info("The form would have refused to save this.");\n}\n',
+  },
+  { id: "reject-a-record", title: "Reject a record", taskId: "reject-a-record" },
+  {
+    id: "nothing-calls-it",
+    title: "Nothing calls it for you",
+    example:
+      'InventTable inventTable;\n\nttsbegin;\ninventTable.ItemName = "No item number at all";\ninventTable.insert();\nttscommit;\n\ninfo("Inserted. Nothing validated anything.");\n',
+    view: { kind: "form", form: "InventTableListPage" },
+  },
+  {
+    id: "validate-then-insert",
+    title: "Validate, then insert",
+    taskId: "validate-then-insert",
+    view: { kind: "form", form: "InventTableListPage" },
+  },
+  {
+    id: "not-modelled",
+    title: "What is deliberately missing",
+    example: 'InventTable inventTable;\n\ninventTable.validateDelete();\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "see-your-change",
+    prompt:
+      "Rename F-100 to Ashwood desk, refreshed and set its Blocked to NoYes::Yes. Then log: Form updated.",
+    starter: "InventTable inventTable;\n\n// Rename F-100 and stop it.\n",
+    solution:
+      'InventTable inventTable;\n\nttsbegin;\nselect forupdate inventTable\n    where inventTable.ItemId == "F-100";\n\ninventTable.ItemName = "Ashwood desk, refreshed";\ninventTable.Blocked = NoYes::Yes;\ninventTable.update();\nttscommit;\n\ninfo("Form updated");\n',
+    hints: [
+      "This is an ordinary update: select forupdate, change the fields, call update(), inside a transaction.",
+      "Blocked is an enum field, so assign NoYes::Yes rather than 1 or true.",
+      "Set both fields on the buffer before calling update() — one update() writes them together.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "forupdate",
+        message:
+          "The select has no forupdate, so the buffer cannot be written back. Add it before the buffer name.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "update",
+        message: "Nothing calls update(). Without it the changes stay in memory.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-100" },
+        expect: { ItemName: "Ashwood desk, refreshed", Blocked: 1 },
+        message:
+          "F-100 does not have both the new name and Blocked set to Yes. Set both fields before calling update().",
+      },
+      {
+        kind: "output",
+        match: "^Form updated$",
+        type: "info",
+        message: "Finish by logging exactly: Form updated",
+      },
+    ],
+  },
+
+  {
+    id: "reject-a-record",
+    prompt:
+      "Fill in an item's ItemName but not its ItemId, ask validateWrite() about it, and log Rejected when it says no. Insert nothing.",
+    starter:
+      "InventTable inventTable;\n\n// Set only the name, then ask validateWrite() what it thinks.\n",
+    solution:
+      'InventTable inventTable;\n\ninventTable.ItemName = "A desk with no item number";\n\nif (!inventTable.validateWrite())\n{\n    info("Rejected");\n}\n',
+    hints: [
+      "Set ItemName on the buffer and leave ItemId alone — an unassigned str is the empty string.",
+      "validateWrite() returns a boolean, so it goes straight into an if. Negate it with !.",
+      'Shape: if (!inventTable.validateWrite()) { info("Rejected"); }',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "validateWrite",
+        message:
+          "Nothing calls validateWrite(). This step is about asking the table whether the record is writable, rather than deciding for yourself.",
+      },
+      {
+        kind: "ast",
+        rule: "forbids",
+        value: "ttsBegin",
+        message:
+          "There is a transaction in your code, which means you are about to write something. The point of validateWrite() is to find out before writing — take the insert out.",
+      },
+      {
+        kind: "output",
+        match: "must be filled in",
+        type: "error",
+        message:
+          "validateWrite() did not report a missing field, so the record it looked at was already valid. Leave ItemId unset — only ItemName should be assigned.",
+      },
+      {
+        kind: "output",
+        match: "^Rejected$",
+        type: "info",
+        message:
+          "Nothing logged Rejected. validateWrite() returns false rather than throwing, so you have to test the return value and log inside the if.",
+      },
+    ],
+  },
+
+  {
+    id: "validate-then-insert",
+    prompt:
+      "Insert item F-700 named Validated desk in group FURNITURE, but only after validateWrite() agrees. Log Inserted after validating on success, or Refused if it does not.",
+    starter:
+      "InventTable inventTable;\n\n// Fill the buffer, validate, and only then insert.\n",
+    solution:
+      'InventTable inventTable;\n\ninventTable.ItemId = "F-700";\ninventTable.ItemName = "Validated desk";\ninventTable.ItemGroupId = "FURNITURE";\n\nif (inventTable.validateWrite())\n{\n    ttsbegin;\n    inventTable.insert();\n    ttscommit;\n\n    info("Inserted after validating");\n}\nelse\n{\n    info("Refused");\n}\n',
+    hints: [
+      "Fill every field on the buffer first, then ask validateWrite() before opening the transaction.",
+      "The insert belongs inside the if, so that a false answer really does stop it.",
+      'Shape: if (inventTable.validateWrite()) { ttsbegin; inventTable.insert(); ttscommit; info("Inserted after validating"); } else { info("Refused"); }',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "validateWrite",
+        message:
+          "Nothing calls validateWrite(). insert() will not call it for you — that is the whole point of this step.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "insert",
+        message: "Nothing calls insert(), so no record was created.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message: "The insert is not inside a transaction. Wrap it in ttsbegin; and ttscommit;",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-700" },
+        expect: { ItemName: "Validated desk", ItemGroupId: "FURNITURE" },
+        message:
+          "F-700 is missing or has the wrong values. Set all three fields on the buffer before validating, then insert.",
+      },
+      {
+        kind: "output",
+        match: "^Inserted after validating$",
+        type: "info",
+        message:
+          "The success line is missing. Log exactly: Inserted after validating — inside the branch that runs when validateWrite() returned true.",
+      },
+    ],
+  },
+];

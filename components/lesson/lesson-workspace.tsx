@@ -65,7 +65,7 @@ export function LessonWorkspace({
   previous,
   next,
 }: LessonWorkspaceProps) {
-  const { busy, runTask } = useEngine();
+  const { busy, runTask, preview } = useEngine();
 
   const [index, setIndex] = useState(0);
   const [sources, setSources] = useState<Record<string, string>>({});
@@ -94,15 +94,27 @@ export function LessonWorkspace({
   const stepPassed =
     task === undefined || outcome?.passed === true || (task !== undefined && solved.has(task.id));
 
+  /**
+   * Check on an exercise step, Run on a reading one.
+   *
+   * A reading step's example has to be runnable, or the editor sitting beside the prose is
+   * decoration. It goes through `preview`, which snapshots and restores like a task does —
+   * playing with an example must not change the data the next exercise is checked against.
+   */
   const handleCheck = useCallback(async () => {
-    if (task === undefined) return;
-    const result = await runTask(task, source);
+    if (task === undefined) {
+      const result = await preview(source, step.view);
+      if (result !== undefined) setOutcomes((current) => ({ ...current, [step.id]: result }));
+      return;
+    }
+
+    const result = await runTask(task, source, step.view);
     if (result === undefined) return;
 
     setOutcomes((current) => ({ ...current, [step.id]: result }));
     setAttempts((current) => ({ ...current, [step.id]: (current[step.id] ?? 0) + 1 }));
     if (result.passed) markSolved(frontmatter.slug, task.id);
-  }, [task, runTask, source, step.id, frontmatter.slug]);
+  }, [task, runTask, preview, source, step.id, step.view, frontmatter.slug]);
 
   const goTo = useCallback(
     (target: number) => {
@@ -221,17 +233,19 @@ export function LessonWorkspace({
               </button>
             )}
 
-            {task !== undefined && (
-              <button
-                type="button"
-                onClick={() => void handleCheck()}
-                disabled={busy}
-                data-testid="check"
-                className="rounded bg-sky-500 px-5 py-2 text-sm font-medium text-sky-950 transition hover:bg-sky-400 disabled:opacity-50"
-              >
-                {busy ? "Checking…" : "Check"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => void handleCheck()}
+              disabled={busy}
+              data-testid={task === undefined ? "run" : "check"}
+              className={`rounded px-5 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                task === undefined
+                  ? "border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  : "bg-sky-500 text-sky-950 hover:bg-sky-400"
+              }`}
+            >
+              {busy ? "Running…" : task === undefined ? "Run" : "Check"}
+            </button>
 
             {isLast ? (
               next === undefined ? (

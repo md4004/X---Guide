@@ -17,6 +17,8 @@ import Joins from "./05-joins.mdx";
 import SetBased from "./06-set-based.mdx";
 import Companies from "./07-companies.mdx";
 import Exceptions from "./08-exceptions.mdx";
+import Forms from "./09-forms.mdx";
+import Reports from "./10-reports.mdx";
 
 export { track, orderedSlugs, neighbours } from "./lessons";
 export type { LessonData } from "./lessons";
@@ -34,6 +36,8 @@ const CONTENT: Record<string, MdxContent> = {
   "06-set-based": SetBased,
   "07-companies": Companies,
   "08-exceptions": Exceptions,
+  "09-forms": Forms,
+  "10-reports": Reports,
 };
 
 export const lessons: Record<string, Lesson> = Object.fromEntries(

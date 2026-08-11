@@ -254,6 +254,50 @@ const WRONG: WrongAnswer[] = [
       'int attempts;\nwhile (attempts < 3)\n{\n    info(strFmt("attempt %1", attempts));\n    attempts++;\n}\ninfo("Succeeded");',
     expect: "no retry statement",
   },
+
+  // -- 09 Forms ------------------------------------------------------------
+  {
+    lesson: "09-forms",
+    task: "reject-a-record",
+    label: "decides for itself instead of asking validateWrite",
+    source:
+      'InventTable inventTable;\n\ninventTable.ItemName = "A desk with no item number";\n\nif (!inventTable.ItemId)\n{\n    info("Rejected");\n}',
+    expect: "Nothing calls validateWrite()",
+  },
+  {
+    lesson: "09-forms",
+    task: "reject-a-record",
+    label: "fills in every field, so there is nothing to reject",
+    source:
+      'InventTable inventTable;\n\ninventTable.ItemId = "F-800";\ninventTable.ItemName = "A perfectly valid desk";\n\nif (!inventTable.validateWrite())\n{\n    info("Rejected");\n}',
+    expect: "the record it looked at was already valid",
+  },
+  {
+    lesson: "09-forms",
+    task: "validate-then-insert",
+    label: "inserts without validating, which is what insert() lets you do",
+    source:
+      'InventTable inventTable;\n\nttsbegin;\ninventTable.ItemId = "F-700";\ninventTable.ItemName = "Validated desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\n\ninfo("Inserted after validating");',
+    expect: "insert() will not call it for you",
+  },
+
+  // -- 10 Reports ----------------------------------------------------------
+  {
+    lesson: "10-reports",
+    task: "fill-the-table",
+    label: "forgets clear(), so every row inherits the first one's item",
+    source:
+      'SalesLine salesLine;\nInventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\nttsbegin;\nwhile select salesLine\n    join inventTable\n    where inventTable.ItemId == salesLine.ItemId\n{\n    tmpItemSales.SalesQty = salesLine.SalesQty;\n    tmpItemSales.LineAmount = salesLine.LineAmount;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Provider wrote %1 rows", counter));',
+    expect: "no clear() in the loop",
+  },
+  {
+    lesson: "10-reports",
+    task: "aggregate-first",
+    label: "writes one row per line, so nothing was aggregated",
+    source:
+      'SalesLine salesLine;\nInventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\nttsbegin;\nwhile select salesLine\n    join inventTable\n    where inventTable.ItemId == salesLine.ItemId\n{\n    tmpItemSales.clear();\n    tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n    tmpItemSales.ItemId = inventTable.ItemId;\n    tmpItemSales.ItemName = inventTable.ItemName;\n    tmpItemSales.SalesQty = salesLine.SalesQty;\n    tmpItemSales.LineAmount = salesLine.LineAmount;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Aggregated to %1 rows", counter));',
+    expect: "Six means you are still writing one row per line",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {

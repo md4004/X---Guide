@@ -159,6 +159,9 @@ importers:
 
   packages/virtual-aot:
     dependencies:
+      '@xpplab/virtual-db':
+        specifier: workspace:*
+        version: link:../virtual-db
       '@xpplab/xpp-core':
         specifier: workspace:*
         version: link:../xpp-core

@@ -29,6 +29,7 @@ export const TABLE_NAMES = [
   "WMSLocation",
   "InventLocation",
   "DirPartyTable",
+  "TmpItemSales",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];
@@ -83,6 +84,15 @@ export interface TableSchema {
   fields: FieldSchema[];
   indexes: IndexSchema[];
   relations: RelationSchema[];
+  /**
+   * `true` for a table a report data provider fills and a report design reads.
+   *
+   * Real F&O temp tables (`InMemory` / `TempDB`) live for the duration of a process and
+   * are never seeded. This one is an ordinary SQLite table that simply starts empty and
+   * is cleared between runs — the *shape* of the RDP pattern is what the lesson teaches,
+   * and the lifetime difference is stated in prose rather than simulated.
+   */
+  isTemp?: boolean;
   /**
    * `false` for tables that are shared across companies rather than company-scoped.
    * `DirPartyTable` is the reason this flag exists — it is genuinely global in F&O, and
@@ -397,6 +407,28 @@ export const SCHEMA: readonly TableSchema[] = [
         relatedTable: "InventLocation",
         fields: [["InventLocationId", "InventLocationId"]],
       },
+    ],
+  },
+
+  {
+    name: "TmpItemSales",
+    label: "Item sales (report data)",
+    saveDataPerCompany: true,
+    isTemp: true,
+    fields: [
+      str("ItemGroupId", 10, "Item group"),
+      str("ItemId", 20, "Item number", "ItemId"),
+      str("ItemName", 60, "Product name"),
+      real("SalesQty", "Quantity"),
+      real("LineAmount", "Net amount"),
+    ],
+    // No unique index: a data provider may legitimately write the same item twice, once
+    // per source line, and leave the grouping to the report design.
+    indexes: [
+      { name: "GroupItemIdx", fields: ["ItemGroupId", "ItemId"], unique: false, primary: true },
+    ],
+    relations: [
+      { name: "InventTable", relatedTable: "InventTable", fields: [["ItemId", "ItemId"]] },
     ],
   },
 ];

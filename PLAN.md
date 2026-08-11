@@ -154,9 +154,10 @@ sandbox mode surfaced as its own route.
 every task validates correctly. Test this on a real person, not on yourself.
 
 > **Half done, and the half that is done is the half a machine can do.** All eight lessons
-> exist at `/learn/xpp-fundamentals`, with 23 validated tasks. Every solution is run
-> through its own validators in CI, and 23 plausible wrong answers are each asserted
-> against the specific message they should produce.
+> exist at `/learn/xpp-fundamentals` — plus lessons 9 and 10 on forms and reports, added
+> once the metadata layer landed — with 29 validated tasks. Every solution is run through
+> its own validators in CI, and 27 plausible wrong answers are each asserted against the
+> specific message they should produce.
 >
 > **The acceptance criterion is not met and cannot be met from here.** "A developer with no
 > F&O experience completes all eight in under three hours" is a claim about a person, and
@@ -166,7 +167,7 @@ every task validates correctly. Test this on a real person, not on yourself.
 
 ---
 
-## Phase 7 — Metadata layer and form renderer
+## Phase 7 — Metadata layer and form renderer — partly built
 
 `packages/virtual-aot`: JSON model for tables, fields, EDTs, base enums, relations, forms.
 An AOT tree explorer and a property grid UI. `packages/renderers/form`: renders an

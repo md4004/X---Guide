@@ -51,7 +51,7 @@ Log one line per sales order line, in the form:
 
 Join `SalesTable` to `SalesLine` on `SalesId`. After the loop, log the count as:
 
-`5 lines`
+`6 lines`
 
 Keep it to a single query — a `select` inside the loop defeats the point.
 
@@ -155,7 +155,7 @@ export const tasks = [
   {
     id: "join-orders-and-lines",
     prompt:
-      "Log one line per sales order line in the form: SO-0001 / F-100. Join SalesTable to SalesLine on SalesId, then log the count as: 5 lines.",
+      "Log one line per sales order line in the form: SO-0001 / F-100. Join SalesTable to SalesLine on SalesId, then log the count as: 6 lines.",
     starter:
       "SalesTable salesTable;\nSalesLine salesLine;\nint counter;\n\n// Join the two tables and log each pair.\n",
     solution:
@@ -181,10 +181,10 @@ export const tasks = [
       },
       {
         kind: "output",
-        match: "^5 lines$",
+        match: "^6 lines$",
         type: "info",
         message:
-          "The count should be 5 — three orders, five lines between them. If you got 3, you are counting orders rather than lines; if you got more, check the join condition.",
+          "The count should be 6 — three orders, six lines between them. If you got 3, you are counting orders rather than lines; if you got more, check the join condition.",
       },
       {
         kind: "sql",

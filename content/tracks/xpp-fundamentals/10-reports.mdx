@@ -1,0 +1,284 @@
+---
+slug: 10-reports
+title: Reports and data providers
+minutes: 25
+objectives:
+  - Explain the split between a report data provider and a report design
+  - Write a data provider that fills a table for a design to print
+  - Aggregate in the provider, and know when to leave it to the design
+requiresEngine: [db, runtime, aot, reports]
+seed: default
+---
+
+<Step id="two-halves">
+
+## A report is two halves that meet at a table
+
+An F&O report is not one thing. It is:
+
+1. a **report data provider** — an X++ class that runs on the server, queries whatever it
+   needs, and writes rows into a table, and
+2. a **design** — which reads that table and prints it, with grouping, totals and page
+   breaks.
+
+They never talk directly. The provider's only output is the table; the design's only input
+is the table. That is the entire contract, and it is why reporting problems in F&O split so
+cleanly into "the data is wrong" and "the layout is wrong".
+
+Your half is the provider. In this lesson it fills `TmpItemSales`:
+
+| Field         | Meaning       |
+| ------------- | ------------- |
+| `ItemGroupId` | Item group    |
+| `ItemId`      | Item number   |
+| `ItemName`    | Product name  |
+| `SalesQty`    | Quantity      |
+| `LineAmount`  | Net amount    |
+
+<Aside title="What this is not">
+  The **Report** tab applies the grouping and totals a design would apply. It is not SSRS:
+  no page layout engine, no expression language, no subreports. What you are learning is the
+  provider side, which is the X++ side, and the half that is actually yours.
+</Aside>
+
+</Step>
+
+<Step id="fill-the-table">
+
+## Your turn
+
+Write a provider that copies every sales line into the report table.
+
+For each `SalesLine`, join `InventTable` on `ItemId` so you can carry the group and the
+name across, and insert one row with:
+
+- `ItemGroupId`, `ItemId`, `ItemName` from the item
+- `SalesQty` and `LineAmount` from the line
+
+Then log `Provider wrote 6 rows`.
+
+Open the **Report** tab afterwards — the design has grouped your rows by item group and
+totalled the amounts, and you never told it to.
+
+</Step>
+
+<Step id="shape-is-yours">
+
+## The shape of the data is a decision
+
+The design groups and totals. That does not mean the provider should hand it everything and
+shrug.
+
+A provider that returns forty thousand rows so the design can total them into six lines has
+moved the work to the wrong place: the rows cross a process boundary, get held in memory,
+and get thrown away. A provider that aggregates first returns six rows.
+
+The rule of thumb:
+
+- **aggregate in the provider** when the report never shows the detail
+- **return detail** when the reader can expand a group to see the lines
+
+Both are correct reports. Only one of them is the right one for a given design, and it is
+your call, not the design's.
+
+</Step>
+
+<Step id="aggregate-first">
+
+## Your turn
+
+Write the aggregating version.
+
+Produce **one row per item** rather than one per sales line, with `SalesQty` and
+`LineAmount` summed across that item's lines. Keep `ItemGroupId` and `ItemName` as before.
+
+Six lines become five rows, because `F-100` is sold on two different orders.
+
+Then log `Aggregated to 5 rows`.
+
+There is more than one honest way to do this. A `while select` over the items that appear on
+a line, with an inner loop summing that item's lines, is the readable one.
+
+</Step>
+
+<Step id="empty-report">
+
+## An empty report is a real answer
+
+A provider that finds nothing writes nothing, and the design prints an empty report. That is
+correct behaviour, and it is worth seeing on purpose — because in production it is the
+symptom people misread most often.
+
+Run the example. It filters on an item group that does not exist, writes nothing, and the
+Report tab says so.
+
+When a real report comes back empty, the question is almost never "is the design broken".
+It is "what did the provider's query actually match" — and you answer that by reading the
+SQL trace, which is right there in the next tab.
+
+</Step>
+
+export const steps = [
+  {
+    id: "two-halves",
+    title: "A report is two halves",
+    example:
+      "SalesLine salesLine;\nint counter;\n\nwhile select salesLine\n{\n    counter++;\n}\n\ninfo(strFmt(\"There are %1 sales lines to report on.\", counter));\n",
+  },
+  {
+    id: "fill-the-table",
+    title: "Fill the report table",
+    taskId: "fill-the-table",
+    view: {
+      kind: "report",
+      table: "TmpItemSales",
+      title: "Item sales by group",
+      groupBy: ["ItemGroupId"],
+      totals: [
+        { column: "LineAmount", aggregate: "sum" },
+        { column: "SalesQty", aggregate: "sum" },
+      ],
+    },
+  },
+  {
+    id: "shape-is-yours",
+    title: "The shape of the data is a decision",
+    example:
+      'info("Detail or summary is the provider\'s call. The next step writes the summary.");\n',
+  },
+  {
+    id: "aggregate-first",
+    title: "Aggregate in the provider",
+    taskId: "aggregate-first",
+    view: {
+      kind: "report",
+      table: "TmpItemSales",
+      title: "Item sales by group",
+      groupBy: ["ItemGroupId"],
+      totals: [
+        { column: "LineAmount", aggregate: "sum" },
+        { column: "SalesQty", aggregate: "sum" },
+      ],
+    },
+  },
+  {
+    id: "empty-report",
+    title: "An empty report is a real answer",
+    example:
+      'InventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\nttsbegin;\nwhile select inventTable\n    where inventTable.ItemGroupId == "NOSUCHGROUP"\n{\n    tmpItemSales.clear();\n    tmpItemSales.ItemId = inventTable.ItemId;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("The provider wrote %1 rows.", counter));\n',
+    view: {
+      kind: "report",
+      table: "TmpItemSales",
+      title: "Item sales by group",
+      groupBy: ["ItemGroupId"],
+      totals: [{ column: "LineAmount", aggregate: "sum" }],
+    },
+  },
+];
+
+export const tasks = [
+  {
+    id: "fill-the-table",
+    prompt:
+      "For every sales line, join InventTable on ItemId and insert one TmpItemSales row carrying the group, item, name, quantity and amount. Then log: Provider wrote 6 rows.",
+    starter:
+      "SalesLine salesLine;\nInventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\n// One report row per sales line.\n",
+    solution:
+      'SalesLine salesLine;\nInventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\nttsbegin;\nwhile select salesLine\n    join inventTable\n    where inventTable.ItemId == salesLine.ItemId\n{\n    tmpItemSales.clear();\n    tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n    tmpItemSales.ItemId = inventTable.ItemId;\n    tmpItemSales.ItemName = inventTable.ItemName;\n    tmpItemSales.SalesQty = salesLine.SalesQty;\n    tmpItemSales.LineAmount = salesLine.LineAmount;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Provider wrote %1 rows", counter));\n',
+
+    hints: [
+      "The join goes inside the while select: while select salesLine join inventTable where inventTable.ItemId == salesLine.ItemId",
+      "Inside the loop, clear the report buffer, set its five fields from the two source buffers, and call insert().",
+      "Writes need a transaction, so wrap the whole loop in ttsbegin; and ttscommit;",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message: "You need a while select to visit every sales line.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "clear",
+        message:
+          "There is no clear() in the loop. The report buffer keeps its values after insert(), so the second row would inherit the first one's fields.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message: "The inserts are not inside a transaction. Wrap the loop in ttsbegin; and ttscommit;",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        count: 6,
+        message:
+          "The report table should hold six rows — one per sales line. A different number usually means the join condition is wrong.",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        where: { ItemId: "F-100" },
+        expect: { ItemGroupId: "FURNITURE", ItemName: "Ashwood desk 1400" },
+        message:
+          "The F-100 row is missing its group or its name. Those come from the joined InventTable buffer, not from SalesLine.",
+      },
+      {
+        kind: "output",
+        match: "^Provider wrote 6 rows$",
+        type: "info",
+        message: "Finish by logging exactly: Provider wrote 6 rows",
+      },
+    ],
+  },
+
+  {
+    id: "aggregate-first",
+    prompt:
+      "Now write one row per item instead of one per line, with SalesQty and LineAmount summed across that item's lines. Then log: Aggregated to 5 rows.",
+    starter:
+      "InventTable inventTable;\nSalesLine salesLine;\nTmpItemSales tmpItemSales;\nint counter;\nreal totalQty;\nreal totalAmount;\n\n// One report row per item, with its lines summed.\n",
+    solution:
+      'InventTable inventTable;\nSalesLine salesLine;\nTmpItemSales tmpItemSales;\nint counter;\nreal totalQty;\nreal totalAmount;\n\nttsbegin;\nwhile select inventTable\n    exists join salesLine\n    where salesLine.ItemId == inventTable.ItemId\n{\n    totalQty = 0;\n    totalAmount = 0;\n\n    while select salesLine\n        where salesLine.ItemId == inventTable.ItemId\n    {\n        totalQty += salesLine.SalesQty;\n        totalAmount += salesLine.LineAmount;\n    }\n\n    tmpItemSales.clear();\n    tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n    tmpItemSales.ItemId = inventTable.ItemId;\n    tmpItemSales.ItemName = inventTable.ItemName;\n    tmpItemSales.SalesQty = totalQty;\n    tmpItemSales.LineAmount = totalAmount;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Aggregated to %1 rows", counter));\n',
+
+    hints: [
+      "Loop the items that actually appear on a sales line — exists join is the keyword that gives you each item once.",
+      "Inside that loop, run a second while select over the lines for the current item and add up the two figures.",
+      "Reset your running totals at the top of each item, or the second item inherits the first one's numbers.",
+    ],
+    validators: [
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        count: 5,
+        message:
+          "The report table should hold five rows — the five distinct items that appear on a sales line. Six means you are still writing one row per line.",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        where: { ItemId: "F-100" },
+        count: 1,
+        message:
+          "F-100 appears more than once, or not at all. It is sold on two orders, and the whole point is that it becomes a single row.",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        where: { ItemId: "F-100" },
+        expect: { SalesQty: 17, LineAmount: 5933 },
+        message:
+          "F-100's row exists but its figures are not the sum of its two lines — 12 + 5 units, 4188.00 + 1745.00. Check that the running totals reset at the top of each item.",
+      },
+      {
+        kind: "output",
+        match: "^Aggregated to 5 rows$",
+        type: "info",
+        message: "Finish by logging exactly: Aggregated to 5 rows",
+      },
+    ],
+  },
+];

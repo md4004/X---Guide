@@ -132,6 +132,28 @@ export interface RunTaskOptions {
   db: VirtualDb;
   /** Fixed date so a task's expectations do not drift with the calendar. */
   today?: string;
+  /**
+   * Called after the run and before the snapshot is restored.
+   *
+   * This is the only window in which the database holds what the learner's code did, so
+   * it is where a rendered form or report has to be built. Anything read afterwards would
+   * show the state the run started from — which looks like the code did nothing.
+   *
+   * Errors from the callback are swallowed: a broken viewer must not turn a passing task
+   * into a failing one.
+   */
+  observe?: (db: VirtualDb) => Promise<void>;
+}
+
+/** Runs the caller's observer, if any, without letting it break the task result. */
+async function observe(options: RunTaskOptions, db: VirtualDb): Promise<void> {
+  if (options.observe === undefined) return;
+  try {
+    await options.observe(db);
+  } catch {
+    // Deliberately swallowed. A viewer that cannot render is a UI problem; turning it
+    // into a failed task would tell the learner their correct answer was wrong.
+  }
 }
 
 /**
@@ -181,6 +203,7 @@ export async function runTask(options: RunTaskOptions): Promise<TaskResult> {
     const { ast } = parse(source);
     return await runValidators(task.validators, { ast, run, db });
   } finally {
+    await observe(options, db);
     await db.restore(snapshot);
   }
 }

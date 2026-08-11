@@ -245,3 +245,74 @@ info(strFmt("Blocked %1 items", counter));`,
   await page.getByTestId("check").click();
   await expect(page.getByTestId("task-passed")).toBeVisible({ timeout: 20_000 });
 });
+
+test("the forms lesson renders a form from metadata", async ({ page }) => {
+  await page.goto("/learn/xpp-fundamentals/09-forms");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "A form is metadata over a query",
+  );
+
+  // A reading step still has a Check-equivalent: run the example from the editor.
+  await page.getByTestId("editor").locator(".monaco-editor").first().click();
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  await expect(page.getByTestId("form-view")).toBeVisible({ timeout: 30_000 });
+
+  // Enums render by label, never by their stored number — the single most misleading
+  // thing the renderer could do.
+  const grid = page.getByTestId("form-view").locator("table");
+  await expect(grid).toContainText("Ashwood desk 1400");
+  await expect(grid.locator("tbody")).toContainText("Yes");
+
+  // And it says what it is, so nobody mistakes it for the real client.
+  await expect(page.getByTestId("form-view")).toContainText("simulated");
+});
+
+test("the reports lesson renders grouped, totalled output", async ({ page }) => {
+  await page.goto("/learn/xpp-fundamentals/10-reports");
+  await page.getByTestId("step-next").click();
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fill the report table");
+  await expect(page.getByTestId("check")).toBeEnabled({ timeout: 30_000 });
+
+  await typeInto(
+    page,
+    `SalesLine salesLine;
+InventTable inventTable;
+TmpItemSales tmpItemSales;
+int counter;
+
+ttsbegin;
+while select salesLine
+    join inventTable
+    where inventTable.ItemId == salesLine.ItemId
+{
+    tmpItemSales.clear();
+    tmpItemSales.ItemGroupId = inventTable.ItemGroupId;
+    tmpItemSales.ItemId = inventTable.ItemId;
+    tmpItemSales.ItemName = inventTable.ItemName;
+    tmpItemSales.SalesQty = salesLine.SalesQty;
+    tmpItemSales.LineAmount = salesLine.LineAmount;
+    tmpItemSales.insert();
+    counter++;
+}
+ttscommit;
+
+info(strFmt("Provider wrote %1 rows", counter));`,
+  );
+  await page.getByTestId("check").click();
+
+  // The design grouped and totalled rows the provider wrote — built inside the run window,
+  // before the task runner restored its snapshot. The panel opens straight onto it, which
+  // is why the verdict is not what is on screen.
+  const report = page.getByTestId("report-view");
+  await expect(report).toBeVisible({ timeout: 20_000 });
+  await expect(report).toContainText("FURNITURE");
+  await expect(report).toContainText("19153");
+
+  // The verdict is one tab away, and it did pass.
+  await page.getByTestId("result-tab-result").click();
+  await expect(page.getByTestId("task-passed")).toBeVisible();
+  await expect(page.getByTestId("step-next")).toBeEnabled();
+});

@@ -102,9 +102,10 @@ describe("authoring checklist", () => {
   });
 
   it.each(lessonList())("%s only requires engine capabilities that exist", (_slug, lesson) => {
-    // A lesson that needs the AOT or the form renderer must not ship before they do.
+    // A lesson that needs a capability the engine does not have must not ship. `classes`
+    // and `odata` are deliberately absent: nothing implements them yet.
     for (const capability of lesson.frontmatter.requiresEngine) {
-      expect(["db", "runtime"]).toContain(capability);
+      expect(["db", "runtime", "aot", "forms", "reports"]).toContain(capability);
     }
   });
 });
