@@ -41,11 +41,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # `enablement: true` turns Pages on via the API on the first run, so the repo needs
-      # no manual setup. Harmless once it is already on.
+      # Requires Pages to be switched on once, by hand:
+      #   Settings -> Pages -> Build and deployment -> Source: "GitHub Actions"
+      #
+      # `enablement: true` was tried here and does not work — the workflow token cannot
+      # create a Pages site, so it fails with the same error as leaving it off. The manual
+      # step is genuinely unavoidable, so this reads config rather than pretending to
+      # create it.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       # `prebuild` copies sql-wasm.wasm into public/, so the export includes it.
       - name: Build the static export
