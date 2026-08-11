@@ -13,7 +13,7 @@ import {
   lessonData,
   track,
   type LessonData,
-} from "../../../content/tracks/xpp-for-nav-devs/lessons";
+} from "../../../content/tracks/xpp-fundamentals/lessons";
 
 export type TestLesson = LessonData;
 

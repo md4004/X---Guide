@@ -139,7 +139,7 @@ export function LessonWorkspace({
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_minmax(380px,42%)]">
         {/* Left: the editor and its result. */}
         <section className="flex min-h-0 flex-col border-zinc-800 lg:border-r">
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1" data-testid="editor">
             <XppEditor
               key={step.id}
               value={source}
@@ -197,16 +197,29 @@ export function LessonWorkspace({
           </div>
 
           <nav className="flex shrink-0 items-center gap-2 border-t border-zinc-800 px-6 py-3">
-            <button
-              type="button"
-              onClick={() => goTo(index - 1)}
-              disabled={index === 0}
-              aria-label="Previous step"
-              data-testid="step-back"
-              className="rounded border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 disabled:opacity-30"
-            >
-              ←
-            </button>
+            {/* At the top of a lesson, back means the lesson before it — otherwise the
+                arrow would be dead on every first step, which reads as broken. */}
+            {index === 0 && previous !== undefined ? (
+              <Link
+                href={`/learn/${trackSlug}/${previous}`}
+                aria-label="Previous lesson"
+                data-testid="step-back"
+                className="rounded border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900"
+              >
+                ←
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => goTo(index - 1)}
+                disabled={index === 0}
+                aria-label="Previous step"
+                data-testid="step-back"
+                className="rounded border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 disabled:opacity-30"
+              >
+                ←
+              </button>
+            )}
 
             {task !== undefined && (
               <button

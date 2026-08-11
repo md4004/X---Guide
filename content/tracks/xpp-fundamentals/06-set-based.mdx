@@ -10,6 +10,8 @@ requiresEngine: [db, runtime]
 seed: default
 ---
 
+<Step id="cost">
+
 ## The same result, a hundred times the cost
 
 Here are two pieces of code. They leave the database in exactly the same state.
@@ -31,13 +33,17 @@ update_recordset inventTable
     where inventTable.ItemGroupId == "FURNITURE";
 ttscommit;`}</Snippet>
 
-Run both and look at the SQL trace. The loop issues a `SELECT` and then one `UPDATE` per
-row. The `update_recordset` issues a single `UPDATE` that the database applies to the whole
-set. Over four seeded items the difference is invisible. Over forty thousand it is the
-difference between a job that finishes and a job somebody kills.
+Run each and look at the SQL trace. The loop issues a `SELECT` and then one `UPDATE` per
+row. The `update_recordset` issues a single `UPDATE` the database applies to the whole set.
 
-This is why the SQL trace is a panel and not a debug flag. It is the only place the cost of
-your code is visible before production shows you.
+Over four seeded items the difference is invisible. Over forty thousand it is the difference
+between a job that finishes and a job somebody kills. This is why the SQL trace is a panel
+and not a debug flag — it is the only place the cost of your code is visible before
+production shows you.
+
+</Step>
+
+<Step id="three-statements">
 
 ## The three statements
 
@@ -52,48 +58,89 @@ insert_recordset target (ItemId, ItemName)
     select ItemId, ItemName from source
     where source.ItemGroupId == "RAWMAT";`}</Snippet>
 
-All three need a transaction, none needs `forupdate` — there is no buffer to select for
+All three need a transaction. None needs `forupdate` — there is no buffer to select for
 update, because no row ever reaches your code.
 
-That last point is the trade-off. Set-based statements are fast precisely because they do
-not run your X++ per row: no field-by-field logic, no conditional decisions, no calls out
+That last point is the whole trade-off. Set-based statements are fast precisely because they
+do not run your X++ per row: no field-by-field logic, no conditional decisions, no calls out
 to other methods. If you genuinely need to look at each row to decide what to do, a loop is
-the right answer and the trace will honestly show the cost.
+the right answer, and the trace will honestly show what it costs.
 
-<Compare
-  cal={`Item.SETRANGE("Item Category Code", 'FURNITURE');
-IF Item.FINDSET(TRUE) THEN
-  REPEAT
-    Item.Blocked := TRUE;
-    Item.MODIFY;
-  UNTIL Item.NEXT = 0;`}
-  xpp={`update_recordset inventTable
-    setting Blocked = NoYes::Yes
-    where inventTable.ItemGroupId == "FURNITURE";`}
-/>
+<Aside title="They skip the table's own methods too">
+  `update_recordset` does not call the table's `update()` method, and `delete_from` does not
+  call `delete()`. If a table carries logic that must run on every change, a set-based
+  statement will bypass it — and F&O will sometimes fall back to a row-by-row loop by itself
+  for exactly that reason. Fast and complete are not the same choice.
+</Aside>
 
-<NavCallout>
-  **C/AL has `MODIFYALL`, and it is not the same thing.** `MODIFYALL` sets one field across
-  a filtered set, and it still runs the `OnModify` trigger per record unless you pass
-  `FALSE` — so the loop is hidden rather than removed. X++'s `update_recordset` sets several
-  fields at once and genuinely does not touch each row, which is why it can be a single
-  statement. The corollary is the thing to remember: it does **not** run the table's
-  `update()` method. If a table has logic that must run on every change, a set-based
-  statement will skip it, and F&O will silently fall back to a row-by-row loop in some
-  cases for exactly that reason.
-</NavCallout>
+</Step>
 
-## Proving it
+<Step id="block-with-update-recordset">
 
-The tasks below are checked on statement count as well as on the resulting rows. A loop
-that produces the right data will still fail — deliberately. Read the trace panel when it
-does; the failure is the lesson.
+## Your turn
 
-<Task id="block-with-update-recordset" />
+Block every item in the `FURNITURE` group using a **single statement**, then log:
 
-<Task id="delete-a-group" />
+`Blocked in one statement`
 
-<Task id="copy-with-insert-recordset" />
+A loop will produce exactly the right rows and still fail this task. That is deliberate —
+when it fails, read the trace panel. The failure is the lesson.
+
+</Step>
+
+<Step id="delete-a-group">
+
+## Your turn
+
+Delete every item in the `COMPONENT` group in one statement.
+
+Then count what is left in the whole table and log:
+
+`7 items remain`
+
+</Step>
+
+<Step id="copy-with-insert-recordset">
+
+## Your turn
+
+Copy the `RAWMAT` items belonging to the `KELT` company into this one, in a single
+statement.
+
+Then count the `RAWMAT` items here and log:
+
+`3 raw materials`
+
+Reading another company's rows needs `crosscompany` — the next lesson explains why. For now,
+filter the source on `source.DATAAREAID`.
+
+</Step>
+
+export const steps = [
+  {
+    id: "cost",
+    title: "The same result, a hundred times the cost",
+    example:
+      'InventTable inventTable;\n\nttsbegin;\nwhile select forupdate inventTable\n    where inventTable.ItemGroupId == "FURNITURE"\n{\n    inventTable.Blocked = NoYes::Yes;\n    inventTable.update();\n}\nttscommit;\n\ninfo("Now open the SQL trace and count the statements.");\n',
+  },
+  {
+    id: "three-statements",
+    title: "The three statements",
+    example:
+      'InventTable inventTable;\n\nttsbegin;\nupdate_recordset inventTable\n    setting Blocked = NoYes::Yes\n    where inventTable.ItemGroupId == "FURNITURE";\nttscommit;\n\ninfo("One statement. Compare the trace with the previous step.");\n',
+  },
+  {
+    id: "block-with-update-recordset",
+    title: "update_recordset",
+    taskId: "block-with-update-recordset",
+  },
+  { id: "delete-a-group", title: "delete_from", taskId: "delete-a-group" },
+  {
+    id: "copy-with-insert-recordset",
+    title: "insert_recordset",
+    taskId: "copy-with-insert-recordset",
+  },
+];
 
 export const tasks = [
   {

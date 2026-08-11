@@ -145,7 +145,7 @@ const WRONG: WrongAnswer[] = [
     label: "commits the inner level instead of aborting",
     source:
       'InventTable inventTable;\nint counter;\nttsbegin;\ninventTable.ItemId = "F-800";\ninventTable.ItemName = "Outer";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttsbegin;\ninventTable.clear();\ninventTable.ItemId = "F-801";\ninventTable.ItemName = "Inner";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\nttscommit;\nwhile select inventTable where inventTable.ItemGroupId == "FURNITURE"\n{\n    counter++;\n}\ninfo(strFmt("Survived: %1", counter));',
-    expect: "This task is about ttsabort",
+    expect: "This step is about ttsabort",
   },
 
   // -- 04 Insert, update, delete -------------------------------------------

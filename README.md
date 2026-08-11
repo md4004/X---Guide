@@ -65,14 +65,15 @@ Data, SQL trace, Errors). The whole engine runs in a Web Worker, so an infinite 
 cannot freeze the tab. Shareable permalinks keep the code in the URL fragment, so nothing
 is ever sent to a server.
 
-**Phase 5 (lesson engine)** — lessons authored as MDX with a `tasks` export, served at
-`/learn/[track]/[lesson]`. Four validator kinds (ast, state, output, sql), progressive
-hints, solution reveal after three attempts, and progress in localStorage. Every task's
-solution is run through its own validators in CI, so a broken lesson fails the build
-rather than a learner.
+**Phase 5 (lesson engine)** — lessons authored as MDX with `steps` and `tasks` exports,
+served at `/learn/[track]/[lesson]` as a two-pane workspace: editor on the left,
+instructions on the right, one step at a time. Four validator kinds (ast, state, output,
+sql), progressive hints, solution reveal after three attempts, and progress in
+localStorage. Every task's solution is run through its own validators in CI, so a broken
+lesson fails the build rather than a learner.
 
-**Phase 6 (first guided track)** — all eight lessons of _X++ for NAV and BC developers_,
-at `/learn/xpp-for-nav-devs`. 23 validated tasks; every solution and 23 plausible wrong
+**Phase 6 (first guided track)** — all eight lessons of _X++ fundamentals_, at
+`/learn/xpp-fundamentals`. 23 validated tasks; every solution and 23 plausible wrong
 answers are checked in CI.
 
 Phase 6's acceptance criterion is **not** met: it asks that a developer with no F&O

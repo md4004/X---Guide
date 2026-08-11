@@ -37,7 +37,10 @@ const CONTENT: Record<string, MdxContent> = {
 };
 
 export const lessons: Record<string, Lesson> = Object.fromEntries(
-  Object.entries(lessonData).map(([slug, lesson]) => [slug, { ...lesson, Content: CONTENT[slug]! }]),
+  Object.entries(lessonData).map(([slug, lesson]) => [
+    slug,
+    { ...lesson, Content: CONTENT[slug]! },
+  ]),
 );
 
 export function getLesson(slug: string): Lesson | undefined {

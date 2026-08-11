@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useSolvedTasks } from "@/lib/progress";
-import { lessons, orderedSlugs, track } from "@/content/tracks/xpp-for-nav-devs";
+import { lessons, orderedSlugs, track } from "@/content/tracks/xpp-fundamentals";
 
 function LessonRow({ slug, index }: { slug: string; index: number }) {
   const lesson = lessons[slug]!;

@@ -69,9 +69,7 @@ export function Aside({ title, children }: { title?: string; children: ReactNode
 
 /** A short labelled table, for mapping concepts onto keywords. */
 export function KeyPoints({ children }: { children: ReactNode }) {
-  return (
-    <ul className="my-3 flex flex-col gap-1.5 text-sm text-zinc-300">{children}</ul>
-  );
+  return <ul className="my-3 flex flex-col gap-1.5 text-sm text-zinc-300">{children}</ul>;
 }
 
 export const lessonComponents: MDXComponents = {

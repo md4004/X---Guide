@@ -10,36 +10,47 @@ requiresEngine: [db, runtime]
 seed: default
 ---
 
+<Step id="throw">
+
 ## throw error(...) is two things on one line
 
-You have seen `error()` since lesson 1. It writes a red line and returns — it does not stop
-anything. What stops things is `throw`:
+You have used `error()` since the first lesson. It writes a red line and returns — it stops
+nothing. What stops things is `throw`:
 
 <Snippet lang="xpp">{`throw error("Cannot post an empty journal.");`}</Snippet>
 
-Read that right to left. `error(...)` writes the message to the Infolog and hands back an
-`Exception::Error` value. `throw` then raises that value. Two operations, one line, and the
+Read it right to left. `error(...)` writes the message to the Infolog and hands back an
+`Exception::Error` value. `throw` then raises that value. Two operations, one line — and the
 reason the idiom looks strange until you know it.
 
-The corollary is worth stating plainly:
+The corollary matters:
 
 <Snippet lang="xpp">{`throw Exception::Error;   // raises, but writes NOTHING to the Infolog
 throw error("why");       // writes "why", then raises`}</Snippet>
 
-A bare `throw Exception::Error` is technically valid and almost always wrong. The user gets
-a failure with no explanation, which is how you end up with support tickets that say only
-"it didn't work".
+A bare `throw Exception::Error` is valid and almost always wrong. The user gets a failure
+with no explanation, which is how you end up with support tickets that say only "it didn't
+work".
 
-<Compare
-  cal={`ERROR('Cannot post an empty journal.');
-// Logs, raises and rolls back,
-// all in one statement.`}
-  xpp={`throw error('Cannot post an empty journal.');
-// error() logs and returns a value.
-// throw raises it.`}
-/>
+</Step>
 
-## try, catch, and the rule that catches everyone
+<Step id="throw-and-catch">
+
+## Your turn
+
+Throw an error reading `Nothing to post`, catch it, and log `Recovered` from the catch
+block.
+
+Both lines should end up in the Infolog — and it is worth asking yourself *why* the first
+one does.
+
+</Step>
+
+<Step id="the-rule">
+
+## The rule that catches everyone
+
+A `try`/`catch` looks ordinary:
 
 <Snippet lang="xpp">{`try
 {
@@ -50,13 +61,14 @@ catch (Exception::Error)
     info("caught it");
 }`}</Snippet>
 
-Straightforward. Now the rule that is invisible until it bites:
+Now the rule that stays invisible until it bites:
 
 > An exception thrown inside a transaction **cannot be caught by a `catch` that is also
 > inside that transaction.**
 
-The transaction aborts, and the exception goes looking for the innermost `catch` that sits
-*outside* the transaction block. Here is Microsoft's own worked example:
+The transaction aborts, and the exception goes looking for the innermost `catch` sitting
+*outside* the transaction block. Here is the worked example from the platform
+documentation:
 
 <Snippet lang="xpp">{`try
 {
@@ -84,32 +96,45 @@ catch (Exception::Error)
 }`}</Snippet>
 
 Only `Catch_2` runs. `Catch_1` is inside the transaction, so it is skipped entirely;
-`Catch_3` is outside but not innermost. Paste that into the sandbox and watch.
+`Catch_3` is outside but not innermost. Run it and watch.
 
-Two exceptions to the rule, both to do with concurrency: `Exception::UpdateConflict` and
+<Aside title="It is not that exception handling is broken">
+  This rule is why people wrap a posting routine in `try`/`catch`, watch the catch never
+  fire, conclude the mechanism is unreliable, and go back to checking return values by hand.
+  The mechanism is fine — the catch is in the wrong place. Move it outside the
+  `ttsbegin`/`ttscommit` and it behaves exactly as you expected. The rule exists because a
+  half-rolled-back transaction is not a state anything can sensibly recover from, so the
+  platform refuses to hand you control while you are still inside one.
+</Aside>
+
+Two exceptions to the rule, both about concurrency: `Exception::UpdateConflict` and
 `Exception::DuplicateKeyException` **can** be caught inside their own transaction — but only
 if you name them explicitly. A bare `catch` still will not see them.
 
-<NavCallout>
-  **This is the rule that makes C/AL developers distrust X++ error handling.** You wrap a
-  posting routine in `try`/`catch`, test it, and the catch never fires — so you conclude
-  exception handling is broken and go back to checking return values. It is not broken: the
-  catch is in the wrong place. Move it outside the `ttsbegin`/`ttscommit` and it works
-  exactly as you expected. The rule exists because a half-rolled-back transaction is not a
-  state anything can sensibly recover from, so the platform refuses to hand you control
-  while you are still inside one.
-</NavCallout>
+</Step>
+
+<Step id="catch-outside-the-transaction">
+
+## Your turn
+
+Open a transaction, throw inside it, and catch the exception. Log `Caught outside` from the
+catch.
+
+The catch has to be somewhere that actually runs.
+
+</Step>
+
+<Step id="retry-intro">
 
 ## retry, and the thing it erases
 
-`retry` is only valid inside a `catch`, and it jumps back to the first line of the
-associated `try`. It exists for optimistic-concurrency failures: catch the conflict, wait,
-try again.
+`retry` is only valid inside a `catch`, and it jumps back to the first line of the associated
+`try`. It exists for optimistic-concurrency failures: catch the conflict, try again.
 
 It has one behaviour nobody expects. **`retry` erases every Infolog message written since
 control entered the `try` block.** That is deliberate — a retried operation should not leave
-the user reading the failed attempt's output — but the first time you see three log lines
-vanish it is unsettling.
+the user reading the failed attempt's output — but the first time three log lines vanish it
+is unsettling.
 
 <Snippet lang="xpp">{`int attempts;
 
@@ -131,15 +156,52 @@ catch (Exception::Error)
 }`}</Snippet>
 
 That logs `attempt 2` and `succeeded`, and nothing else. The first two attempts' messages
-were written and then erased.
+were written, then erased.
 
-Guard your `retry` with a counter, always. Nothing else stops it looping forever.
+Guard every `retry` with a counter. Nothing else stops it looping forever.
 
-<Task id="throw-and-catch" />
+</Step>
 
-<Task id="catch-outside-the-transaction" />
+<Step id="retry-until-it-works">
 
-<Task id="retry-until-it-works" />
+## Your turn
+
+Write a `try` block that fails twice and succeeds on the third attempt, using `retry` and a
+counter to stop it looping.
+
+Log `attempt N` at the top of the `try`, and `Succeeded` on the way out.
+
+Then look carefully at what actually ends up in the Infolog.
+
+</Step>
+
+export const steps = [
+  {
+    id: "throw",
+    title: "throw error(...)",
+    example:
+      'info("before");\nerror("this one does not stop anything");\ninfo("after");\n',
+  },
+  { id: "throw-and-catch", title: "Throw and catch", taskId: "throw-and-catch" },
+  {
+    id: "the-rule",
+    title: "The rule that catches everyone",
+    example:
+      'try\n{\n    try\n    {\n        ttsbegin;\n        try\n        {\n            throw error("Throwing exception inside transaction.");\n        }\n        catch (Exception::Error)\n        {\n            info("Catch_1: never runs");\n        }\n        ttscommit;\n    }\n    catch (Exception::Error)\n    {\n        info("Catch_2: this is the one");\n    }\n}\ncatch (Exception::Error)\n{\n    info("Catch_3: never runs either");\n}\n',
+  },
+  {
+    id: "catch-outside-the-transaction",
+    title: "Catch outside the transaction",
+    taskId: "catch-outside-the-transaction",
+  },
+  {
+    id: "retry-intro",
+    title: "retry, and what it erases",
+    example:
+      'int attempts;\n\ntry\n{\n    info(strFmt("attempt %1", attempts));\n    attempts++;\n\n    if (attempts < 3)\n    {\n        throw error("not yet");\n    }\n\n    info("succeeded");\n}\ncatch (Exception::Error)\n{\n    retry;\n}\n',
+  },
+  { id: "retry-until-it-works", title: "Use retry", taskId: "retry-until-it-works" },
+];
 
 export const tasks = [
   {
@@ -150,7 +212,7 @@ export const tasks = [
     solution:
       'try\n{\n    throw error("Nothing to post");\n}\ncatch (Exception::Error)\n{\n    info("Recovered");\n}\n',
     hints: [
-      "The idiom is throw error(\"...\"); — error() writes the message and returns the value, throw raises it.",
+      'The idiom is throw error("..."); — error() writes the message and returns the value, throw raises it.',
       "Qualify the catch with the exception you expect: catch (Exception::Error).",
       "The message appears because error() wrote it, not because it was thrown. Log Recovered inside the catch.",
     ],
@@ -166,7 +228,7 @@ export const tasks = [
         match: "^Nothing to post$",
         type: "error",
         message:
-          "The error message is not in the Infolog. Throw it through error(): throw error(\"Nothing to post\"); — a bare throw Exception::Error writes nothing at all.",
+          'The error message is not in the Infolog. Throw it through error(): throw error("Nothing to post"); — a bare throw Exception::Error writes nothing at all.',
       },
       {
         kind: "output",
@@ -182,14 +244,13 @@ export const tasks = [
     id: "catch-outside-the-transaction",
     prompt:
       "Open a transaction, throw inside it, and catch the exception. Log Caught outside from the catch. The catch has to be somewhere that actually runs.",
-    starter:
-      "// Open a transaction, throw inside it, and catch it somewhere that works.\n",
+    starter: "// Open a transaction, throw inside it, and catch it somewhere that works.\n",
     solution:
       'try\n{\n    ttsbegin;\n    throw error("failed inside the transaction");\n    ttscommit;\n}\ncatch (Exception::Error)\n{\n    info("Caught outside");\n}\n',
     hints: [
       "A catch inside the ttsbegin/ttscommit block will not fire. The exception looks for the innermost catch outside the transaction.",
       "So put the try around the whole transaction, not inside it.",
-      "Shape: try { ttsbegin; throw error(\"...\"); ttscommit; } catch (Exception::Error) { info(\"Caught outside\"); }",
+      'Shape: try { ttsbegin; throw error("..."); ttscommit; } catch (Exception::Error) { info("Caught outside"); }',
     ],
     validators: [
       {

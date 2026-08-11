@@ -52,11 +52,31 @@ stretch to Phase 3: golden-file tests for update conflicts, deadlock shapes and
 uncommitted-data errors need a real AOS, because the docs do not spell out the exact
 message text and the whole point is to mirror it.
 
-## 4. Content voice — **decided: own the NAV→F&O angle**
+## 4. Content voice — **reversed: teach X++ from zero, assume no prior platform**
 
-Reflected in the Phase 0 landing copy ("Built for developers arriving from Dynamics NAV
-and Business Central") and in the lesson schema's mandatory `<NavCallout>`. Every lesson
-explains the delta from C/AL rather than teaching X++ from zero.
+~~Decided: own the NAV→F&O angle.~~ Reversed on the owner's call: _"the person who will use
+it could have many backgrounds."_
+
+The original decision framed the whole product as a migration guide — landing copy aimed at
+"developers arriving from Dynamics NAV and Business Central", a track called
+`xpp-for-nav-devs`, and a mandatory `<NavCallout>` in every lesson explaining the delta from
+C/AL. That is excellent for one reader and useless for the rest, and the rest are the larger
+group: people arriving from C#, from SQL, from other ERP platforms, or from nothing.
+
+What changed, concretely:
+
+- the track is `xpp-fundamentals`, "X++ fundamentals"
+- `<NavCallout>` and `<Compare cal={...} xpp={...} />` are deleted from the MDX component set
+- the surviving box is `<Aside title="...">`, whose title is authored per use
+- the landing page and track summary name no prior platform
+- an e2e test asserts that no page mentions C/AL, NAV or Business Central, so this does not
+  quietly creep back in
+
+What did **not** change: the content that was genuinely valuable in those callouts was
+mostly not about C/AL at all — it was about X++ being surprising (`ttsabort` from any depth,
+a `catch` inside a transaction never firing, `exists join` not duplicating outer rows).
+That material was kept and reframed as "here is the part that catches people", which is true
+regardless of where the reader came from.
 
 ---
 
@@ -109,3 +129,16 @@ explains the delta from C/AL rather than teaching X++ from zero.
 | Progress uses `useSyncExternalStore`, not a mount effect           | The lesson page is prerendered, so reading localStorage during render breaks hydration and reading it in an effect flashes "0 of 3" before correcting itself. `lib/progress.ts` supplies a server snapshot and a client snapshot. Phase 11 swaps the backing store for an account without touching either component. |
 | MDX takes its components as a prop, not through `MDXProvider`      | The provider evaluates `createContext` at module scope, which Next runs while collecting page data on the server — where it is not a function. Passing the map directly also dropped a dependency.                                                                                                                   |
 | The lesson route resolves the lesson on the client                 | MDX content is a function component, and a server component cannot pass a function to a client one. The server page passes two strings and keeps `generateStaticParams` and metadata.                                                                                                                                |
+
+---
+
+## Structural decisions taken during the step-workspace rebuild
+
+| Decision                                                              | Why                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A lesson is a workspace, not an article with exercises in it          | Code left, instructions right, one step at a time. You are always either reading the current instruction or writing the current answer, never scrolling to work out which. The long-article layout buried the tasks — the thing the product actually is — inside prose.                                       |
+| The whole MDX body renders on every step; `<Step>` hides itself       | Keeps authoring in ordinary MDX instead of prose chopped into a JavaScript array. Costs some hidden markup, which for a lesson-sized document is nothing.                                                                                                                                                     |
+| The forward arrow is gated on the step's task passing                 | An exercise you can skip is a paragraph. Reading steps are never gated, so the gate only ever means "you have not solved this yet".                                                                                                                                                                           |
+| Reading steps preload a runnable example rather than an empty editor  | The editor is on screen for every step, so it should always have something worth pressing Run on. An empty editor beside prose reads as broken.                                                                                                                                                               |
+| The landing page says nothing about build phases                      | It was showing a phase-completion checklist, which is for the person building the product, not the person learning X++. Build status lives in `PLAN.md`.                                                                                                                                                      |
+| `lesson.test.ts` asserts every task is reachable from exactly one step | The failure this catches is invisible otherwise: a task whose solution passes `verifyTask` and which no learner ever sees, because no step points at it.                                                                                                                                                     |

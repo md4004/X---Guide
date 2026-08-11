@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Resolves a lesson by slug on the client, then renders it.
+ * Resolves a lesson by slug on the client, then renders its workspace.
  *
  * The registry lookup happens here rather than in the server page because the MDX
  * content is a *function* component, and a server component cannot pass a function to a
@@ -11,8 +11,8 @@
  * for `generateStaticParams` — but only ever hands strings across the boundary.
  */
 
-import { getLesson, neighbours, track } from "@/content/tracks/xpp-for-nav-devs";
-import { LessonView } from "./lesson-view";
+import { getLesson, neighbours, track } from "@/content/tracks/xpp-fundamentals";
+import { LessonWorkspace } from "./lesson-workspace";
 
 export function LessonScreen({ lessonSlug }: { trackSlug: string; lessonSlug: string }) {
   const lesson = getLesson(lessonSlug);
@@ -28,8 +28,9 @@ export function LessonScreen({ lessonSlug }: { trackSlug: string; lessonSlug: st
   const { previous, next } = neighbours(lessonSlug);
 
   return (
-    <LessonView
+    <LessonWorkspace
       frontmatter={lesson.frontmatter}
+      steps={lesson.steps}
       tasks={lesson.tasks}
       Content={lesson.Content}
       trackTitle={track.title}

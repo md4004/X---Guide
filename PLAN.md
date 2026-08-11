@@ -123,7 +123,7 @@ for now.
 **Accept:** one lesson authored end to end in MDX with three tasks, passing and failing
 paths both correct, with zero engine changes required to author it.
 
-> **Delivered** as `content/tracks/xpp-for-nav-devs/02-buffers-and-select.mdx`, served at
+> **Delivered** as `content/tracks/xpp-fundamentals/02-buffers-and-select.mdx`, served at
 > `/learn/[track]/[lesson]`. `packages/validators/test/lesson.test.ts` imports that real
 > file and runs every task's solution through its own validators, plus twelve plausible
 > wrong answers each asserted against the _specific_ message it should produce — not
@@ -134,26 +134,27 @@ paths both correct, with zero engine changes required to author it.
 
 ## Phase 6 — First guided track (MVP content) — built, not yet user-tested
 
-Track: **X++ for NAV/BC developers** — deliberately narrow, deliberately underserved, and
-it is the audience you can market to credibly.
+Track: **X++ fundamentals** — teaches the language from zero, assuming no prior platform.
+(This reverses the original "X++ for NAV/BC developers" framing; see decision #4 in
+`docs/decisions.md` for what changed and why.)
 
-1. Hello Infolog — `info`, `strFmt`, primitives vs. C/AL types
-2. Buffers and `select` — `firstonly`, `while select`, versus `FINDSET`/`NEXT`
-3. Transactions — `ttsbegin`/`ttscommit`, and why NAV's implicit commit doesn't exist
-4. Insert, update, validate — `.insert()` vs `validateWrite()`, the `INSERT(TRUE)` trap
+1. Output and variables — `info`, `strFmt`, primitives and their starting values
+2. Reading from the database — `firstonly`, `while select`, read-only vs `forupdate`
+3. Transactions — `ttsbegin`/`ttscommit`, nesting, and what `ttsabort` discards
+4. Insert, update, delete — `.insert()`, `clear()`, and what is not simulated
 5. Joins — `join`, `exists join`, `notexists join`
 6. Set-based operations — `update_recordset` vs a loop, with the SQL trace as the proof
 7. Companies — `changecompany`, `crosscompany`, and why F&O has one table not N
 8. Exceptions — `try`/`catch`/`retry`, `throw`, transaction interaction
 
-Each lesson: 400–800 words of prose, 2–4 validated tasks, one "why this differs from NAV"
-callout. Plus the sandbox mode surfaced as its own route.
+Each lesson: 400–800 words of prose split across 5–8 steps, 2–4 validated tasks. Plus the
+sandbox mode surfaced as its own route.
 
 **Accept:** a developer with no F&O experience completes all eight in under three hours and
 every task validates correctly. Test this on a real person, not on yourself.
 
 > **Half done, and the half that is done is the half a machine can do.** All eight lessons
-> exist at `/learn/xpp-for-nav-devs`, with 23 validated tasks. Every solution is run
+> exist at `/learn/xpp-fundamentals`, with 23 validated tasks. Every solution is run
 > through its own validators in CI, and 23 plausible wrong answers are each asserted
 > against the specific message they should produce.
 >
@@ -161,7 +162,7 @@ every task validates correctly. Test this on a real person, not on yourself.
 > F&O experience completes all eight in under three hours" is a claim about a person, and
 > nobody has sat down with this yet. What the tests prove is that the tasks are solvable
 > and the feedback is specific — not that the explanations land, that the difficulty curve
-> is right, or that three hours is the real number. Find one NAV developer and watch them.
+> is right, or that three hours is the real number. Find one developer and watch them.
 
 ---
 

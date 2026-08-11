@@ -10,10 +10,11 @@ requiresEngine: [db, runtime]
 seed: default
 ---
 
-## Writing is three steps, always
+<Step id="shape">
 
-Every write in X++ has the same shape: get a buffer into the state you want, then call a
-method on it.
+## Writing always has the same shape
+
+Get a buffer into the state you want, then call a method on it:
 
 <Snippet lang="xpp">{`InventTable inventTable;
 
@@ -24,11 +25,34 @@ inventTable.ItemGroupId = "FURNITURE";
 inventTable.insert();
 ttscommit;`}</Snippet>
 
-Note what is missing: you never name the table again after the declaration, and you never
-build a SQL statement. The buffer knows what table it is, and `insert()` sends whatever is
-currently in it.
+Notice what is missing. You never name the table again after the declaration, and you never
+build a statement by hand. The buffer already knows what table it belongs to, and
+`insert()` sends whatever is currently sitting in it.
 
-`update()` and `delete()` work the same way, with one extra requirement — the record has to
+A new record needs no `select` at all. The buffer starts empty, which is exactly the state
+an insert wants.
+
+</Step>
+
+<Step id="insert-a-record">
+
+## Your turn
+
+Insert a new item:
+
+- `ItemId` `F-500`
+- `ItemName` `Standing desk`
+- `ItemGroupId` `FURNITURE`
+
+Then log `Inserted F-500`.
+
+</Step>
+
+<Step id="updating">
+
+## Updating and deleting
+
+`update()` and `delete()` have the same shape, with one extra requirement — the record must
 have been read with `forupdate`:
 
 <Snippet lang="xpp">{`ttsbegin;
@@ -39,22 +63,33 @@ inventTable.ItemName = "Standing desk, electric";
 inventTable.update();
 ttscommit;`}</Snippet>
 
-<Compare
-  cal={`Item.INIT;
-Item."No." := 'F-500';
-Item.Description := 'Standing desk';
-Item.INSERT(TRUE);`}
-  xpp={`inventTable.clear();
-inventTable.ItemId = "F-500";
-inventTable.ItemName = "Standing desk";
-inventTable.insert();`}
-/>
+One `update()` writes the whole buffer, so set every field you want to change before you
+call it. Two changes do not need two updates.
+
+`delete()` is shorter still: select it for update, then call `inventTable.delete();`.
+
+</Step>
+
+<Step id="update-a-record">
+
+## Your turn
+
+Rename item `F-100` to `Ashwood desk 1400 (refreshed)` and stop it by setting `Blocked` to
+`NoYes::Yes`.
+
+Then log `Updated F-100`.
+
+Both changes belong to a single `update()` call.
+
+</Step>
+
+<Step id="clear">
 
 ## clear() is not optional
 
 A buffer keeps its values after a write. Insert two records in a row without clearing and
-the second one inherits every field you did not overwrite — including, usually, a key that
-is now a duplicate:
+the second inherits every field you did not overwrite — including, usually, a key that is
+now a duplicate:
 
 <Snippet lang="xpp">{`ttsbegin;
 inventTable.ItemId = "F-500";
@@ -67,42 +102,78 @@ inventTable.ItemName = "Second";
 inventTable.insert();
 ttscommit;`}</Snippet>
 
-C/AL's `INIT` is the same idea, and forgetting it causes the same class of bug. The
-difference is that X++ will often let you get away with it right up until the moment a
-unique index catches you, and then you get a duplicate key error pointing at a field you
-did not think you had set.
+`clear()` really does empty the buffer, so after it you have to set **every** field again,
+not just the ones that change.
 
-## What a duplicate key looks like
+<Aside title="What a duplicate key looks like">
+  Insert a record whose key already exists and the write fails with
+  `Exception::DuplicateKeyException`. It is one of only two exceptions that can be caught
+  *inside* the transaction that raised it — the last lesson explains why that is unusual.
+</Aside>
 
-Insert a record whose key already exists and the write fails with
-`Exception::DuplicateKeyException`. It is one of only two exceptions that can be caught
-*inside* the transaction that raised it — which is lesson 8's territory, but worth knowing
-now, because it means a `try`/`catch` around an insert actually works.
+</Step>
 
-<NavCallout>
-  **`INSERT(TRUE)` has no direct equivalent, and the reason is instructive.** In C/AL the
-  boolean says whether to run the `OnInsert` trigger; `INSERT(FALSE)` skips your own
-  business logic, which is why it is both useful and dangerous. X++ inverts the default:
-  `insert()` always runs the table's `insert()` method, and the escape hatch is a
-  *different method*, `doInsert()`, which writes the row and runs nothing. So the risky
-  choice is the one you have to name explicitly, rather than a boolean that is easy to
-  flip by accident. Neither `doInsert()` nor table-method overrides are simulated here —
-  they need the metadata layer — so this lesson stays on `insert()`.
-</NavCallout>
+<Step id="two-inserts-and-clear">
 
-## validateWrite, in prose only
+## Your turn
 
-Real F&O calls `validateWrite()` before a write from a form, and you override it to reject
-bad data. It reads field properties — mandatory flags, string lengths, relations — from the
-AOT metadata, and this simulator does not have that layer yet. Rather than let you practise
-against a version that always returns `true`, the engine refuses to run it and says so. It
-arrives with the forms track.
+Insert two items in one transaction, both in `FURNITURE`:
 
-<Task id="insert-a-record" />
+- `F-600` named `First`
+- `F-601` named `Second`
 
-<Task id="update-a-record" />
+Getting the second one's name right is the whole point of the exercise.
 
-<Task id="two-inserts-and-clear" />
+Then log `Inserted two items`.
+
+</Step>
+
+<Step id="not-simulated">
+
+## Two things this simulator will not fake
+
+**`doInsert()`** writes the row and skips the table's own `insert()` logic. It exists, it is
+occasionally the right call, and it is not simulated here — table method overrides need the
+metadata layer.
+
+**`validateWrite()`** runs before a write from a form and is where you reject bad data. It
+reads field properties — mandatory flags, lengths, relations — from metadata this engine
+does not model yet.
+
+Rather than let you practise against a version that always returns `true`, the engine
+refuses to run either and tells you so. A simulation that is incomplete is fine; one that is
+quietly wrong is not.
+
+</Step>
+
+export const steps = [
+  {
+    id: "shape",
+    title: "Writing always has the same shape",
+    example:
+      'InventTable inventTable;\n\nttsbegin;\ninventTable.ItemId = "F-999";\ninventTable.ItemName = "Example desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\n\ninfo("done");\n',
+  },
+  { id: "insert-a-record", title: "Insert a record", taskId: "insert-a-record" },
+  {
+    id: "updating",
+    title: "Updating and deleting",
+    example:
+      'InventTable inventTable;\n\nttsbegin;\nselect forupdate inventTable\n    where inventTable.ItemId == "F-100";\ninventTable.ItemName = "Renamed";\ninventTable.update();\nttscommit;\n\ninfo(inventTable.ItemName);\n',
+  },
+  { id: "update-a-record", title: "Update a record", taskId: "update-a-record" },
+  {
+    id: "clear",
+    title: "clear() is not optional",
+    example:
+      'InventTable inventTable;\n\ninventTable.ItemId = "F-500";\ninventTable.ItemName = "First";\ninfo(strFmt("before clear: [%1] [%2]", inventTable.ItemId, inventTable.ItemName));\n\ninventTable.clear();\ninfo(strFmt("after clear:  [%1] [%2]", inventTable.ItemId, inventTable.ItemName));\n',
+  },
+  { id: "two-inserts-and-clear", title: "Two inserts", taskId: "two-inserts-and-clear" },
+  {
+    id: "not-simulated",
+    title: "What is not simulated",
+    example: 'info("Nothing to run here — read on, then move to the next lesson.");\n',
+  },
+];
 
 export const tasks = [
   {

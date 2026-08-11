@@ -11,20 +11,26 @@ and the types drift, that test stops compiling.
 ```
 content/
   tracks/
-    xpp-for-nav-devs/
+    xpp-fundamentals/
       track.json
+      lessons.ts          data-only registry: frontmatter + steps + tasks, no React
+      index.ts            adds the compiled MDX component to each lesson
       01-hello-infolog.mdx
       02-buffers-and-select.mdx
       ...
 ```
 
+`lessons.ts` is split from `index.ts` on purpose: the validators package imports it to run
+every authored solution through its own validators, and an engine package has no business
+depending on app-level component types to do that.
+
 ## track.json
 
 ```json
 {
-  "slug": "xpp-for-nav-devs",
-  "title": "X++ for NAV and BC developers",
-  "summary": "Everything you already know from C/AL, remapped — plus the things that will bite you.",
+  "slug": "xpp-fundamentals",
+  "title": "X++ fundamentals",
+  "summary": "Write X++ that reads, writes and queries a real database — and see exactly what it did.",
   "level": "beginner",
   "estimatedMinutes": 180,
   "lessons": ["01-hello-infolog", "02-buffers-and-select"],
@@ -40,12 +46,12 @@ Valid values: `db`, `runtime`, `aot`, `forms`, `classes`, `reports`, `odata`.
 ```yaml
 ---
 slug: 02-buffers-and-select
-title: Buffers and select
+title: Reading from the database
 minutes: 20
 objectives:
-  - Declare a table buffer and select a single record
-  - Loop a result set with while select
-  - Explain why FINDSET has no direct equivalent
+  - Declare a table buffer and read one record into it
+  - Loop a whole result set with while select
+  - Tell a read-only buffer from a writable one
 requiresEngine: [db, runtime]
 seed: default # or a named seed variant in virtual-db
 ---
@@ -53,16 +59,54 @@ seed: default # or a named seed variant in virtual-db
 
 ## Body
 
-Standard MDX prose, plus these components:
+The body is a sequence of `<Step>` blocks. The workspace renders the whole document on
+every step and each `<Step>` shows itself only when it is the active one, so authoring
+stays ordinary MDX rather than prose chopped into a JavaScript array.
 
-- `<NavCallout>` — the "how this differs from C/AL" box. Every lesson has exactly one.
+Standard MDX prose inside a step, plus these components:
+
 - `<Snippet lang="xpp">` — read-only illustrative code, not runnable.
-- `<Compare cal={...} xpp={...} />` — side-by-side C/AL and X++.
-- `<Task id="..." />` — an interactive task, defined below.
+- `<Aside title="...">` — a box for a caveat or a surprise. The title is authored per use.
+- `<KeyPoints>` — a short recap list.
+
+```mdx
+<Step id="buffers">
+
+## A table buffer is a variable
+
+<Snippet lang="xpp">{`InventTable inventTable;`}</Snippet>
+
+</Step>
+```
+
+**Assume nothing about the reader's background.** Learners arrive from C#, Java, SQL, other
+ERP platforms, or from nothing at all. Framing a concept as "what X is called here" excludes
+everyone who has not used X, and dates the content to one migration wave. Explain the thing
+itself. (This reverses decision #4 in `docs/decisions.md`, which is recorded there.)
+
+## Step definition
+
+Steps live in a `steps` export and give the workspace its running order.
+
+```ts
+export const steps = [
+  // A reading step: prose plus an example the learner can run and poke at.
+  { id: "buffers", title: "A table buffer is a variable", example: "InventTable inventTable;\n" },
+  // An exercise step: the editor loads the task's starter, and the arrow is locked
+  // until the task's validators pass.
+  { id: "select-one-item", title: "Read one record", taskId: "select-one-item" },
+];
+```
+
+Rules, enforced in `packages/validators/test/lesson.test.ts`:
+
+- every step has either a `taskId` or an `example` — never neither
+- step ids are unique within a lesson
+- every task in the lesson is reached from exactly one step
 
 ## Task definition
 
-Tasks live in a `tasks` export at the bottom of the MDX file so authors edit one file.
+Tasks live in a `tasks` export at the bottom of the same MDX file, so authors edit one file.
 
 ```ts
 export const tasks = [
@@ -217,8 +261,9 @@ validator.
 
 ## Authoring checklist
 
-- [ ] Exactly one `<NavCallout>`
-- [ ] 400–800 words of prose
+- [ ] Nothing assumes a specific prior platform
+- [ ] 400–800 words of prose, split across 5–8 steps
+- [ ] Every step has a task or a runnable example
 - [ ] 2–4 tasks, each solvable in under five minutes
 - [ ] Every task has three hints, escalating from nudge to near-solution
 - [ ] Every validator has an authored failure message

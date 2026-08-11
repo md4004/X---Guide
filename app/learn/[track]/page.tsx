@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { TrackIndex } from "@/components/lesson/track-index";
-import { track } from "@/content/tracks/xpp-for-nav-devs";
+import { track } from "@/content/tracks/xpp-fundamentals";
 
 export function generateStaticParams() {
   return [{ track: track.slug }];

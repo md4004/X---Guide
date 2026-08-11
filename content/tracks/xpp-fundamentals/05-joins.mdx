@@ -10,13 +10,12 @@ requiresEngine: [db, runtime]
 seed: default
 ---
 
+<Step id="two-buffers">
+
 ## Two buffers, one statement
 
-C/AL has no join. You loop the header table and, inside the loop, filter and read the lines
-— which is one query per header, and the reason so many NAV reports get slow at exactly the
-moment the data gets interesting.
-
-X++ joins in the `select` itself:
+Reading a header table and then querying its lines inside the loop costs one query per
+header. X++ joins in the `select` itself, so it costs one:
 
 <Snippet lang="xpp">{`SalesTable salesTable;
 SalesLine salesLine;
@@ -28,43 +27,51 @@ while select salesTable
     info(strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId));
 }`}</Snippet>
 
-Both buffers are populated on every pass. The `where` after the joined table is the join
-condition — X++ does not have a separate `on` keyword, which reads oddly at first and then
+Both buffers are filled on every pass. The `where` after the joined table **is** the join
+condition — X++ has no separate `on` keyword, which reads oddly for about a day and then
 stops mattering.
 
-One statement, one round trip. Check the SQL trace after running it and you will see a
-single `SELECT` with an `INNER JOIN`, whatever the row count.
+Run it and open the SQL trace: one `SELECT` with an `INNER JOIN`, whatever the row count.
 
-<Compare
-  cal={`SalesHeader.FINDSET;
-REPEAT
-  SalesLine.SETRANGE("Document No.", SalesHeader."No.");
-  IF SalesLine.FINDSET THEN
-    REPEAT
-      MESSAGE(SalesLine."No.");
-    UNTIL SalesLine.NEXT = 0;
-UNTIL SalesHeader.NEXT = 0;`}
-  xpp={`while select salesTable
-    join salesLine
-    where salesLine.SalesId == salesTable.SalesId
-{
-    info(salesLine.ItemId);
-}`}
-/>
+<Aside title="A missing join condition is silent">
+  Leave the `where` off and you get a cross join — every row against every row — with no
+  warning at all. When a joined query returns a suspiciously round and suspiciously large
+  number of rows, check the join condition first.
+</Aside>
+
+</Step>
+
+<Step id="join-orders-and-lines">
+
+## Your turn
+
+Log one line per sales order line, in the form:
+
+`SO-0001 / F-100`
+
+Join `SalesTable` to `SalesLine` on `SalesId`. After the loop, log the count as:
+
+`5 lines`
+
+Keep it to a single query — a `select` inside the loop defeats the point.
+
+</Step>
+
+<Step id="four-kinds">
 
 ## The four kinds
 
-| Written              | Means                                                       |
-| -------------------- | ----------------------------------------------------------- |
-| `join`               | Inner join. Only rows that match on both sides.             |
-| `outer join`         | Left outer. Every outer row, with the joined buffer empty when there is no match. |
-| `exists join`        | Keep the outer row **if** a match exists. No fields fetched. |
-| `notexists join`     | Keep the outer row **if no** match exists. No fields fetched. |
+| Written          | Means                                                                            |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `join`           | Inner join. Only rows that match on both sides.                                  |
+| `outer join`     | Left outer. Every outer row, with the joined buffer empty when there is no match. |
+| `exists join`    | Keep the outer row **if** a match exists. No fields fetched.                      |
+| `notexists join` | Keep the outer row **if no** match exists. No fields fetched.                     |
 
 `exists join` and `notexists join` are the two most useful and the two most often missed.
-They answer "which customers have ordered?" and "which customers never have?" without
-fetching a single sales-order field, and — crucially — without duplicating the outer row
-once per match:
+They answer "which customers have ordered?" and "which never have?" without fetching a
+single sales-order field — and, crucially, without duplicating the outer row once per
+match:
 
 <Snippet lang="xpp">{`CustTable custTable;
 SalesTable salesTable;
@@ -77,27 +84,72 @@ while select custTable
 }`}</Snippet>
 
 A customer with six orders appears once. Write that as a plain `join` and they appear six
-times, which is a bug you will not notice until someone sums a column.
+times — a bug nobody notices until someone sums a column.
 
-<NavCallout>
-  **The join condition lives in a `where`, not an `on`.** Every join in X++ is written
-  `join otherTable where otherTable.Key == thisTable.Key`, and if you omit the `where` you
-  get a cross join — every row against every row — with no warning. SQL would at least look
-  odd; X++ looks almost right. When a joined query returns a suspiciously round and
-  suspiciously large number of rows, a missing join condition is the first thing to check.
-</NavCallout>
+</Step>
+
+<Step id="customers-with-orders">
+
+## Your turn
+
+Log the `AccountNum` of every customer that has at least one sales order, then log:
+
+`3 customers with orders`
+
+Each customer must appear **exactly once**, so pick the join kind that does not repeat the
+outer row.
+
+</Step>
+
+<Step id="customers-without-orders">
+
+## Your turn
+
+Now the opposite. Log the `AccountNum` of every customer with no sales orders at all, then
+log:
+
+`1 customer with no orders`
+
+There is a keyword for this. Do not collect the matches and subtract them yourself.
+
+</Step>
+
+<Step id="reading-the-trace">
 
 ## Reading the trace
 
-Run each of the tasks below and open the SQL trace. You will see `exists join` compile to
-an `EXISTS (SELECT 1 ...)` subquery rather than a join — that is exactly how F&O compiles
-it, and it is why it cannot duplicate outer rows.
+Open the SQL trace on the last two tasks. `exists join` compiled to an
+`EXISTS (SELECT 1 ...)` subquery rather than a join — which is how F&O compiles it, and
+precisely why it cannot duplicate outer rows.
 
-<Task id="join-orders-and-lines" />
+That is the habit worth taking from this lesson: after any query you are unsure about, look
+at what it actually generated. The trace is not debug output, it is the answer.
 
-<Task id="customers-with-orders" />
+</Step>
 
-<Task id="customers-without-orders" />
+export const steps = [
+  {
+    id: "two-buffers",
+    title: "Two buffers, one statement",
+    example:
+      'SalesTable salesTable;\nSalesLine salesLine;\n\nwhile select salesTable\n    join salesLine\n    where salesLine.SalesId == salesTable.SalesId\n{\n    info(strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId));\n}\n',
+  },
+  { id: "join-orders-and-lines", title: "Join two tables", taskId: "join-orders-and-lines" },
+  {
+    id: "four-kinds",
+    title: "The four kinds",
+    example:
+      'CustTable custTable;\nSalesTable salesTable;\n\nwhile select custTable\n    exists join salesTable\n    where salesTable.CustAccount == custTable.AccountNum\n{\n    info(custTable.AccountNum);\n}\n',
+  },
+  { id: "customers-with-orders", title: "exists join", taskId: "customers-with-orders" },
+  { id: "customers-without-orders", title: "notexists join", taskId: "customers-without-orders" },
+  {
+    id: "reading-the-trace",
+    title: "Reading the trace",
+    example:
+      'CustTable custTable;\nSalesTable salesTable;\n\nwhile select custTable\n    notexists join salesTable\n    where salesTable.CustAccount == custTable.AccountNum\n{\n    info(custTable.AccountNum);\n}\n',
+  },
+];
 
 export const tasks = [
   {
@@ -139,7 +191,7 @@ export const tasks = [
         rule: "maxStatements",
         value: 1,
         message:
-          "This ran more than one query. A join is a single statement — if you see one query per order, you have a select inside the loop, which is the C/AL habit this lesson is about.",
+          "This ran more than one query. A join is a single statement — if you see one query per order, you have a select inside the loop.",
       },
       {
         kind: "sql",

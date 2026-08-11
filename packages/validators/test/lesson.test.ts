@@ -69,6 +69,32 @@ describe("authoring checklist", () => {
     expect(lesson.tasks.length).toBeLessThanOrEqual(4);
   });
 
+  it.each(lessonList())("%s wires every step to something runnable", (_slug, lesson) => {
+    // A step either sets a task or carries an example. One with neither leaves the
+    // learner staring at an empty editor with no way to know that is intended.
+    expect(lesson.steps.length).toBeGreaterThan(0);
+    for (const step of lesson.steps) {
+      expect(step.title.length).toBeGreaterThan(3);
+      expect(
+        step.taskId ?? step.example,
+        `step ${step.id} has neither a task nor an example`,
+      ).toBeDefined();
+    }
+
+    const ids = lesson.steps.map((step) => step.id);
+    expect(new Set(ids).size, "step ids must be unique within a lesson").toBe(ids.length);
+  });
+
+  it.each(lessonList())("%s reaches every task from exactly one step", (_slug, lesson) => {
+    const referenced = lesson.steps.flatMap((step) =>
+      step.taskId === undefined ? [] : [step.taskId],
+    );
+
+    // Unreachable tasks are the failure mode this catches: the task passes its own tests
+    // in `verifyTask` and no learner ever sees it, because no step points at it.
+    expect([...referenced].sort()).toEqual(lesson.tasks.map((task) => task.id).sort());
+  });
+
   it.each(lessonList())("%s declares objectives and a length", (_slug, lesson) => {
     expect(lesson.frontmatter.objectives.length).toBeGreaterThanOrEqual(2);
     expect(lesson.frontmatter.minutes).toBeGreaterThan(0);

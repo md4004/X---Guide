@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { LessonScreen } from "@/components/lesson/lesson-screen";
-import { getLesson, orderedSlugs, track } from "@/content/tracks/xpp-for-nav-devs";
+import { getLesson, orderedSlugs, track } from "@/content/tracks/xpp-fundamentals";
 
 /**
  * One track for now, so the route resolves against it directly. When a second track

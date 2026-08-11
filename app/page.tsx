@@ -38,15 +38,15 @@ export default function Home() {
         </h1>
 
         <p className="text-lg text-pretty text-zinc-400">
-          X++ is the language behind Dynamics 365 Finance &amp; Operations, and it normally takes
-          a licensed environment to write a single line of it. Here it runs in your browser —
-          write the code, press Check, and see the Infolog, the rows that changed and the SQL it
+          X++ is the language behind Dynamics 365 Finance &amp; Operations, and it normally takes a
+          licensed environment to write a single line of it. Here it runs in your browser — write
+          the code, press Check, and see the Infolog, the rows that changed and the SQL it
           generated.
         </p>
 
         <p className="flex flex-wrap gap-3">
           <Link
-            href="/learn/xpp-fundamentals"
+            href={`/learn/${track.slug}`}
             className="inline-flex items-center gap-2 rounded-md bg-sky-500 px-5 py-2.5 text-sm font-medium text-sky-950 transition hover:bg-sky-400"
           >
             Start learning
@@ -74,8 +74,8 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-zinc-800 pt-6 text-xs text-zinc-600">
-        Everything runs client-side. Your code is never sent anywhere, and your progress is
-        stored in this browser.
+        Everything runs client-side. Your code is never sent anywhere, and your progress is stored
+        in this browser.
       </footer>
     </main>
   );
