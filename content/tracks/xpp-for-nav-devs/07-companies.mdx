@@ -1,0 +1,221 @@
+---
+slug: 07-companies
+title: Companies
+minutes: 20
+objectives:
+  - Explain why F&O has one table rather than one per company
+  - Read another company's data with changecompany
+  - Read every company at once with crosscompany
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## One table, not N
+
+This is the biggest structural difference between the two platforms, and it is invisible
+until it bites.
+
+In NAV and Business Central, each company gets its own physical tables. `CRONUS$Item` and
+`CRONUS Subsidiary$Item` are two separate tables with the same shape. The company you are
+in is a property of your session, and the platform picks the table for you.
+
+F&O has **one** `InventTable`. Every row carries a `DataAreaId` — a four-character legal
+entity code — and every query you write is silently filtered by it:
+
+<Snippet lang="xpp">{`InventTable inventTable;
+
+while select inventTable
+{
+    info(inventTable.ItemId);
+}`}</Snippet>
+
+That looks unfiltered. It is not. The generated SQL has a `WHERE DATAAREAID = ?` in it that
+you never typed. Run it and check the trace — the predicate is right there.
+
+The practical consequence: the same `ItemId` can exist in several companies as several
+different rows, with different names, different costs, different everything. `C-1000` in
+one entity has nothing to do with `C-1000` in another beyond the coincidence of the key.
+
+<Compare
+  cal={`// Different physical tables.
+// Company chosen by the session.
+Item.FINDSET;`}
+  xpp={`// One table, filtered by DataAreaId.
+// The filter is added for you.
+while select inventTable
+{
+}`}
+/>
+
+## changecompany: borrow another company for a moment
+
+<Snippet lang="xpp">{`CustTable custTable;
+
+changecompany ("KELT")
+{
+    select firstonly custTable
+        where custTable.AccountNum == "C-1000";
+
+    info(custTable.CurrencyCode);   // KELT's C-1000, not ours
+}`}</Snippet>
+
+Inside the block, every buffer reads and writes as though you were signed in to that
+company. Outside it, everything is back to normal — including if the block exits through an
+error.
+
+The catch, and it is a sharp one: **the buffer has to be declared before the block and
+re-selected inside it.** A buffer that already holds a row keeps that row; `changecompany`
+changes where the *next* query looks, not what you are already holding.
+
+## crosscompany: all of them at once
+
+<Snippet lang="xpp">{`CustTable custTable;
+
+while select crosscompany custTable
+{
+    info(strFmt("%1 in %2", custTable.AccountNum, custTable.DataAreaId));
+}`}</Snippet>
+
+`crosscompany` removes the filter entirely. You get every row from every legal entity, and
+`DataAreaId` becomes a field worth reading, because it is now the only way to tell two
+otherwise-identical rows apart.
+
+Use it for reporting and for genuinely cross-entity logic. Do not use it by reflex: a
+`crosscompany` query on a large table scans data that the company filter would normally
+have excluded, and there is no index that will save you.
+
+<NavCallout>
+  **There is no company switch to forget.** In NAV, running the wrong routine while pointed
+  at the wrong company writes to the wrong physical table and there is nothing in the code
+  to review afterwards — the mistake lives in the session, not the source. In F&O the scope
+  is in the statement: `changecompany` is a block you can see, and `crosscompany` is a
+  keyword in the query. That makes it auditable, and it makes the failure mode different.
+  You will not write to the wrong company by accident; you will write a query that quietly
+  returns nothing because you were in the wrong one, and wonder why the table looks empty.
+</NavCallout>
+
+## Shared tables exist too
+
+Not every table is company-scoped. `DirPartyTable` — the global registry of people and
+organisations — is shared: one row is visible from every company, and it has no
+`DataAreaId` filter applied at all. That is how one legal person can be a customer in three
+entities without being stored three times.
+
+<Task id="count-in-another-company" />
+
+<Task id="same-key-different-row" />
+
+<Task id="count-across-companies" />
+
+export const tasks = [
+  {
+    id: "count-in-another-company",
+    prompt:
+      "Count the customers in the KELT company and log: KELT has 3 customers. Do it without leaving this company permanently.",
+    starter: "CustTable custTable;\nint counter;\n\n// Count KELT's customers.\n",
+    solution:
+      'CustTable custTable;\nint counter;\n\nchangecompany ("KELT")\n{\n    while select custTable\n    {\n        counter++;\n    }\n}\n\ninfo(strFmt("KELT has %1 customers", counter));\n',
+    hints: [
+      'changecompany ("KELT") { ... } makes every query inside the block read that company.',
+      "The buffer is declared outside the block and selected inside it.",
+      "Count inside the block, then log the total afterwards — the counter survives the block.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "changeCompany",
+        message:
+          "There is no changecompany block. Without one, the select reads this company, not KELT.",
+      },
+      {
+        kind: "output",
+        match: "^KELT has 3 customers$",
+        type: "info",
+        message:
+          "The count should be 3. If you got 4, the select ran in the current company rather than inside the changecompany block.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message: "One query is enough. Check for a select inside the loop.",
+      },
+    ],
+  },
+
+  {
+    id: "same-key-different-row",
+    prompt:
+      "Customer C-1000 exists in this company and in KELT, as two different rows. Log this company's currency for C-1000, then KELT's, in the form: HVND GBP and KELT NOK.",
+    starter:
+      "CustTable custTable;\n\n// Read C-1000 here, then read C-1000 in KELT.\n",
+    solution:
+      'CustTable custTable;\n\nselect firstonly custTable\n    where custTable.AccountNum == "C-1000";\ninfo(strFmt("HVND %1", custTable.CurrencyCode));\n\nchangecompany ("KELT")\n{\n    select firstonly custTable\n        where custTable.AccountNum == "C-1000";\n    info(strFmt("KELT %1", custTable.CurrencyCode));\n}\n',
+    hints: [
+      "Two selects on the same buffer: one here, one inside a changecompany block.",
+      "You have to re-select inside the block. changecompany changes where the next query looks, not what the buffer already holds.",
+      'Log strFmt("HVND %1", custTable.CurrencyCode) then, inside the block, strFmt("KELT %1", custTable.CurrencyCode).',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^HVND GBP$",
+        type: "info",
+        message:
+          "The first line should read: HVND GBP — this company's C-1000 is a sterling customer.",
+      },
+      {
+        kind: "output",
+        match: "^KELT NOK$",
+        type: "info",
+        message:
+          "The second line should read: KELT NOK. If it says GBP, you did not re-select inside the changecompany block — the buffer was still holding the row you read before it.",
+      },
+    ],
+  },
+
+  {
+    id: "count-across-companies",
+    prompt:
+      "Count every customer in every legal entity in a single query, and log: 10 customers in total.",
+    starter: "CustTable custTable;\nint counter;\n\n// Every company, one query.\n",
+    solution:
+      'CustTable custTable;\nint counter;\n\nwhile select crosscompany custTable\n{\n    counter++;\n}\n\ninfo(strFmt("%1 customers in total", counter));\n',
+    hints: [
+      "There is a keyword that removes the company filter from a select.",
+      "crosscompany goes straight after select, before the buffer name.",
+      "One statement covers all three companies — you do not need three changecompany blocks.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "crosscompany",
+        message:
+          "Use crosscompany rather than visiting each company in turn. It is one query instead of three.",
+      },
+      {
+        kind: "output",
+        match: "^10 customers in total$",
+        type: "info",
+        message:
+          "The total should be 10 — four here, three in KELT and three in MRDA. If you got 4, the crosscompany keyword is missing or in the wrong place.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "This should be a single query. Three changecompany blocks would give the right answer and three round trips.",
+      },
+      {
+        kind: "sql",
+        rule: "forbids",
+        value: "DATAAREAID = \\?",
+        message:
+          "The generated SQL still has a DATAAREAID filter in it, so the query is still scoped to one company. Check that crosscompany is on the select that does the counting.",
+      },
+    ],
+  },
+];

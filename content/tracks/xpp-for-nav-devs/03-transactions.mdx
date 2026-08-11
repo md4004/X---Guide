@@ -1,0 +1,245 @@
+---
+slug: 03-transactions
+title: Transactions
+minutes: 20
+objectives:
+  - Wrap a write in ttsbegin and ttscommit
+  - Explain why nothing commits until the outermost ttscommit
+  - Predict what ttsabort discards, from any nesting depth
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## You have to ask for one
+
+In C/AL you never write `BEGIN TRANSACTION`. Every codeunit runs inside a transaction the
+platform opened for you, and it commits when the call returns. You only think about it
+when you deliberately break it with `COMMIT`.
+
+X++ is the other way round. Nothing is implicit:
+
+<Snippet lang="xpp">{`ttsbegin;
+custTable.CreditMax = 50000;
+custTable.update();
+ttscommit;`}</Snippet>
+
+Leave the pair off and the write fails outright, with an error saying so. That is not the
+compiler being strict — it is the same check a real AOS makes, and it exists because a
+write outside a transaction has no defined rollback point.
+
+<Compare
+  cal={`// Implicit. The platform opened it.
+Cust."Credit Limit" := 50000;
+Cust.MODIFY;
+// Commits when the codeunit returns.`}
+  xpp={`ttsbegin;
+custTable.CreditMax = 50000;
+custTable.update();
+ttscommit;`}
+/>
+
+## Nesting counts, but only the outside matters
+
+`ttsbegin` can nest. Each one raises a level counter — `ttsLevel` — and each `ttscommit`
+lowers it. **Nothing reaches the database until the level returns to zero:**
+
+<Snippet lang="xpp">{`ttsbegin;          // ttsLevel 1
+    // work
+    ttsbegin;      // ttsLevel 2
+        // more work
+    ttscommit;     // ttsLevel 1 — nothing committed yet
+ttscommit;         // ttsLevel 0 — now it is durable`}</Snippet>
+
+That inner `ttscommit` looks like it commits. It does not. It only decrements. This is what
+lets you call a method that manages its own transaction from inside your own transaction
+without either of you having to know about the other — the whole thing still lands or fails
+as one unit.
+
+## ttsabort throws it all away
+
+Here is the part that catches everyone, and the reason this lesson exists.
+
+<Snippet lang="xpp">{`ttsbegin;
+    custTable.AccountNum = "C-OUTER";
+    custTable.insert();
+
+    ttsbegin;
+        custTable.clear();
+        custTable.AccountNum = "C-INNER";
+        custTable.insert();
+    ttsabort;      // <-- both inserts are gone`}</Snippet>
+
+`ttsabort` does not undo one level. It discards **the entire transaction**, from whatever
+depth you call it at, and sets `ttsLevel` straight back to 0. Microsoft's own reference
+puts it plainly: it "discards all changes in the current transaction… the database is
+rolled back to the original state, where nothing is changed."
+
+If you have a mental model of nested transactions as a stack of savepoints where you can
+pop one off — that model is right for SQL Server and wrong for X++.
+
+<NavCallout>
+  **There is no `COMMIT` you can sprinkle mid-method.** In C/AL, `COMMIT` ends the current
+  transaction and opens a new one, which is how people get long-running jobs to release
+  locks — and how they end up with half-posted documents when something fails afterwards.
+  X++ has no equivalent, on purpose. A transaction ends where it began, at ttsLevel 0, and
+  the only way out early is to abort the whole thing. If you catch yourself wanting a
+  mid-method commit, what you actually want is a smaller unit of work.
+</NavCallout>
+
+## And if you just forget?
+
+A run that ends with `ttsLevel` still above zero is a defect. This simulator reports it and
+rolls the work back, which is the safest reading of an ambiguous situation — you will see
+the error in the Errors panel and the data unchanged.
+
+<Task id="wrap-a-write" />
+
+<Task id="nested-commit" />
+
+<Task id="abort-discards-everything" />
+
+export const tasks = [
+  {
+    id: "wrap-a-write",
+    prompt:
+      "Raise the credit limit of customer C-1000 to 75000. Select it for update, change the field, write it back, and log: Credit limit updated.",
+    starter:
+      "CustTable custTable;\n\n// Select C-1000 for update, set CreditMax to 75000, write it back.\n",
+    solution:
+      'CustTable custTable;\n\nttsbegin;\nselect forupdate custTable\n    where custTable.AccountNum == "C-1000";\ncustTable.CreditMax = 75000;\ncustTable.update();\nttscommit;\n\ninfo("Credit limit updated");\n',
+    hints: [
+      "A write needs two things: forupdate on the select, and a ttsbegin/ttscommit pair around it.",
+      "Set the field on the buffer first, then call update() to send it to the database.",
+      "The order is: ttsbegin; select forupdate; assign the field; call update(); ttscommit;",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "forupdate",
+        message:
+          "The buffer was read without forupdate, so it is read-only. Add forupdate to the select.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "update",
+        message:
+          "Assigning to custTable.CreditMax only changes the copy in memory. Call custTable.update() to write it back.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message:
+          "The write is not inside a transaction. X++ opens none for you — wrap it in ttsbegin; and ttscommit;",
+      },
+      {
+        kind: "state",
+        table: "CustTable",
+        where: { AccountNum: "C-1000" },
+        expect: { CreditMax: 75000 },
+        message:
+          "C-1000 does not have a credit limit of 75000. Check that the where clause matches and that update() ran.",
+      },
+      {
+        kind: "output",
+        match: "^Credit limit updated$",
+        type: "info",
+        message: "Finish by logging exactly: Credit limit updated",
+      },
+    ],
+  },
+
+  {
+    id: "nested-commit",
+    prompt:
+      "Insert two items inside nested transactions: F-900 at the outer level and F-901 at the inner level. Commit both levels, then count how many items are now in the FURNITURE group and log: Furniture items: N.",
+    starter:
+      "InventTable inventTable;\nint counter;\n\n// Insert F-900 outer, F-901 inner, commit both, then count.\n",
+    solution:
+      'InventTable inventTable;\nint counter;\n\nttsbegin;\ninventTable.ItemId = "F-900";\ninventTable.ItemName = "Outer desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\n\nttsbegin;\ninventTable.clear();\ninventTable.ItemId = "F-901";\ninventTable.ItemName = "Inner desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\n\nttscommit;\n\nwhile select inventTable\n    where inventTable.ItemGroupId == "FURNITURE"\n{\n    counter++;\n}\n\ninfo(strFmt("Furniture items: %1", counter));\n',
+    hints: [
+      "Set the fields on the buffer and call insert(). Between the two inserts, call clear() so the second one does not carry the first one's values.",
+      "Two ttsbegin statements and two ttscommit statements, nested — the inner pair sits inside the outer pair.",
+      "After both commits, run a while select over the FURNITURE group and count the rows.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message: "Both inserts have to sit inside the transaction. Check your ttsbegin placement.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-900" },
+        count: 1,
+        message:
+          "F-900 was not inserted. Set ItemId, ItemName and ItemGroupId on the buffer, then call insert().",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-901" },
+        count: 1,
+        message:
+          "F-901 was not inserted. Remember to call clear() between the two inserts, or the second carries the first one's field values and hits a duplicate key.",
+      },
+      {
+        kind: "output",
+        match: "^Furniture items: 6$",
+        type: "info",
+        message:
+          "The count should be 6 — four seeded FURNITURE items plus the two you inserted. Count them after both commits, with a while select over the group.",
+      },
+    ],
+  },
+
+  {
+    id: "abort-discards-everything",
+    prompt:
+      "Insert item F-800 at the outer transaction level, open a second level, insert F-801, then ttsabort from that inner level. Afterwards, count the FURNITURE items and log: Survived: N. Predict the number before you run it.",
+    starter:
+      "InventTable inventTable;\nint counter;\n\n// Insert F-800 outer, F-801 inner, then ttsabort from the inner level.\n",
+    solution:
+      'InventTable inventTable;\nint counter;\n\nttsbegin;\ninventTable.ItemId = "F-800";\ninventTable.ItemName = "Outer desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\n\nttsbegin;\ninventTable.clear();\ninventTable.ItemId = "F-801";\ninventTable.ItemName = "Inner desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttsabort;\n\nwhile select inventTable\n    where inventTable.ItemGroupId == "FURNITURE"\n{\n    counter++;\n}\n\ninfo(strFmt("Survived: %1", counter));\n',
+    hints: [
+      "Insert F-800, open a second ttsbegin, insert F-801, then call ttsabort instead of ttscommit.",
+      "ttsabort returns ttsLevel straight to 0, so you do not need a matching ttscommit afterwards.",
+      "The count is 4: both of your inserts are discarded, leaving only the four seeded items.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "ttsAbort",
+        message:
+          "This task is about ttsabort specifically. Use it instead of the inner ttscommit.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-800" },
+        count: 0,
+        message:
+          "F-800 is still in the table. It was inserted at the OUTER level, but ttsabort discards the whole transaction from any depth — so it should be gone too. If it survived, your ttsabort is outside the transaction that inserted it.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-801" },
+        count: 0,
+        message: "F-801 is still in the table. It was inserted inside the aborted transaction.",
+      },
+      {
+        kind: "output",
+        match: "^Survived: 4$",
+        type: "info",
+        message:
+          "The count should be 4 — the seeded items only. If you predicted 5, you were reading ttsabort as undoing one level; it discards the entire transaction.",
+      },
+    ],
+  },
+];

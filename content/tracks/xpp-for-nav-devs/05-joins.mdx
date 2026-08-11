@@ -1,0 +1,239 @@
+---
+slug: 05-joins
+title: Joins
+minutes: 20
+objectives:
+  - Read two tables in one statement with join
+  - Use exists join to filter without fetching the joined rows
+  - Choose between join, outer join and notexists join
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## Two buffers, one statement
+
+C/AL has no join. You loop the header table and, inside the loop, filter and read the lines
+— which is one query per header, and the reason so many NAV reports get slow at exactly the
+moment the data gets interesting.
+
+X++ joins in the `select` itself:
+
+<Snippet lang="xpp">{`SalesTable salesTable;
+SalesLine salesLine;
+
+while select salesTable
+    join salesLine
+    where salesLine.SalesId == salesTable.SalesId
+{
+    info(strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId));
+}`}</Snippet>
+
+Both buffers are populated on every pass. The `where` after the joined table is the join
+condition — X++ does not have a separate `on` keyword, which reads oddly at first and then
+stops mattering.
+
+One statement, one round trip. Check the SQL trace after running it and you will see a
+single `SELECT` with an `INNER JOIN`, whatever the row count.
+
+<Compare
+  cal={`SalesHeader.FINDSET;
+REPEAT
+  SalesLine.SETRANGE("Document No.", SalesHeader."No.");
+  IF SalesLine.FINDSET THEN
+    REPEAT
+      MESSAGE(SalesLine."No.");
+    UNTIL SalesLine.NEXT = 0;
+UNTIL SalesHeader.NEXT = 0;`}
+  xpp={`while select salesTable
+    join salesLine
+    where salesLine.SalesId == salesTable.SalesId
+{
+    info(salesLine.ItemId);
+}`}
+/>
+
+## The four kinds
+
+| Written              | Means                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| `join`               | Inner join. Only rows that match on both sides.             |
+| `outer join`         | Left outer. Every outer row, with the joined buffer empty when there is no match. |
+| `exists join`        | Keep the outer row **if** a match exists. No fields fetched. |
+| `notexists join`     | Keep the outer row **if no** match exists. No fields fetched. |
+
+`exists join` and `notexists join` are the two most useful and the two most often missed.
+They answer "which customers have ordered?" and "which customers never have?" without
+fetching a single sales-order field, and — crucially — without duplicating the outer row
+once per match:
+
+<Snippet lang="xpp">{`CustTable custTable;
+SalesTable salesTable;
+
+while select custTable
+    exists join salesTable
+    where salesTable.CustAccount == custTable.AccountNum
+{
+    info(custTable.AccountNum);
+}`}</Snippet>
+
+A customer with six orders appears once. Write that as a plain `join` and they appear six
+times, which is a bug you will not notice until someone sums a column.
+
+<NavCallout>
+  **The join condition lives in a `where`, not an `on`.** Every join in X++ is written
+  `join otherTable where otherTable.Key == thisTable.Key`, and if you omit the `where` you
+  get a cross join — every row against every row — with no warning. SQL would at least look
+  odd; X++ looks almost right. When a joined query returns a suspiciously round and
+  suspiciously large number of rows, a missing join condition is the first thing to check.
+</NavCallout>
+
+## Reading the trace
+
+Run each of the tasks below and open the SQL trace. You will see `exists join` compile to
+an `EXISTS (SELECT 1 ...)` subquery rather than a join — that is exactly how F&O compiles
+it, and it is why it cannot duplicate outer rows.
+
+<Task id="join-orders-and-lines" />
+
+<Task id="customers-with-orders" />
+
+<Task id="customers-without-orders" />
+
+export const tasks = [
+  {
+    id: "join-orders-and-lines",
+    prompt:
+      "Log one line per sales order line in the form: SO-0001 / F-100. Join SalesTable to SalesLine on SalesId, then log the count as: 5 lines.",
+    starter:
+      "SalesTable salesTable;\nSalesLine salesLine;\nint counter;\n\n// Join the two tables and log each pair.\n",
+    solution:
+      'SalesTable salesTable;\nSalesLine salesLine;\nint counter;\n\nwhile select salesTable\n    join salesLine\n    where salesLine.SalesId == salesTable.SalesId\n{\n    info(strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId));\n    counter++;\n}\n\ninfo(strFmt("%1 lines", counter));\n',
+    hints: [
+      "The join goes inside the while select: while select salesTable join salesLine where ...",
+      "The join condition compares salesLine.SalesId to salesTable.SalesId.",
+      'Inside the loop, log strFmt("%1 / %2", salesTable.SalesId, salesLine.ItemId) and increment the counter.',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message: "You need a while select to walk the joined result set.",
+      },
+      {
+        kind: "output",
+        match: "^SO-0001 / F-100$",
+        type: "info",
+        message:
+          "The line for SO-0001 and F-100 is missing. Log the order id and the item id separated by a space, a slash and a space.",
+      },
+      {
+        kind: "output",
+        match: "^5 lines$",
+        type: "info",
+        message:
+          "The count should be 5 — three orders, five lines between them. If you got 3, you are counting orders rather than lines; if you got more, check the join condition.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "This ran more than one query. A join is a single statement — if you see one query per order, you have a select inside the loop, which is the C/AL habit this lesson is about.",
+      },
+      {
+        kind: "sql",
+        rule: "matches",
+        value: "JOIN",
+        message:
+          "The generated SQL has no JOIN in it. Use the join keyword inside the select rather than filtering a second table by hand.",
+      },
+    ],
+  },
+
+  {
+    id: "customers-with-orders",
+    prompt:
+      "Log the AccountNum of every customer that has at least one sales order, then log the count as: 3 customers with orders. Each customer must appear exactly once.",
+    starter:
+      "CustTable custTable;\nSalesTable salesTable;\nint counter;\n\n// Which customers have ordered?\n",
+    solution:
+      'CustTable custTable;\nSalesTable salesTable;\nint counter;\n\nwhile select custTable\n    exists join salesTable\n    where salesTable.CustAccount == custTable.AccountNum\n{\n    info(custTable.AccountNum);\n    counter++;\n}\n\ninfo(strFmt("%1 customers with orders", counter));\n',
+    hints: [
+      "A plain join would list a customer once per order. You want them once each.",
+      "exists join keeps the outer row when a match exists, and fetches nothing from the joined table.",
+      "Write: while select custTable exists join salesTable where salesTable.CustAccount == custTable.AccountNum",
+    ],
+    validators: [
+      {
+        kind: "sql",
+        rule: "matches",
+        value: "EXISTS",
+        message:
+          "The generated SQL has no EXISTS in it. A plain join would repeat a customer once per order — use exists join, which keeps the outer row and fetches nothing from the joined table.",
+      },
+      {
+        kind: "output",
+        match: "^C-1000$",
+        type: "info",
+        message: "C-1000 was not logged. It has a sales order, so it should appear.",
+      },
+      {
+        kind: "output",
+        match: "^3 customers with orders$",
+        type: "info",
+        message:
+          "The count should be 3. If you got more, a plain join is repeating customers that have several orders.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message: "This should be a single query. Check for a select inside the loop.",
+      },
+    ],
+  },
+
+  {
+    id: "customers-without-orders",
+    prompt:
+      "Now the opposite: log the AccountNum of every customer with no sales orders at all, then log the count as: 1 customer with no orders.",
+    starter:
+      "CustTable custTable;\nSalesTable salesTable;\nint counter;\n\n// Which customers have never ordered?\n",
+    solution:
+      'CustTable custTable;\nSalesTable salesTable;\nint counter;\n\nwhile select custTable\n    notexists join salesTable\n    where salesTable.CustAccount == custTable.AccountNum\n{\n    info(custTable.AccountNum);\n    counter++;\n}\n\ninfo(strFmt("%1 customer with no orders", counter));\n',
+    hints: [
+      "This is the mirror of the last task. There is a keyword for it.",
+      "notexists join keeps the outer row only when no match exists.",
+      "Write: while select custTable notexists join salesTable where salesTable.CustAccount == custTable.AccountNum",
+    ],
+    validators: [
+      {
+        kind: "sql",
+        rule: "matches",
+        value: "NOT EXISTS",
+        message:
+          "The generated SQL has no NOT EXISTS in it. Use notexists join rather than collecting the matches and subtracting them yourself.",
+      },
+      {
+        kind: "output",
+        match: "^C-1003$",
+        type: "info",
+        message:
+          "C-1003 was not logged. It is the only customer in this company with no sales orders.",
+      },
+      {
+        kind: "output",
+        match: "^1 customer with no orders$",
+        type: "info",
+        message: "The count should be 1. Log it exactly as: 1 customer with no orders",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message: "This should be a single query.",
+      },
+    ],
+  },
+];

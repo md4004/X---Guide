@@ -132,7 +132,7 @@ paths both correct, with zero engine changes required to author it.
 
 ---
 
-## Phase 6 — First guided track (MVP content)
+## Phase 6 — First guided track (MVP content) — built, not yet user-tested
 
 Track: **X++ for NAV/BC developers** — deliberately narrow, deliberately underserved, and
 it is the audience you can market to credibly.
@@ -151,6 +151,17 @@ callout. Plus the sandbox mode surfaced as its own route.
 
 **Accept:** a developer with no F&O experience completes all eight in under three hours and
 every task validates correctly. Test this on a real person, not on yourself.
+
+> **Half done, and the half that is done is the half a machine can do.** All eight lessons
+> exist at `/learn/xpp-for-nav-devs`, with 23 validated tasks. Every solution is run
+> through its own validators in CI, and 23 plausible wrong answers are each asserted
+> against the specific message they should produce.
+>
+> **The acceptance criterion is not met and cannot be met from here.** "A developer with no
+> F&O experience completes all eight in under three hours" is a claim about a person, and
+> nobody has sat down with this yet. What the tests prove is that the tasks are solvable
+> and the feedback is specific — not that the explanations land, that the difficulty curve
+> is right, or that three hours is the real number. Find one NAV developer and watch them.
 
 ---
 

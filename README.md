@@ -71,6 +71,12 @@ hints, solution reveal after three attempts, and progress in localStorage. Every
 solution is run through its own validators in CI, so a broken lesson fails the build
 rather than a learner.
 
-Phase 6 (the remaining seven lessons of the first track) is next. See [PLAN.md](PLAN.md)
+**Phase 6 (first guided track)** — all eight lessons of _X++ for NAV and BC developers_,
+at `/learn/xpp-for-nav-devs`. 23 validated tasks; every solution and 23 plausible wrong
+answers are checked in CI.
+
+Phase 6's acceptance criterion is **not** met: it asks that a developer with no F&O
+experience completes the track in under three hours, and nobody has tried it yet. That is
+the next thing to do, and it needs a person rather than a commit. See [PLAN.md](PLAN.md)
 for the full sequence and [docs/decisions.md](docs/decisions.md) for what still needs
 deciding.

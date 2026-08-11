@@ -23,6 +23,9 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      // The lesson registry lives in content/ and is reached by tests, so the app's
+      // `@/` alias has to resolve here too.
+      "@": fileURLToPath(new URL("./", import.meta.url)),
       "@xpplab/xpp-core": pkg("xpp-core"),
       "@xpplab/xpp-lexer": pkg("xpp-lexer"),
       "@xpplab/xpp-parser": pkg("xpp-parser"),

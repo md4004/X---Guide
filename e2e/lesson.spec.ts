@@ -35,6 +35,39 @@ test.beforeEach(async ({ context, page }) => {
   });
 });
 
+test("the track index lists every lesson", async ({ page }) => {
+  await page.goto("/learn/xpp-for-nav-devs");
+
+  await expect(page.getByRole("heading", { name: "X++ for NAV and BC developers" })).toBeVisible();
+
+  for (const title of [
+    "Hello Infolog",
+    "Buffers and select",
+    "Transactions",
+    "Insert, update, delete",
+    "Joins",
+    "Set-based operations",
+    "Companies",
+    "Exceptions",
+  ]) {
+    await expect(page.getByText(title, { exact: true })).toBeVisible();
+  }
+
+  // Clicking through gets you to a lesson.
+  await page.getByText("Hello Infolog", { exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Hello Infolog" })).toBeVisible();
+});
+
+test("lessons link to their neighbours", async ({ page }) => {
+  await page.goto("/learn/xpp-for-nav-devs/01-hello-infolog");
+
+  await page.getByTestId("next-lesson").click();
+  await expect(page.getByRole("heading", { level: 1, name: "Buffers and select" })).toBeVisible();
+
+  await page.getByRole("link", { name: "← Previous lesson" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Hello Infolog" })).toBeVisible();
+});
+
 test("the lesson renders its prose, callout and three tasks", async ({ page }) => {
   await page.goto(LESSON);
 

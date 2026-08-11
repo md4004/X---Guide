@@ -1,0 +1,199 @@
+---
+slug: 01-hello-infolog
+title: Hello Infolog
+minutes: 15
+objectives:
+  - Write to the Infolog at three severity levels
+  - Build a message with strFmt and its %1 placeholders
+  - Map the C/AL primitive types onto their X++ equivalents
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## The Infolog is your MESSAGE
+
+Everything you print in X++ goes to the **Infolog**. It is a panel, not a modal, and it
+survives the whole run — so unlike `MESSAGE` in C/AL, it does not interrupt anything and
+you can write to it as often as you like.
+
+There are three levels:
+
+<Snippet lang="xpp">{`info("This is ordinary output");
+warning("Something worth a second look");
+error("Something went wrong");`}</Snippet>
+
+Run that and you get three lines, colour-coded. The important thing to notice is what
+`error()` does **not** do: it does not stop your code. It writes a red line and returns.
+Stopping is `throw`'s job, and lesson 8 covers it.
+
+## strFmt and the %1 placeholders
+
+You will almost never log a bare string. `strFmt` builds one:
+
+<Snippet lang="xpp">{`str name = "Havensdale";
+int count = 4;
+
+info(strFmt("%1 has %2 items", name, count));`}</Snippet>
+
+Placeholders are `%1`, `%2`, `%3` — numbered, not positional-by-order, which means you can
+use one twice:
+
+<Snippet lang="xpp">{`info(strFmt("%1, and again %1", "twice"));`}</Snippet>
+
+<Compare
+  cal={`Message(STRSUBSTNO('%1 has %2 items', Name, Count));`}
+  xpp={`info(strFmt("%1 has %2 items", name, count));`}
+/>
+
+If you leave a placeholder with no matching argument, X++ leaves it in the output as
+written. That is deliberate and useful: seeing a literal `%2` in the Infolog tells you an
+argument is missing rather than silently printing nothing.
+
+## Types, and the ones that will surprise you
+
+Most of the primitives map straight across from C/AL:
+
+| C/AL      | X++          | Note                                        |
+| --------- | ------------ | ------------------------------------------- |
+| `Text`    | `str`        | `str 30` fixes a length; plain `str` is free |
+| `Integer` | `int`        | 32-bit; `int64` for bigger                  |
+| `Decimal` | `real`       |                                             |
+| `Boolean` | `boolean`    |                                             |
+| `Date`    | `date`       |                                             |
+| `Option`  | a base enum  | A real named type, not an ordinal on a field |
+
+Two things differ enough to catch you out.
+
+**There is no null.** A declared variable is immediately usable. An unassigned `str` is
+`""`, an `int` is `0`, a `boolean` is `false`. You never test for "not initialised" — you
+test for the empty value, which is why so much X++ reads `if (custTable.AccountNum)`.
+
+**Enums print as names.** `NoYes::Yes` shows in the Infolog as `Yes`, not as `1`, even
+though `1` is what is stored. That is worth remembering when you compare: the comparison
+uses the number, the display uses the name.
+
+<NavCallout>
+  **`error()` does not stop anything.** In C/AL, `ERROR('...')` raises, rolls back and ends
+  the transaction — it is a control-flow statement wearing a logging statement's clothes.
+  In X++ the two jobs are separate: `error()` writes a red line to the Infolog and returns
+  an `Exception::Error` value, and nothing happens until you `throw` it. The idiom you will
+  see everywhere is `throw error("...")`, which is two operations on one line: log it,
+  then raise it. Read it that way and the rest of X++ exception handling stops being
+  mysterious.
+</NavCallout>
+
+## Reading a field, briefly
+
+The next lesson is all about tables, but one line so the tasks have something real to say:
+
+<Snippet lang="xpp">{`InventTable inventTable;
+
+select firstonly inventTable
+    where inventTable.ItemId == "F-100";
+
+info(inventTable.ItemName);`}</Snippet>
+
+<Task id="three-levels" />
+
+<Task id="format-a-message" />
+
+<Task id="defaults-and-enums" />
+
+export const tasks = [
+  {
+    id: "three-levels",
+    prompt:
+      "Write one line to the Infolog at each of the three levels: an info reading Starting, a warning reading Careful, and an error reading Stopped.",
+    starter: "// Three lines, three levels.\n",
+    solution: 'info("Starting");\nwarning("Careful");\nerror("Stopped");\n',
+    hints: [
+      "The three functions are info(), warning() and error(). Each takes one string.",
+      "Every X++ statement ends with a semicolon, including the last one.",
+      'All three lines: info("Starting"); then warning("Careful"); then error("Stopped");',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^Starting$",
+        type: "info",
+        message:
+          "No info line reading exactly Starting. info() is the ordinary level — check the spelling and the capital S.",
+      },
+      {
+        kind: "output",
+        match: "^Careful$",
+        type: "warning",
+        message:
+          "Nothing was written at warning level. warning() is its own function, not info() with different text.",
+      },
+      {
+        kind: "output",
+        match: "^Stopped$",
+        type: "error",
+        message:
+          "Nothing was written at error level. Note that error() writes a red line and carries on — it does not stop your code the way C/AL's ERROR does.",
+      },
+    ],
+  },
+
+  {
+    id: "format-a-message",
+    prompt:
+      "Given the two variables already declared, log exactly: Havensdale has 4 items. Build it with strFmt rather than joining strings.",
+    starter:
+      'str company = "Havensdale";\nint itemCount = 4;\n\n// Log: Havensdale has 4 items\n',
+    solution:
+      'str company = "Havensdale";\nint itemCount = 4;\n\ninfo(strFmt("%1 has %2 items", company, itemCount));\n',
+    hints: [
+      "strFmt takes the template first, then one argument per placeholder, in order.",
+      "Placeholders are %1 and %2 — numbered, not braces and not a plus sign.",
+      'The line is info(strFmt("%1 has %2 items", company, itemCount));',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "strFmt",
+        message:
+          "Build the message with strFmt rather than joining strings with +. It is what every real X++ codebase uses, and it keeps the text in one readable piece.",
+      },
+      {
+        kind: "output",
+        match: "^Havensdale has 4 items$",
+        type: "info",
+        message:
+          "The output does not read exactly: Havensdale has 4 items. Check the spacing and that both placeholders got an argument — a leftover %2 in the output means one is missing.",
+      },
+    ],
+  },
+
+  {
+    id: "defaults-and-enums",
+    prompt:
+      "Declare an int, a str and a boolean without assigning anything, and log all three with one strFmt call to see what X++ gives an unassigned variable. Then log NoYes::Yes on its own line.",
+    starter: "// Declare three variables, log their defaults, then log NoYes::Yes.\n",
+    solution:
+      'int number;\nstr text;\nboolean flag;\n\ninfo(strFmt("[%1] [%2] [%3]", number, text, flag));\ninfo(strFmt("%1", NoYes::Yes));\n',
+    hints: [
+      "Declare them with a type and a name and no equals sign — X++ initialises them for you.",
+      "Wrap each placeholder in square brackets in the template so you can see the empty string.",
+      'Two lines: info(strFmt("[%1] [%2] [%3]", number, text, flag)); then info(strFmt("%1", NoYes::Yes));',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^\\[0\\] \\[\\] \\[No\\]$",
+        type: "info",
+        message:
+          "The defaults line should read [0] [] [No] — an int starts at 0, a str at the empty string, and a boolean displays as No. Use the template [%1] [%2] [%3] so the empty one is visible.",
+      },
+      {
+        kind: "output",
+        match: "^Yes$",
+        type: "info",
+        message:
+          "NoYes::Yes should log as Yes, not as 1. Enums display by name even though they are stored as numbers — log it on its own line with strFmt.",
+      },
+    ],
+  },
+];

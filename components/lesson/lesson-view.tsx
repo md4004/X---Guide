@@ -8,6 +8,7 @@
  */
 
 import { useCallback } from "react";
+import Link from "next/link";
 import type { ComponentType } from "react";
 import type { MDXProps } from "mdx/types";
 import type { LessonFrontmatter, TaskDefinition } from "@xpplab/validators";
@@ -28,9 +29,21 @@ interface LessonViewProps {
   tasks: TaskDefinition[];
   Content: MdxContent;
   trackTitle: string;
+  trackSlug: string;
+  /** Neighbouring lesson slugs, for the footer navigation. */
+  previous?: string;
+  next?: string;
 }
 
-export function LessonView({ frontmatter, tasks, Content, trackTitle }: LessonViewProps) {
+export function LessonView({
+  frontmatter,
+  tasks,
+  Content,
+  trackTitle,
+  trackSlug,
+  previous,
+  next,
+}: LessonViewProps) {
   // Progress comes from a subscribable store rather than a mount effect: the page is
   // prerendered, so reading localStorage during render would break hydration, and
   // reading it in an effect would flash "0 of 3" before correcting itself.
@@ -77,17 +90,49 @@ export function LessonView({ frontmatter, tasks, Content, trackTitle }: LessonVi
         </article>
       </LessonProvider>
 
-      <footer
-        data-testid="lesson-progress"
-        className={`mt-10 rounded-lg border p-4 text-sm ${
-          complete
-            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-            : "border-zinc-800 bg-zinc-900/40 text-zinc-400"
-        }`}
-      >
-        {complete
-          ? "Lesson complete. Every task validated."
-          : `${solved.size} of ${tasks.length} tasks solved.`}
+      <footer className="mt-10 flex flex-col gap-4">
+        <p
+          data-testid="lesson-progress"
+          className={`rounded-lg border p-4 text-sm ${
+            complete
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+              : "border-zinc-800 bg-zinc-900/40 text-zinc-400"
+          }`}
+        >
+          {complete
+            ? "Lesson complete. Every task validated."
+            : `${solved.size} of ${tasks.length} tasks solved.`}
+        </p>
+
+        <nav className="flex items-center gap-3 text-sm">
+          {previous === undefined ? (
+            <span />
+          ) : (
+            <Link
+              href={`/learn/${trackSlug}/${previous}`}
+              className="rounded border border-zinc-800 px-3 py-2 text-zinc-400 transition hover:bg-zinc-900"
+            >
+              ← Previous lesson
+            </Link>
+          )}
+
+          <Link
+            href={`/learn/${trackSlug}`}
+            className="rounded border border-zinc-800 px-3 py-2 text-zinc-400 transition hover:bg-zinc-900"
+          >
+            All lessons
+          </Link>
+
+          {next !== undefined && (
+            <Link
+              href={`/learn/${trackSlug}/${next}`}
+              data-testid="next-lesson"
+              className="ml-auto rounded bg-sky-500 px-3 py-2 font-medium text-sky-950 transition hover:bg-sky-400"
+            >
+              Next lesson →
+            </Link>
+          )}
+        </nav>
       </footer>
     </main>
   );

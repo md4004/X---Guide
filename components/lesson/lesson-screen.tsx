@@ -11,7 +11,7 @@
  * for `generateStaticParams` — but only ever hands strings across the boundary.
  */
 
-import { getLesson, track } from "@/content/tracks/xpp-for-nav-devs";
+import { getLesson, neighbours, track } from "@/content/tracks/xpp-for-nav-devs";
 import { LessonView } from "./lesson-view";
 
 export function LessonScreen({ lessonSlug }: { trackSlug: string; lessonSlug: string }) {
@@ -25,12 +25,17 @@ export function LessonScreen({ lessonSlug }: { trackSlug: string; lessonSlug: st
     );
   }
 
+  const { previous, next } = neighbours(lessonSlug);
+
   return (
     <LessonView
       frontmatter={lesson.frontmatter}
       tasks={lesson.tasks}
       Content={lesson.Content}
       trackTitle={track.title}
+      trackSlug={track.slug}
+      {...(previous === undefined ? {} : { previous })}
+      {...(next === undefined ? {} : { next })}
     />
   );
 }

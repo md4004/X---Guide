@@ -189,7 +189,14 @@ export class Interpreter {
     if (error instanceof ThrownException) {
       // An uncaught throw ends the run. The message was already written to the Infolog
       // by error()/warning(), so do not write it twice (VB-010).
+      //
+      // Whether a transaction was open when it escaped changes the advice entirely, and
+      // it is the single most confusing rule in X++ exception handling (VB-008): a
+      // `catch` that sits inside the transaction never sees the exception, so a learner
+      // who wrote one is staring at code that looks like it should have worked.
+      const insideTransaction = this.#transactionDepth > 0 || error.escapedTransaction;
       await this.#abortOpenTransaction();
+
       this.#errors.push({
         code: XppErrorCodes.UnhandledException,
         message:
@@ -198,7 +205,9 @@ export class Interpreter {
             : `Unhandled Exception::${error.xppException}.`,
         line: error.span?.start.line ?? this.#currentLine,
         column: error.span?.start.column ?? 1,
-        hint: "Wrap the code in `try { … } catch (Exception::Error) { … }` to handle this yourself.",
+        hint: insideTransaction
+          ? "This was thrown inside a transaction, and an exception thrown inside a transaction cannot be caught by a catch that is also inside it. Move the try so that it wraps the ttsbegin rather than sitting within it."
+          : "Wrap the code in `try { … } catch (Exception::Error) { … }` to handle this yourself.",
       });
       return;
     }
@@ -562,6 +571,10 @@ export class Interpreter {
          */
         const catchIsInsideTransaction = depthAtThrow > 0 && depthOnEntry >= depthAtThrow;
         if (catchIsInsideTransaction && !isCatchableInsideTransaction(thrown)) {
+          // Remember why this catch was skipped. The transaction is already aborted, so
+          // the top-level handler could not work it out for itself — and it is the one
+          // thing worth telling the learner if nothing catches it further out.
+          if (error instanceof ThrownException) error.escapedTransaction = true;
           throw error;
         }
 
@@ -620,6 +633,27 @@ export class Interpreter {
     const compiled = selectToSql(clauses, {
       company: this.#db.getCompany(),
       resolveBuffer: (name) => this.#bufferTable(name),
+
+      // A plain variable in a `where` is a host value, bound at the moment the statement
+      // runs rather than compiled into the SQL.
+      resolveVariable: (name) => {
+        const value = this.#scope.get(name);
+        return value === undefined || value.type === "buffer" ? undefined : toSqlValue(value);
+      },
+
+      // A field on a buffer this statement does not select — the row an outer loop is
+      // currently on. Binding it is what makes a nested `while select` work at all.
+      resolveBufferField: (bufferName, field) => {
+        const value = this.#scope.get(bufferName);
+        if (value?.type !== "buffer" || value.buffer.row === undefined) return undefined;
+        const schema = getTableSchema(value.buffer.tableName);
+        const column = [
+          ...(schema?.fields.map((f) => f.name) ?? []),
+          RECID_FIELD,
+          DATAAREAID_FIELD,
+        ].find((name) => name.toLowerCase() === field.toLowerCase());
+        return column === undefined ? undefined : (value.buffer.row[column] ?? null);
+      },
     });
 
     if (!isCompiled(compiled)) {

@@ -21,7 +21,7 @@ const phases: { id: number; name: string; status: PhaseStatus }[] = [
   { id: 3, name: "Interpreter", status: "done" },
   { id: 4, name: "Playground UI", status: "done" },
   { id: 5, name: "Lesson engine", status: "done" },
-  { id: 6, name: "X++ for NAV/BC developers", status: "next" },
+  { id: 6, name: "X++ for NAV/BC developers", status: "done" },
 ];
 
 export default function Home() {
@@ -41,10 +41,10 @@ export default function Home() {
 
         <p className="flex flex-wrap gap-3">
           <Link
-            href="/learn/xpp-for-nav-devs/02-buffers-and-select"
+            href="/learn/xpp-for-nav-devs"
             className="inline-flex items-center gap-2 rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-sky-950 transition hover:bg-sky-400"
           >
-            Start the first lesson
+            Start the track
           </Link>
           <Link
             href="/playground"

@@ -63,6 +63,16 @@ export class RuntimeError extends Error {
  * code working. It carries the `Exception::` value so `catch` can match on it.
  */
 export class ThrownException extends Error {
+  /**
+   * Set when this exception passed a `catch` that could not see it because both were
+   * inside the same transaction (VB-008).
+   *
+   * The transaction is aborted at that moment, so by the time the exception reaches the
+   * top level the depth is already 0 and the fact is otherwise unrecoverable — but it is
+   * exactly the fact the learner needs told.
+   */
+  escapedTransaction = false;
+
   constructor(
     readonly xppException: XppExceptionName,
     /** The Infolog text, when the throw came from `error("…")`. */

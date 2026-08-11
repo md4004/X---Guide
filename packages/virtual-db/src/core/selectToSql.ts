@@ -27,6 +27,29 @@ export interface SelectToSqlOptions {
   company: CompanyId;
   /** Resolves a buffer variable name to the table it was declared as. */
   resolveBuffer: (name: string) => TableName | undefined;
+  /**
+   * The current value of a plain variable named in a `where`.
+   *
+   * `where inventTable.ItemGroupId == wantedGroup` is ordinary X++: the variable is a
+   * host value, bound as a parameter at the moment the statement runs.
+   */
+  resolveVariable?: (name: string) => SqlValue | undefined;
+  /**
+   * The current value of a field on a buffer that this statement does not select.
+   *
+   * This is what makes a nested loop work:
+   *
+   *   while select salesTable
+   *   {
+   *       while select salesLine where salesLine.SalesId == salesTable.SalesId
+   *   }
+   *
+   * The inner select does not join `salesTable`; it reads whatever row the outer loop is
+   * currently on and binds it as a parameter. Without this, the natural translation of a
+   * C/AL nested loop fails to compile — and being able to *run* that translation, and see
+   * one query per outer row in the trace, is the whole argument for joins.
+   */
+  resolveBufferField?: (buffer: string, field: string) => SqlValue | undefined;
 }
 
 export interface CompiledSelect {
@@ -353,6 +376,17 @@ class SelectCompiler {
             );
             return `${binding.alias}.${column}`;
           }
+
+          // A buffer this statement does not select — an outer loop's row. Bind its
+          // current value as a parameter, which is what X++ does.
+          const hostValue = this.#options.resolveBufferField?.(
+            expression.object.name,
+            expression.member,
+          );
+          if (hostValue !== undefined) {
+            this.#parameters.push(hostValue);
+            return "?";
+          }
         }
         break;
       }
@@ -368,9 +402,13 @@ class SelectCompiler {
         return "?";
       }
 
-      case "identifier":
-        // A bare identifier in a where is a host variable. The interpreter substitutes
-        // its value before compiling, so reaching here means it was never bound.
+      case "identifier": {
+        // A bare identifier in a where is a host variable — bound by value, not compiled.
+        const value = this.#options.resolveVariable?.(expression.name);
+        if (value !== undefined) {
+          this.#parameters.push(value);
+          return "?";
+        }
         throw new CompileError(
           createError(
             XppErrorCodes.UndeclaredIdentifier,
@@ -379,6 +417,7 @@ class SelectCompiler {
             "In a `where` clause, name a field as `buffer.Field`, or use a variable that is in scope.",
           ),
         );
+      }
 
       default:
         break;

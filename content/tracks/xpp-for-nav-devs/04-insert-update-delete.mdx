@@ -1,0 +1,244 @@
+---
+slug: 04-insert-update-delete
+title: Insert, update, delete
+minutes: 20
+objectives:
+  - Insert a new record by filling a buffer and calling insert
+  - Update and delete a record you selected for update
+  - Explain why the buffer must be cleared between inserts
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## Writing is three steps, always
+
+Every write in X++ has the same shape: get a buffer into the state you want, then call a
+method on it.
+
+<Snippet lang="xpp">{`InventTable inventTable;
+
+ttsbegin;
+inventTable.ItemId      = "F-500";
+inventTable.ItemName    = "Standing desk";
+inventTable.ItemGroupId = "FURNITURE";
+inventTable.insert();
+ttscommit;`}</Snippet>
+
+Note what is missing: you never name the table again after the declaration, and you never
+build a SQL statement. The buffer knows what table it is, and `insert()` sends whatever is
+currently in it.
+
+`update()` and `delete()` work the same way, with one extra requirement — the record has to
+have been read with `forupdate`:
+
+<Snippet lang="xpp">{`ttsbegin;
+select forupdate inventTable
+    where inventTable.ItemId == "F-500";
+
+inventTable.ItemName = "Standing desk, electric";
+inventTable.update();
+ttscommit;`}</Snippet>
+
+<Compare
+  cal={`Item.INIT;
+Item."No." := 'F-500';
+Item.Description := 'Standing desk';
+Item.INSERT(TRUE);`}
+  xpp={`inventTable.clear();
+inventTable.ItemId = "F-500";
+inventTable.ItemName = "Standing desk";
+inventTable.insert();`}
+/>
+
+## clear() is not optional
+
+A buffer keeps its values after a write. Insert two records in a row without clearing and
+the second one inherits every field you did not overwrite — including, usually, a key that
+is now a duplicate:
+
+<Snippet lang="xpp">{`ttsbegin;
+inventTable.ItemId = "F-500";
+inventTable.ItemName = "First";
+inventTable.insert();
+
+inventTable.clear();          // <-- without this, the next insert
+inventTable.ItemId = "F-501"; //     still carries ItemName "First"
+inventTable.ItemName = "Second";
+inventTable.insert();
+ttscommit;`}</Snippet>
+
+C/AL's `INIT` is the same idea, and forgetting it causes the same class of bug. The
+difference is that X++ will often let you get away with it right up until the moment a
+unique index catches you, and then you get a duplicate key error pointing at a field you
+did not think you had set.
+
+## What a duplicate key looks like
+
+Insert a record whose key already exists and the write fails with
+`Exception::DuplicateKeyException`. It is one of only two exceptions that can be caught
+*inside* the transaction that raised it — which is lesson 8's territory, but worth knowing
+now, because it means a `try`/`catch` around an insert actually works.
+
+<NavCallout>
+  **`INSERT(TRUE)` has no direct equivalent, and the reason is instructive.** In C/AL the
+  boolean says whether to run the `OnInsert` trigger; `INSERT(FALSE)` skips your own
+  business logic, which is why it is both useful and dangerous. X++ inverts the default:
+  `insert()` always runs the table's `insert()` method, and the escape hatch is a
+  *different method*, `doInsert()`, which writes the row and runs nothing. So the risky
+  choice is the one you have to name explicitly, rather than a boolean that is easy to
+  flip by accident. Neither `doInsert()` nor table-method overrides are simulated here —
+  they need the metadata layer — so this lesson stays on `insert()`.
+</NavCallout>
+
+## validateWrite, in prose only
+
+Real F&O calls `validateWrite()` before a write from a form, and you override it to reject
+bad data. It reads field properties — mandatory flags, string lengths, relations — from the
+AOT metadata, and this simulator does not have that layer yet. Rather than let you practise
+against a version that always returns `true`, the engine refuses to run it and says so. It
+arrives with the forms track.
+
+<Task id="insert-a-record" />
+
+<Task id="update-a-record" />
+
+<Task id="two-inserts-and-clear" />
+
+export const tasks = [
+  {
+    id: "insert-a-record",
+    prompt:
+      "Insert a new item: ItemId F-500, ItemName Standing desk, ItemGroupId FURNITURE. Then log: Inserted F-500.",
+    starter: "InventTable inventTable;\n\n// Fill the buffer and insert it.\n",
+    solution:
+      'InventTable inventTable;\n\nttsbegin;\ninventTable.ItemId = "F-500";\ninventTable.ItemName = "Standing desk";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\n\ninfo("Inserted F-500");\n',
+    hints: [
+      "Assign each field on the buffer with buffer.FieldName = value; then call insert().",
+      "Writes need a transaction — wrap the whole thing in ttsbegin; and ttscommit;",
+      "There is no select here. A new record starts from an empty buffer, which is what you already have.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "insert",
+        message:
+          "Nothing calls insert(). Setting fields on a buffer changes only the copy in memory — insert() is what creates the row.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message: "The insert is not inside a transaction. Wrap it in ttsbegin; and ttscommit;",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-500" },
+        expect: { ItemName: "Standing desk", ItemGroupId: "FURNITURE" },
+        message:
+          "F-500 is missing, or its ItemName and ItemGroupId are not what the task asked for. All three fields have to be set before insert() runs.",
+      },
+      {
+        kind: "output",
+        match: "^Inserted F-500$",
+        type: "info",
+        message: "Finish by logging exactly: Inserted F-500",
+      },
+    ],
+  },
+
+  {
+    id: "update-a-record",
+    prompt:
+      "Rename item F-100 to Ashwood desk 1400 (refreshed) and stop it by setting Blocked to NoYes::Yes. Then log: Updated F-100.",
+    starter: "InventTable inventTable;\n\n// Select F-100 for update, change two fields, write back.\n",
+    solution:
+      'InventTable inventTable;\n\nttsbegin;\nselect forupdate inventTable\n    where inventTable.ItemId == "F-100";\n\ninventTable.ItemName = "Ashwood desk 1400 (refreshed)";\ninventTable.Blocked = NoYes::Yes;\ninventTable.update();\nttscommit;\n\ninfo("Updated F-100");\n',
+    hints: [
+      "Select the record with forupdate, or the buffer will be read-only.",
+      "Set both fields on the buffer before calling update() — one update() writes them together.",
+      "Blocked is an enum field, so assign NoYes::Yes rather than 1 or true.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "forupdate",
+        message:
+          "The select has no forupdate, so the buffer cannot be written back. Add it before the buffer name.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "update",
+        message: "Nothing calls update(). Without it the changes stay in memory.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-100" },
+        expect: { ItemName: "Ashwood desk 1400 (refreshed)", Blocked: 1 },
+        message:
+          "F-100 does not have both the new name and Blocked set to Yes. Set both fields before calling update() — a single update() writes the whole buffer.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 2,
+        message:
+          "That took more than a select and an update. You only need to read the one record and write it back once.",
+      },
+      {
+        kind: "output",
+        match: "^Updated F-100$",
+        type: "info",
+        message: "Finish by logging exactly: Updated F-100",
+      },
+    ],
+  },
+
+  {
+    id: "two-inserts-and-clear",
+    prompt:
+      "Insert two items in one transaction: F-600 named First, and F-601 named Second, both in FURNITURE. Get the second one's name right — that is the whole point. Then log: Inserted two items.",
+    starter: "InventTable inventTable;\n\n// Two inserts. Mind the buffer between them.\n",
+    solution:
+      'InventTable inventTable;\n\nttsbegin;\ninventTable.ItemId = "F-600";\ninventTable.ItemName = "First";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\n\ninventTable.clear();\ninventTable.ItemId = "F-601";\ninventTable.ItemName = "Second";\ninventTable.ItemGroupId = "FURNITURE";\ninventTable.insert();\nttscommit;\n\ninfo("Inserted two items");\n',
+    hints: [
+      "A buffer keeps its values after insert(). The second record starts from whatever the first one left behind.",
+      "clear() empties the buffer. Call it between the two inserts.",
+      "After clear() you have to set every field again, including ItemGroupId — clear() really does empty it.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "clear",
+        message:
+          "There is no call to clear() between the inserts. Without it the second record inherits the first one's field values — which is the mistake this task exists to show you.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-600" },
+        expect: { ItemName: "First", ItemGroupId: "FURNITURE" },
+        message: "F-600 is missing or has the wrong name. It should be named First.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemId: "F-601" },
+        expect: { ItemName: "Second", ItemGroupId: "FURNITURE" },
+        message:
+          "F-601 is missing, or it is still named First — which is exactly what happens when the buffer is not cleared. Call clear() and set every field again.",
+      },
+      {
+        kind: "output",
+        match: "^Inserted two items$",
+        type: "info",
+        message: "Finish by logging exactly: Inserted two items",
+      },
+    ],
+  },
+];
