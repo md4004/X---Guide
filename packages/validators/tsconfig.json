@@ -1,4 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  // The lesson tests import the real `.mdx` lesson files, so this package needs the
+  // ambient declaration for them. It lives at the repo root because the app needs it too.
+  "include": ["src/**/*.ts", "test/**/*.ts", "../../mdx.d.ts"]
 }

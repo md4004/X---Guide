@@ -1,0 +1,278 @@
+---
+slug: 02-buffers-and-select
+title: Buffers and select
+minutes: 20
+objectives:
+  - Declare a table buffer and select a single record
+  - Loop a result set with while select
+  - Explain why FINDSET has no direct equivalent
+requiresEngine: [db, runtime]
+seed: default
+---
+
+## A buffer is just a variable
+
+In C/AL you write `Item.GET('1000')` and the `Item` variable holds a record. X++ works
+the same way, and the declaration looks like any other variable — type first, then name:
+
+<Snippet lang="xpp">{`InventTable inventTable;`}</Snippet>
+
+That is a **table buffer**. It holds at most one record at a time, it starts empty, and
+you fill it with a `select`. By convention the variable is the table name with a lowercase
+first letter, which is why so much X++ reads like doubled-up names.
+
+To read one record, ask for one:
+
+<Snippet lang="xpp">{`select firstonly inventTable
+    where inventTable.ItemId == "F-100";`}</Snippet>
+
+`firstonly` matters. Without it the database still fetches a whole result set, and you
+have paid to read everything in order to look at one row. With it, the generated SQL gets
+a `LIMIT` — you can see that for yourself in the SQL trace after any run.
+
+## When the select finds nothing
+
+There is no `IF Item.GET(...) THEN`. A `select` that matches nothing leaves the buffer
+empty rather than raising anything, and you test it by reading a field:
+
+<Snippet lang="xpp">{`select firstonly custTable
+    where custTable.AccountNum == "NOPE";
+
+if (!custTable.AccountNum)
+{
+    info("No such customer");
+}`}</Snippet>
+
+An empty buffer returns the type's default for every field — `""` for a `str`, `0` for an
+`int`, and a `RecId` of `0`. That last one is the idiomatic test in real code:
+`if (custTable.RecId)`.
+
+## Looping with while select
+
+This is where the two languages part company. C/AL makes you drive the cursor yourself:
+
+<Compare
+  cal={`Item.SETRANGE("Item Category Code", 'FURNITURE');
+IF Item.FINDSET THEN
+  REPEAT
+    MESSAGE(Item.Description);
+  UNTIL Item.NEXT = 0;`}
+  xpp={`while select inventTable
+    where inventTable.ItemGroupId == "FURNITURE"
+{
+    info(inventTable.ItemName);
+}`}
+/>
+
+`while select` is a single statement that declares the filter and the loop together. There
+is no `FINDSET`, no `NEXT`, and no `SETRANGE` — the `where` clause _is_ the filter, and it
+belongs to the same statement that opens the cursor.
+
+<NavCallout>
+  **There is no `FINDSET`, and that is not an omission.** In C/AL, `SETRANGE` and `FINDSET`
+  are separate steps because the filter lives on the record variable and survives between
+  calls. In X++ the filter belongs to the `select` statement, so it cannot leak into the
+  next query by accident — a whole class of C/AL bug, where a stale `SETRANGE` silently
+  narrows a later `FINDSET`, simply cannot happen. The cost is that you cannot build a
+  filter up conditionally across several lines. When you genuinely need that, the answer is
+  the `Query` object model, which is out of scope here.
+</NavCallout>
+
+## Reading is not writing
+
+One more thing before the tasks. A buffer filled by a plain `select` is **read-only**. If
+you intend to change what you read, say so up front with `forupdate`:
+
+<Snippet lang="xpp">{`ttsbegin;
+while select forupdate inventTable
+    where inventTable.ItemGroupId == "FURNITURE"
+{
+    inventTable.Blocked = NoYes::Yes;
+    inventTable.update();
+}
+ttscommit;`}</Snippet>
+
+Leave out `forupdate` and the update fails, because the record was not selected for update.
+That is the database protecting you from a lost update, not the compiler being fussy.
+Transactions are the next lesson; for now, copy the `ttsbegin`/`ttscommit` pair when you
+write.
+
+<Task id="select-one-item" />
+
+<Task id="loop-furniture" />
+
+<Task id="block-furniture" />
+
+export const tasks = [
+  {
+    id: "select-one-item",
+    prompt:
+      "Select the item with ItemId F-100 and log its ItemName. Use firstonly — you only want one record.",
+    starter: "InventTable inventTable;\n\n// Select F-100, then log its name.\n",
+    solution:
+      'InventTable inventTable;\n\nselect firstonly inventTable\n    where inventTable.ItemId == "F-100";\n\ninfo(inventTable.ItemName);\n',
+    hints: [
+      "The buffer is already declared. You need a select with a where clause comparing inventTable.ItemId.",
+      "Ask for one record with firstonly, and remember X++ compares with == rather than a single =.",
+      'Put together: select firstonly inventTable where inventTable.ItemId == "F-100"; then info(inventTable.ItemName);',
+    ],
+    validators: [
+      // Ordered so the most specific mistake is caught first. Someone who reaches for
+      // a while select here has not made the "no select at all" mistake, and telling
+      // them they did would send them looking for the wrong thing.
+      {
+        kind: "ast",
+        rule: "forbids",
+        value: "whileSelect",
+        message:
+          "This task is about reading a single record. A while select walks the whole table and filters in X++ — use a plain select with firstonly and let the database do the filtering.",
+      },
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "select",
+        message:
+          "There is no select statement in your code. A buffer stays empty until you fill it with one.",
+      },
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "firstonly",
+        message:
+          "Your select works, but it fetches the whole result set to look at one row. Add firstonly — check the SQL trace afterwards and you will see a LIMIT appear.",
+      },
+      {
+        kind: "output",
+        match: "Ashwood desk 1400",
+        type: "info",
+        message:
+          "Nothing was logged with the item's name. After the select, pass the field to info: info(inventTable.ItemName);",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "That took more than one query. You only need a single select here — a loop, or a second select, is doing work nobody asked for.",
+      },
+    ],
+  },
+
+  {
+    id: "loop-furniture",
+    prompt:
+      "Log the ItemId of every item in the FURNITURE group, then log how many there were in the form: Found N items.",
+    starter: "InventTable inventTable;\nint counter;\n\n// Loop the FURNITURE group.\n",
+    solution:
+      'InventTable inventTable;\nint counter;\n\nwhile select inventTable\n    where inventTable.ItemGroupId == "FURNITURE"\n{\n    info(inventTable.ItemId);\n    counter++;\n}\n\ninfo(strFmt("Found %1 items", counter));\n',
+    hints: [
+      "while select opens the cursor and loops in one statement. The where clause goes inside it, before the braces.",
+      "Increment your counter inside the loop body, and log the total after the loop closes.",
+      'The count line is info(strFmt("Found %1 items", counter)); — X++ placeholders are %1 and %2, not {0}.',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message:
+          "This lesson is about while select. A plain select reads one record; you need the loop form to walk the whole result set.",
+      },
+      {
+        kind: "output",
+        match: "^F-100$",
+        type: "info",
+        message:
+          "F-100 was not logged. Log the ItemId inside the loop body, so it runs once per record.",
+      },
+      {
+        kind: "output",
+        match: "^Found 4 items$",
+        type: "info",
+        message:
+          "The count line is missing or wrong. There are four items in the FURNITURE group, and the message should read exactly: Found 4 items.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "Look at the SQL trace: this ran more than one query. A while select fetches the result set once — if you see a query per item, you have a select inside the loop.",
+      },
+    ],
+  },
+
+  {
+    id: "block-furniture",
+    prompt:
+      "Block every item in the FURNITURE group by setting Blocked to NoYes::Yes, then log how many you changed in the form: Blocked N items.",
+    starter:
+      "InventTable inventTable;\nint counter;\n\n// Block the FURNITURE group. You will need forupdate.\n",
+    solution:
+      'InventTable inventTable;\nint counter;\n\nttsbegin;\nwhile select forupdate inventTable\n    where inventTable.ItemGroupId == "FURNITURE"\n{\n    inventTable.Blocked = NoYes::Yes;\n    inventTable.update();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Blocked %1 items", counter));\n',
+    hints: [
+      "Reading and writing in the same pass needs forupdate on the select.",
+      "Writes have to sit inside a transaction. Wrap the loop in ttsbegin; and ttscommit;",
+      "Inside the loop: set the field, then call inventTable.update(). Setting the field alone changes nothing in the database.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message:
+          "You need a while select to visit every item in the group, not a single select.",
+      },
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "forupdate",
+        message:
+          "Your loop reads the records but cannot write to them — a buffer selected without forupdate is read-only.",
+      },
+      // callsMethod before wrappedIn, deliberately. "Every mutation is in a transaction"
+      // is vacuously false when there are no mutations, so a learner who set the field
+      // but never called update() would otherwise be told they wrote outside a
+      // transaction — when their problem is that they never wrote at all.
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "update",
+        message:
+          "Assigning to inventTable.Blocked only changes the buffer in memory. Call inventTable.update() to write it back.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message:
+          "F&O will not let you write outside a transaction. Wrap the loop in ttsbegin; and ttscommit;",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemGroupId: "FURNITURE" },
+        expect: { Blocked: 1 },
+        all: true,
+        message:
+          "Some FURNITURE items are still unblocked. Check that your where clause matches the whole group and that update() is inside the loop.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        where: { ItemGroupId: "RAWMAT" },
+        expect: { Blocked: 0 },
+        all: true,
+        message:
+          "You blocked items outside the FURNITURE group. Your where clause is matching too much.",
+      },
+      {
+        kind: "output",
+        match: "^Blocked 4 items$",
+        type: "info",
+        message:
+          'Nothing was logged, or the count is wrong. Finish with info(strFmt("Blocked %1 items", counter)); — there are four items in the group.',
+      },
+    ],
+  },
+];

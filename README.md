@@ -1,4 +1,4 @@
-# XppLab
+# X++Lab
 
 A browser-based training platform for Dynamics 365 Finance & Operations developers.
 Learners write X++, hit Run, and immediately see the Infolog, the rows that changed, and
@@ -65,5 +65,12 @@ Data, SQL trace, Errors). The whole engine runs in a Web Worker, so an infinite 
 cannot freeze the tab. Shareable permalinks keep the code in the URL fragment, so nothing
 is ever sent to a server.
 
-Phase 5 (lesson engine) is next. See [PLAN.md](PLAN.md) for the full sequence and
-[docs/decisions.md](docs/decisions.md) for what still needs deciding.
+**Phase 5 (lesson engine)** — lessons authored as MDX with a `tasks` export, served at
+`/learn/[track]/[lesson]`. Four validator kinds (ast, state, output, sql), progressive
+hints, solution reveal after three attempts, and progress in localStorage. Every task's
+solution is run through its own validators in CI, so a broken lesson fails the build
+rather than a learner.
+
+Phase 6 (the remaining seven lessons of the first track) is next. See [PLAN.md](PLAN.md)
+for the full sequence and [docs/decisions.md](docs/decisions.md) for what still needs
+deciding.

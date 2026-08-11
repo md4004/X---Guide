@@ -2,13 +2,29 @@
 
 The four decisions PLAN.md says to make before Phase 2, and their current state.
 
-## 1. Name and domain — **open**
+## 1. Name — **decided: X++Lab**
 
-`XppLab` is hardcoded throughout: `package.json` names, the `@xpplab/*` package scope,
-the landing page, `app/layout.tsx` metadata. Phase 0 shipped with it as the working name.
+The brand is **X++Lab**, written that way wherever a human reads it: page titles, the
+landing page, the playground chrome, the README.
 
-Renaming is a find-and-replace on `xpplab` / `XppLab` plus the workspace package scope. It
-gets more expensive once content exists, so decide before Phase 6, not after.
+`+` is not legal in an npm package name, a domain label, or a CSS identifier, so the
+technical spellings stay ASCII and do not track the brand:
+
+| Where                | Value          |
+| -------------------- | -------------- |
+| Brand, UI, docs      | `X++Lab`       |
+| Root package name    | `xpplab`       |
+| Workspace scope      | `@xpplab/*`    |
+| Monaco theme id      | `xpplab`       |
+| Domain (when chosen) | must avoid `+` |
+
+Two details worth knowing. The brand must not be rendered through `text-transform:
+uppercase` — it comes out as `X++LAB` — so the two places that display it set tracking
+without uppercasing. And `curUserId()` in the simulated environment returns `LEARNER`
+rather than the product name, because it is a user id in a fictional company, not a
+brand.
+
+**Domain is still open.** It is the only part of this decision that remains.
 
 ## 2. Subset freeze — **draft, needs sign-off**
 
@@ -80,3 +96,16 @@ explains the delta from C/AL rather than teaching X++ from zero.
 | The app's `tsconfig` target matches `tsconfig.base.json`             | The app's config also governs the engine packages it pulls in through `paths`. Leaving it at create-next-app's ES2017 rejected syntax those packages legitimately use.                                                                                                                                                                                            |
 | Permalinks live in the URL fragment, and are validated on the way in | The fragment is never sent to a server, which the "everything runs client-side" claim depends on. And a permalink is untrusted input — someone else wrote it — so the decoder validates the shape rather than trusting it into the editor and the engine.                                                                                                         |
 | `useEngine` exposes no `ready` flag                                  | Setting one from inside the mount effect is a synchronous setState in an effect. The caller infers readiness from the first reply instead, so the flag was removed rather than the lint rule suppressed.                                                                                                                                                          |
+
+---
+
+## Structural decisions taken during Phase 5
+
+| Decision                                                           | Why                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content/**/*.mdx` is excluded from Prettier                       | Prettier's MDX formatter rewrites the inside of template literals. It stripped the spaces around inline backticks in authored messages and flattened the indentation of every task solution — silent corruption of authored content, which is worse than inconsistent whitespace. Lessons are formatted by hand.     |
+| Validator order is part of authoring, not an implementation detail | `wrappedIn: "transaction"` is vacuously false when a learner made no writes at all, so it must run _after_ `callsMethod: "update"`. Otherwise someone who forgot `update()` is told they wrote outside a transaction. The acceptance test asserts a specific message per wrong answer, which is what caught it.      |
+| The runtime's own error wins over an authored message              | Code that fails at runtime never reaches the validators. Writing outside a transaction produces F&O's own message with its own hint, which beats anything an author would write. `runTask` returns runtime errors rather than a validator failure, and the UI renders them.                                          |
+| Progress uses `useSyncExternalStore`, not a mount effect           | The lesson page is prerendered, so reading localStorage during render breaks hydration and reading it in an effect flashes "0 of 3" before correcting itself. `lib/progress.ts` supplies a server snapshot and a client snapshot. Phase 11 swaps the backing store for an account without touching either component. |
+| MDX takes its components as a prop, not through `MDXProvider`      | The provider evaluates `createContext` at module scope, which Next runs while collecting page data on the server — where it is not a function. Passing the map directly also dropped a dependency.                                                                                                                   |
+| The lesson route resolves the lesson on the client                 | MDX content is a function component, and a server component cannot pass a function to a client one. The server page passes two strings and keeps `generateStaticParams` and metadata.                                                                                                                                |

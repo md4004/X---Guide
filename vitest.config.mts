@@ -1,4 +1,7 @@
 import { fileURLToPath } from "node:url";
+import mdx from "@mdx-js/rollup";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { defineConfig } from "vitest/config";
 
 const pkg = (name: string) =>
@@ -7,8 +10,17 @@ const pkg = (name: string) =>
 /**
  * Engine packages ship raw TypeScript, so Vitest resolves them straight to source.
  * No build step, no stale dist, and a stack trace points at the file you edited.
+ *
+ * MDX is compiled here as well as by Next, because the lesson tests import the real
+ * `.mdx` files. Testing a copy of the task definitions would leave the actual lesson
+ * unverified, which is the one thing Phase 5's acceptance criterion is about.
  */
 export default defineConfig({
+  plugins: [
+    mdx({
+      remarkPlugins: [remarkFrontmatter, [remarkMdxFrontmatter, { name: "frontmatter" }]],
+    }),
+  ],
   resolve: {
     alias: {
       "@xpplab/xpp-core": pkg("xpp-core"),

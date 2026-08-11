@@ -1,4 +1,4 @@
-# CLAUDE.md — XppLab
+# CLAUDE.md — X++Lab
 
 > Working name. Rename everywhere before Phase 1 if you pick a different one.
 

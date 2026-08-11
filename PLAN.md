@@ -1,4 +1,4 @@
-# PLAN.md — XppLab build plan
+# PLAN.md — X++Lab build plan
 
 Read `CLAUDE.md` first. Phases are ordered by dependency. Each has a hard acceptance
 criterion — do not advance until it passes.
@@ -105,7 +105,7 @@ populate correctly in under 500ms.
 
 ---
 
-## Phase 5 — Lesson engine
+## Phase 5 — Lesson engine ✅
 
 Implement `docs/lesson-schema.md`. MDX lesson content with embedded task blocks. A task
 declares its validators; the runner executes learner code in an isolated environment
@@ -122,6 +122,13 @@ for now.
 
 **Accept:** one lesson authored end to end in MDX with three tasks, passing and failing
 paths both correct, with zero engine changes required to author it.
+
+> **Delivered** as `content/tracks/xpp-for-nav-devs/02-buffers-and-select.mdx`, served at
+> `/learn/[track]/[lesson]`. `packages/validators/test/lesson.test.ts` imports that real
+> file and runs every task's solution through its own validators, plus twelve plausible
+> wrong answers each asserted against the _specific_ message it should produce — not
+> merely that they fail. Two authoring defects surfaced that way and were fixed in the
+> content, not the engine, which is the criterion working as intended.
 
 ---
 
@@ -221,7 +228,9 @@ Free tier = first track + sandbox; paid = full tracks, certificates, team seats.
 
 ## Decisions to make before Phase 2, not during
 
-1. **Name and domain.** Everything below hardcodes `XppLab`.
+1. ~~**Name and domain.**~~ Decided: the brand is **X++Lab**; identifiers stay `xpplab`
+   because `+` is not legal in a package name or a domain. Domain still to pick. See
+   `docs/decisions.md`.
 2. **Subset freeze.** Write `docs/language-subset.md` yourself and treat it as immutable
    for v1. Scope creep in the engine is the single most likely way this project dies.
 3. **Verification source.** You need one real F&O environment to check engine behaviour

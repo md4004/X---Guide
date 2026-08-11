@@ -155,7 +155,7 @@ export const BUILTINS: Record<string, Builtin> = {
   // -- Session ------------------------------------------------------------
   curext: (_args, context) => str(context.company),
   // Fixed, because a golden file cannot depend on who is logged in.
-  curuserid: () => str("XppLab"),
+  curuserid: () => str("LEARNER"),
 
   // -- Compile-time reflection -------------------------------------------
   //

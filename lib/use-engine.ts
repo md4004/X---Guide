@@ -10,7 +10,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PANEL_TABLES, type EngineReply, type EngineRequest } from "./run-protocol";
+import type { TaskDefinition } from "@xpplab/validators";
+import {
+  PANEL_TABLES,
+  type EngineReply,
+  type EngineRequest,
+  type TaskOutcome,
+} from "./run-protocol";
 
 export type RunOutcome = NonNullable<EngineReply["result"]>;
 
@@ -98,5 +104,34 @@ export function useEngine() {
     [send],
   );
 
-  return { ...state, run, reset, read };
+  /**
+   * Checks a lesson task. Returns the outcome rather than a run result, because a task
+   * has a different question to answer: not "what happened" but "is this right, and if
+   * not, which one thing should they be told".
+   */
+  const runTask = useCallback(
+    async (task: TaskDefinition, source: string): Promise<TaskOutcome | undefined> => {
+      const worker = workerRef.current;
+      if (worker === null) return undefined;
+
+      setState((current) => ({ ...current, busy: true, failure: undefined }));
+
+      const id = nextIdRef.current++;
+      const reply = await new Promise<EngineReply>((resolve) => {
+        pendingRef.current.set(id, resolve);
+        worker.postMessage({ kind: "task", task, source, id } satisfies EngineRequest);
+      });
+
+      setState((current) => ({
+        ...current,
+        busy: false,
+        ...(reply.ok ? {} : { failure: reply.error ?? "The engine failed." }),
+      }));
+
+      return reply.task;
+    },
+    [],
+  );
+
+  return { ...state, run, reset, read, runTask };
 }

@@ -13,6 +13,7 @@
 
 import { createVirtualDb, RECID_FIELD, type TableName, type VirtualDb } from "@xpplab/virtual-db";
 import { runSource } from "@xpplab/xpp-runtime";
+import { runTask } from "@xpplab/validators";
 import type { EngineReply, EngineRequest, TableSnapshot } from "./run-protocol.js";
 
 let db: VirtualDb | undefined;
@@ -69,6 +70,25 @@ async function fingerprint(
 
 async function handle(request: EngineRequest): Promise<EngineReply> {
   const instance = await database();
+
+  if (request.kind === "task") {
+    // `runTask` snapshots and restores around the run, so a lesson attempt never leaves
+    // the environment changed for the next one — the runner contract, step 1 and 5.
+    const result = await runTask({ task: request.task, source: request.source, db: instance });
+
+    return {
+      id: request.id,
+      ok: true,
+      task: {
+        passed: result.passed,
+        ...(result.failure?.message === undefined ? {} : { message: result.failure.message }),
+        parseErrors: result.parseErrors,
+        runtimeErrors: result.runtimeErrors,
+        infolog: result.run?.infolog ?? [],
+        sqlTrace: result.run?.sqlTrace ?? [],
+      },
+    };
+  }
 
   if (request.kind === "reset") {
     await instance.reset(request.seed);

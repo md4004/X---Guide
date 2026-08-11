@@ -6,6 +6,7 @@
 
 import type { InfologEntry, SqlTraceEntry, XppError } from "@xpplab/xpp-core";
 import type { Row, TableName } from "@xpplab/virtual-db";
+import type { TaskDefinition } from "@xpplab/validators";
 
 export interface RunRequest {
   id: number;
@@ -30,7 +31,33 @@ export interface ReadRequest {
   company: string;
 }
 
-export type EngineRequest = RunRequest | ResetRequest | ReadRequest;
+export interface TaskRequest {
+  id: number;
+  kind: "task";
+  /** The whole task, so the worker needs no content of its own. */
+  task: TaskDefinition;
+  source: string;
+}
+
+export type EngineRequest = RunRequest | ResetRequest | ReadRequest | TaskRequest;
+
+/**
+ * What a lesson task reports back.
+ *
+ * Deliberately one `message`, not a list. Which message depends on how far the code
+ * got — parse, runtime, or validator — and the UI picks accordingly.
+ */
+export interface TaskOutcome {
+  passed: boolean;
+  /** The authored message for the first validator that failed. */
+  message?: string;
+  parseErrors?: XppError[];
+  runtimeErrors?: XppError[];
+  infolog?: InfologEntry[];
+  sqlTrace?: SqlTraceEntry[];
+  /** Set when the pass was read from localStorage rather than just earned. */
+  restored?: boolean;
+}
 
 export interface TableSnapshot {
   table: TableName;
@@ -48,6 +75,8 @@ export interface EngineReply {
   ok: boolean;
   /** Present when `ok` is false and the worker itself failed, not the learner's code. */
   error?: string;
+  /** Set for `task` requests. */
+  task?: TaskOutcome;
   result?: {
     infolog: InfologEntry[];
     sqlTrace: SqlTraceEntry[];

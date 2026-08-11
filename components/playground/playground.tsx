@@ -142,7 +142,7 @@ export function Playground() {
   return (
     <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-100">
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-2.5">
-        <span className="font-mono text-xs tracking-widest text-sky-400 uppercase">XppLab</span>
+        <span className="font-mono text-xs tracking-widest text-sky-400">X++Lab</span>
         <span className="text-sm text-zinc-500">Sandbox</span>
 
         <div className="ml-auto flex items-center gap-2">

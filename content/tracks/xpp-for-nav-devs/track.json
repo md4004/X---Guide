@@ -1,0 +1,9 @@
+{
+  "slug": "xpp-for-nav-devs",
+  "title": "X++ for NAV and BC developers",
+  "summary": "Everything you already know from C/AL, remapped — plus the things that will bite you.",
+  "level": "beginner",
+  "estimatedMinutes": 180,
+  "lessons": ["02-buffers-and-select"],
+  "requiresEngine": ["db", "runtime"]
+}
