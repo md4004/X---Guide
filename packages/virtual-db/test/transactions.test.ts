@@ -117,6 +117,30 @@ describe("transaction trace", () => {
     expect(kinds).toEqual(["savepoint", "savepoint", "release", "rollback"]);
   });
 
+  it("numbers the accumulated trace as one running sequence", async () => {
+    // The worker drains its trace per request, so every batch arrives starting at 0.
+    // The client is what turns them into one ordered list — without that, the trace
+    // panel shows every statement as number 1 and a UI keyed on sequence collides.
+    db.clearTrace();
+
+    await db.beginTransaction();
+    await insertItem("TEST-SEQ-1");
+    await insertItem("TEST-SEQ-2");
+    await db.commitTransaction();
+
+    const sequences = db.getTrace().map((entry) => entry.sequence);
+    expect(sequences).toEqual([0, 1, 2, 3]);
+  });
+
+  it("keeps numbering contiguous across a clear", async () => {
+    await db.beginTransaction();
+    db.clearTrace();
+    await insertItem("TEST-SEQ-3");
+    await db.commitTransaction();
+
+    expect(db.getTrace().map((entry) => entry.sequence)).toEqual([0, 1]);
+  });
+
   it("stamps each statement with the transaction depth it ran at", async () => {
     db.clearTrace();
 

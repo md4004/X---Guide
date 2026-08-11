@@ -179,7 +179,14 @@ class VirtualDbClient implements VirtualDb {
     }
     const result = await this.#transport.send(request);
     if (!result.ok) throw new Error(result.error);
-    this.#trace.push(...result.trace);
+
+    // Renumber as they arrive. Each response is drained independently on the worker
+    // side, so every batch starts at sequence 0 — leaving them alone gives a trace where
+    // every statement claims to be the first, and a UI keyed on sequence collides.
+    for (const entry of result.trace) {
+      this.#trace.push({ ...entry, sequence: this.#trace.length });
+    }
+
     return result.value;
   }
 
