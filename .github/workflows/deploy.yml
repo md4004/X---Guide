@@ -36,12 +36,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
+      # `enablement: true` turns Pages on via the API on the first run, so the repo needs
+      # no manual setup. Harmless once it is already on.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       # `prebuild` copies sql-wasm.wasm into public/, so the export includes it.
       - name: Build the static export
