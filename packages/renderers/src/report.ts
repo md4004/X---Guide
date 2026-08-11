@@ -53,6 +53,14 @@ export interface ReportGroupViewModel {
 export interface ReportViewModel {
   title: string;
   columns: ReportColumn[];
+  /**
+   * The columns the design grouped on.
+   *
+   * Carried through so the renderer can leave them out of the detail rows: their value is
+   * already in the group header, and repeating it down every line is what makes a report
+   * look like a spreadsheet dump.
+   */
+  groupBy: string[];
   header: { label: string; value: string }[];
   groups: ReportGroupViewModel[];
   /** Rows in report order, when the design groups on nothing. */
@@ -159,6 +167,7 @@ export function buildReportView(data: ReportDataSet, design: ReportDesign): Repo
   return {
     title: design.title,
     columns: data.columns,
+    groupBy: design.groupBy,
     header: [],
     groups,
     rows: design.groupBy.length === 0 ? data.rows : [],

@@ -149,6 +149,12 @@ describe("buildReportView", () => {
     expect(view.groups[0]?.children[0]?.rows).toHaveLength(1);
   });
 
+  it("carries the grouped-on columns through, so the renderer can hide them", () => {
+    // They are already in the group header; repeating them down every detail line is
+    // what makes a report read as a spreadsheet dump.
+    expect(buildReportView(data, design).groupBy).toEqual(["ItemGroupId"]);
+  });
+
   it("returns flat rows when the design groups on nothing", () => {
     const view = buildReportView(data, { ...design, groupBy: [] });
     expect(view.groups).toEqual([]);

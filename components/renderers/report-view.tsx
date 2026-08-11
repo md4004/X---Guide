@@ -21,9 +21,12 @@ function format(value: unknown): string {
 }
 
 export function ReportView({ view }: { view: ReportViewModel }) {
-  const columns = view.columns.filter(
-    (column) => !["RECID", "DATAAREAID"].includes(column.name.toUpperCase()),
+  // System columns are noise, and a grouped-on column is already in the group header —
+  // repeating it down every line is what makes a report read as a spreadsheet dump.
+  const hidden = new Set(
+    ["RECID", "DATAAREAID", ...view.groupBy].map((name) => name.toUpperCase()),
   );
+  const columns = view.columns.filter((column) => !hidden.has(column.name.toUpperCase()));
   const totalColumns = Object.keys(view.grandTotals);
 
   return (

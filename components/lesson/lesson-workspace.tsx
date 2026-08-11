@@ -195,6 +195,7 @@ export function LessonWorkspace({
                     [task.id]: (current[task.id] ?? 0) + 1,
                   }))
                 }
+                passed={stepPassed}
                 solutionShown={solutionShown[task.id] === true}
                 canRevealSolution={stepAttempts >= ATTEMPTS_BEFORE_SOLUTION}
                 attemptsLeft={ATTEMPTS_BEFORE_SOLUTION - stepAttempts}
@@ -339,6 +340,7 @@ function TaskAside({
   task,
   hintsShown,
   onHint,
+  passed,
   solutionShown,
   canRevealSolution,
   attemptsLeft,
@@ -348,6 +350,7 @@ function TaskAside({
   task: TaskDefinition;
   hintsShown: number;
   onHint: () => void;
+  passed: boolean;
   solutionShown: boolean;
   canRevealSolution: boolean;
   attemptsLeft: number;
@@ -378,7 +381,9 @@ function TaskAside({
           </button>
         )}
 
-        {!canRevealSolution && attemptsLeft < 3 && (
+        {/* Only while there is still something to solve. Counting down to an answer the
+            learner has already worked out reads as the page not noticing. */}
+        {!passed && !canRevealSolution && attemptsLeft < 3 && (
           <span className="text-xs text-zinc-600">
             Answer unlocks after {attemptsLeft} more {attemptsLeft === 1 ? "try" : "tries"}
           </span>
