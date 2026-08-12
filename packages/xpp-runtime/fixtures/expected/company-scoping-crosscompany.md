@@ -4,7 +4,7 @@
 info: 10 customers across all companies
 
 ## SQL trace
-[select rows=10 tts=0] SELECT t0.AccountNum, t0.Party, t0.CustGroup, t0.CurrencyCode, t0.PaymTermId, t0.CreditMax, t0.Blocked, t0.RECID, t0.DATAAREAID FROM CustTable AS t0
+[select rows=10 tts=0] SELECT t0.AccountNum, t0.Party, t0.CustGroup, t0.CurrencyCode, t0.PaymTermId, t0.CreditMax, t0.Blocked, t0.DefaultDimension, t0.RECID, t0.DATAAREAID FROM CustTable AS t0
 
 ## Errors
 (none)

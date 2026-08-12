@@ -30,6 +30,13 @@ export const TABLE_NAMES = [
   "InventLocation",
   "DirPartyTable",
   "TmpItemSales",
+  // The financial dimension framework. Four tables, because that is genuinely how many it
+  // takes to store "CostCenter = CC-100" against a customer — see docs/verified-behaviour
+  // VB-027, and the dimensions lessons built on it.
+  "DimensionAttribute",
+  "DimensionAttributeValue",
+  "DimensionAttributeValueSet",
+  "DimensionAttributeValueSetItem",
 ] as const;
 
 export type TableName = (typeof TABLE_NAMES)[number];
@@ -175,6 +182,7 @@ export const SCHEMA: readonly TableSchema[] = [
       str("PaymTermId", 10, "Terms of payment"),
       real("CreditMax", "Credit limit"),
       enumField("Blocked", "CustVendorBlocked", "Blocked"),
+      int64("DefaultDimension", "Financial dimensions"),
     ],
     indexes: [{ name: "AccountIdx", fields: ["AccountNum"], unique: true, primary: true }],
     relations: [
@@ -233,6 +241,7 @@ export const SCHEMA: readonly TableSchema[] = [
       enumField("ItemType", "ItemType", "Item type"),
       enumField("Blocked", "NoYes", "Stopped"),
       real("StandardCost", "Standard cost"),
+      int64("DefaultDimension", "Financial dimensions"),
     ],
     indexes: [{ name: "ItemIdx", fields: ["ItemId"], unique: true, primary: true }],
     relations: [],
@@ -278,6 +287,7 @@ export const SCHEMA: readonly TableSchema[] = [
       enumField("SalesStatus", "SalesStatus", "Status"),
       date("DeliveryDate", "Delivery date"),
       str("CurrencyCode", 3, "Currency"),
+      int64("DefaultDimension", "Financial dimensions"),
     ],
     indexes: [{ name: "SalesIdx", fields: ["SalesId"], unique: true, primary: true }],
     relations: [
@@ -297,6 +307,7 @@ export const SCHEMA: readonly TableSchema[] = [
       real("SalesPrice", "Unit price"),
       real("LineAmount", "Net amount"),
       str("InventLocationId", 20, "Warehouse"),
+      int64("DefaultDimension", "Financial dimensions"),
     ],
     indexes: [
       { name: "SalesLineIdx", fields: ["SalesId", "LineNum"], unique: true, primary: true },
@@ -429,6 +440,108 @@ export const SCHEMA: readonly TableSchema[] = [
     ],
     relations: [
       { name: "InventTable", relatedTable: "InventTable", fields: [["ItemId", "ItemId"]] },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // The financial dimension framework
+  //
+  // Four tables to store what looks like two columns on a customer, and every one of them
+  // is shared rather than company-scoped. That shape is the reason dimensions confuse
+  // people, so it is modelled rather than flattened: a learner who has followed
+  // DefaultDimension through to a display value once can debug dimension problems for the
+  // rest of their career, and one who has only seen a flattened version cannot.
+  //
+  // Only the storage shape is simulated. Account structures, advanced rules and
+  // posting-time validation are out — see docs/unverified.md.
+  // -------------------------------------------------------------------------
+
+  {
+    name: "DimensionAttribute",
+    label: "Financial dimensions",
+    saveDataPerCompany: false,
+    fields: [
+      str("Name", 40, "Dimension name"),
+      // VB-032: custom dimensions keep their values by hand; entity-backed ones take them
+      // from another table.
+      str("BackingEntityType", 20, "Values from"),
+    ],
+    indexes: [{ name: "NameIdx", fields: ["Name"], unique: true, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "DimensionAttributeValue",
+    label: "Financial dimension values",
+    saveDataPerCompany: false,
+    fields: [
+      int64("DimensionAttribute", "Dimension"),
+      // VB-032: dimension values are at most 30 characters.
+      str("DisplayValue", 30, "Dimension value"),
+      str("Description", 60, "Description"),
+    ],
+    indexes: [
+      {
+        name: "AttributeValueIdx",
+        fields: ["DimensionAttribute", "DisplayValue"],
+        unique: true,
+        primary: true,
+      },
+    ],
+    relations: [
+      {
+        name: "DimensionAttribute",
+        relatedTable: "DimensionAttribute",
+        fields: [["DimensionAttribute", "RECID"]],
+      },
+    ],
+  },
+
+  {
+    name: "DimensionAttributeValueSet",
+    label: "Financial dimension sets",
+    saveDataPerCompany: false,
+    // Almost nothing but an identity, and that *is* the lesson: the set is a hook for
+    // other tables to point at, and the values hang off it one row at a time.
+    //
+    // `Hash` is how the framework finds an existing set with the same values instead of
+    // writing a duplicate — the behaviour VB-030's worked example shows when a merge
+    // reuses the source's record. The column name is our reading; see docs/unverified.md.
+    fields: [str("Hash", 120, "Hash")],
+    indexes: [{ name: "HashIdx", fields: ["Hash"], unique: false, primary: true }],
+    relations: [],
+  },
+
+  {
+    name: "DimensionAttributeValueSetItem",
+    label: "Financial dimension set values",
+    saveDataPerCompany: false,
+    fields: [
+      int64("DimensionAttributeValueSet", "Dimension set"),
+      int64("DimensionAttributeValue", "Dimension value"),
+      // Denormalised onto the item, as the real table denormalises it. It is why the
+      // documented queries can read a display value without a third join.
+      str("DisplayValue", 30, "Dimension value"),
+    ],
+    indexes: [
+      {
+        name: "SetIdx",
+        fields: ["DimensionAttributeValueSet", "DimensionAttributeValue"],
+        unique: true,
+        primary: true,
+      },
+    ],
+    relations: [
+      {
+        name: "DimensionAttributeValueSet",
+        relatedTable: "DimensionAttributeValueSet",
+        fields: [["DimensionAttributeValueSet", "RECID"]],
+      },
+      {
+        name: "DimensionAttributeValue",
+        relatedTable: "DimensionAttributeValue",
+        fields: [["DimensionAttributeValue", "RECID"]],
+      },
     ],
   },
 ];

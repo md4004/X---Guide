@@ -975,20 +975,106 @@ const customerTransactions: Row[] = [
   ]),
 ];
 
+// ---------------------------------------------------------------------------
+// Financial dimensions — shared, like the framework's tables really are
+//
+// Five dimensions, a handful of values, and three sets wired onto master records. RECIDs
+// are assigned by hand so the foreign keys are stable across reseeds and so a lesson can
+// quote one in prose without it drifting.
+//
+// The fourth set, 6304, is deliberately empty. VB-028: the framework stores no row for a
+// dimension with no value, so an empty set is a set with no items — and a learner who has
+// seen that stops expecting a blank row to be there.
+// ---------------------------------------------------------------------------
+
+const dimensionAttributes: Row[] = [
+  { RECID: 6001, Name: "BusinessUnit", BackingEntityType: "Custom" },
+  { RECID: 6002, Name: "CostCenter", BackingEntityType: "Custom" },
+  { RECID: 6003, Name: "Department", BackingEntityType: "Custom" },
+  // VB-032: an entity-backed dimension takes its values from another table rather than
+  // from the Financial dimension values page.
+  { RECID: 6004, Name: "ItemGroup", BackingEntityType: "Entity" },
+  { RECID: 6005, Name: "Project", BackingEntityType: "Custom" },
+].map((attribute) => ({ ...attribute, DATAAREAID: SHARED_DATAAREAID }));
+
+const dimensionValues: Row[] = [
+  { RECID: 6101, DimensionAttribute: 6001, DisplayValue: "BU-01", Description: "Furniture" },
+  { RECID: 6102, DimensionAttribute: 6001, DisplayValue: "BU-02", Description: "Trading" },
+  { RECID: 6111, DimensionAttribute: 6002, DisplayValue: "CC-100", Description: "Workshop" },
+  { RECID: 6112, DimensionAttribute: 6002, DisplayValue: "CC-200", Description: "Warehouse" },
+  { RECID: 6113, DimensionAttribute: 6002, DisplayValue: "CC-300", Description: "Head office" },
+  { RECID: 6121, DimensionAttribute: 6003, DisplayValue: "DEP-10", Description: "Sales" },
+  { RECID: 6122, DimensionAttribute: 6003, DisplayValue: "DEP-20", Description: "Operations" },
+  { RECID: 6131, DimensionAttribute: 6004, DisplayValue: "FURNITURE", Description: "Furniture" },
+  { RECID: 6132, DimensionAttribute: 6004, DisplayValue: "RAWMAT", Description: "Raw materials" },
+  { RECID: 6141, DimensionAttribute: 6005, DisplayValue: "PRJ-001", Description: "Otterbury fit-out" },
+  { RECID: 6142, DimensionAttribute: 6005, DisplayValue: "PRJ-002", Description: "Larkfield refresh" },
+].map((value) => ({ ...value, DATAAREAID: SHARED_DATAAREAID }));
+
+const dimensionSets: Row[] = [
+  { RECID: 6301, Hash: "CostCenter=CC-100;Department=DEP-10" },
+  { RECID: 6302, Hash: "CostCenter=CC-200;ItemGroup=FURNITURE" },
+  { RECID: 6303, Hash: "Department=DEP-20;Project=PRJ-001" },
+  { RECID: 6304, Hash: "" },
+].map((set) => ({ ...set, DATAAREAID: SHARED_DATAAREAID }));
+
+const dimensionSetItems: Row[] = [
+  // 6301 — on customer C-1000 in HVND.
+  { DimensionAttributeValueSet: 6301, DimensionAttributeValue: 6111, DisplayValue: "CC-100" },
+  { DimensionAttributeValueSet: 6301, DimensionAttributeValue: 6121, DisplayValue: "DEP-10" },
+  // 6302 — on item F-100 in HVND.
+  { DimensionAttributeValueSet: 6302, DimensionAttributeValue: 6112, DisplayValue: "CC-200" },
+  { DimensionAttributeValueSet: 6302, DimensionAttributeValue: 6131, DisplayValue: "FURNITURE" },
+  // 6303 — on sales order SO-0001 in HVND.
+  { DimensionAttributeValueSet: 6303, DimensionAttributeValue: 6122, DisplayValue: "DEP-20" },
+  { DimensionAttributeValueSet: 6303, DimensionAttributeValue: 6141, DisplayValue: "PRJ-001" },
+  // 6304 has no items at all, and that is not a mistake — see VB-028.
+].map((item) => ({ ...item, DATAAREAID: SHARED_DATAAREAID }));
+
+/**
+ * Points a master record at a dimension set.
+ *
+ * Applied after the fact rather than inline, so the customer and item tables above stay
+ * readable and the dimension wiring lives in one place next to the sets themselves.
+ */
+const withDefaultDimension = (
+  source: readonly Row[],
+  assignments: { company: string; key: string; keyField: string; set: number }[],
+): Row[] =>
+  source.map((row) => {
+    const match = assignments.find(
+      (assignment) =>
+        row["DATAAREAID"] === assignment.company && row[assignment.keyField] === assignment.key,
+    );
+    return { ...row, DefaultDimension: match?.set ?? 0 };
+  });
+
 const rows: Partial<Record<TableName, readonly Row[]>> = {
   DirPartyTable: parties,
-  CustTable: customers,
+  CustTable: withDefaultDimension(customers, [
+    { company: "HVND", key: "C-1000", keyField: "AccountNum", set: 6301 },
+  ]),
   CustTrans: customerTransactions,
   VendTable: vendors,
-  InventTable: items,
+  InventTable: withDefaultDimension(items, [
+    { company: "HVND", key: "F-100", keyField: "ItemId", set: 6302 },
+  ]),
   InventSum: onHand,
   InventLocation: warehouses,
   WMSLocation: wmsLocations,
-  SalesTable: salesOrders,
-  SalesLine: salesLines,
+  SalesTable: withDefaultDimension(salesOrders, [
+    { company: "HVND", key: "SO-0001", keyField: "SalesId", set: 6303 },
+  ]),
+  // Lines carry the field but no values, which is the ordinary starting state: dimensions
+  // arrive on a line by being copied or merged from somewhere else.
+  SalesLine: withDefaultDimension(salesLines, []),
   MainAccount: mainAccounts,
   LedgerJournalTable: journals,
   LedgerJournalTrans: journalLines,
+  DimensionAttribute: dimensionAttributes,
+  DimensionAttributeValue: dimensionValues,
+  DimensionAttributeValueSet: dimensionSets,
+  DimensionAttributeValueSetItem: dimensionSetItems,
 };
 
 export const defaultSeed: SeedDefinition = {

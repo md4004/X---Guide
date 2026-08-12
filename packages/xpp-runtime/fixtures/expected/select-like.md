@@ -7,7 +7,7 @@ info: F-102
 info: F-103
 
 ## SQL trace
-[select rows=4 tts=0] SELECT t0.ItemId, t0.ItemName, t0.ItemGroupId, t0.ItemType, t0.Blocked, t0.StandardCost, t0.RECID, t0.DATAAREAID FROM InventTable AS t0 WHERE (t0.ItemId LIKE ?) AND t0.DATAAREAID = ?  -- ["F-1%","HVND"]
+[select rows=4 tts=0] SELECT t0.ItemId, t0.ItemName, t0.ItemGroupId, t0.ItemType, t0.Blocked, t0.StandardCost, t0.DefaultDimension, t0.RECID, t0.DATAAREAID FROM InventTable AS t0 WHERE (t0.ItemId LIKE ?) AND t0.DATAAREAID = ?  -- ["F-1%","HVND"]
 
 ## Errors
 (none)

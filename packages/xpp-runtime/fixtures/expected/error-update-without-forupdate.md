@@ -5,7 +5,7 @@
 
 ## SQL trace
 [savepoint rows=0 tts=1] SAVEPOINT tts_1
-[select rows=1 tts=1] SELECT t0.ItemId, t0.ItemName, t0.ItemGroupId, t0.ItemType, t0.Blocked, t0.StandardCost, t0.RECID, t0.DATAAREAID FROM InventTable AS t0 WHERE (t0.ItemId = ?) AND t0.DATAAREAID = ? LIMIT 1  -- ["F-100","HVND"]
+[select rows=1 tts=1] SELECT t0.ItemId, t0.ItemName, t0.ItemGroupId, t0.ItemType, t0.Blocked, t0.StandardCost, t0.DefaultDimension, t0.RECID, t0.DATAAREAID FROM InventTable AS t0 WHERE (t0.ItemId = ?) AND t0.DATAAREAID = ? LIMIT 1  -- ["F-100","HVND"]
 [rollback rows=0 tts=0] ROLLBACK TO SAVEPOINT tts_1
 
 ## Errors
