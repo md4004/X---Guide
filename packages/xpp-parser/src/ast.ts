@@ -400,7 +400,8 @@ export type Expression =
   | NewExpression
   | EnumAccessExpression
   | ContainerExpression
-  | UpdateExpression;
+  | UpdateExpression
+  | NextCallExpression;
 
 export interface Identifier extends NodeBase {
   kind: "identifier";
@@ -501,6 +502,19 @@ export interface EnumAccessExpression extends NodeBase {
   kind: "enumAccess";
   enumName: string;
   valueName: string;
+}
+
+/**
+ * `next doSomething(arg)` used as a value.
+ *
+ * Microsoft's own examples read `var s = next doSomething(arg + 4);` and
+ * `ret = next validateWrite();`, so returning the chain's answer is the normal case
+ * rather than an edge one. The statement form stays for a bare `next foo();`.
+ */
+export interface NextCallExpression extends NodeBase {
+  kind: "nextExpression";
+  methodName: string;
+  arguments: Expression[];
 }
 
 /** `[1, "two", 3.0]` */

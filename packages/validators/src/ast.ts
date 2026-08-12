@@ -108,6 +108,13 @@ function callsMethod(ast: SourceUnit, name: string): boolean {
         if (target === "next" || statement.methodName.toLowerCase() === target) found = true;
       },
     },
+    // `real price = next priceFor(id);` — the same call in value position, which is the
+    // form every wrapper of a method that returns something has to use.
+    nextExpression: {
+      enter: (expression) => {
+        if (target === "next" || expression.methodName.toLowerCase() === target) found = true;
+      },
+    },
   });
 
   return found;

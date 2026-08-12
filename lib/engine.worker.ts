@@ -110,6 +110,10 @@ async function buildView(
     return { form: await buildFormView({ form, aot, db: instance }) };
   }
 
+  // A chain is a fact about the code, not about the data, so it arrives on the run result
+  // rather than being read back out of the database here.
+  if (view.kind === "coc") return {};
+
   const table = aot.getTable(view.table);
   if (table === undefined) throw new Error(`There is no table called ${view.table}.`);
 
@@ -229,6 +233,7 @@ async function handle(request: EngineRequest): Promise<EngineReply> {
         sqlTrace: result.run?.sqlTrace ?? [],
         ...view,
         ...(viewError === undefined ? {} : { viewError }),
+        ...(result.run?.chains === undefined ? {} : { chains: result.run.chains }),
       },
     };
   }
@@ -262,6 +267,7 @@ async function handle(request: EngineRequest): Promise<EngineReply> {
           sqlTrace: result.sqlTrace,
           ...view,
           ...(viewError === undefined ? {} : { viewError }),
+          ...(result.chains === undefined ? {} : { chains: result.chains }),
         },
       };
     } finally {

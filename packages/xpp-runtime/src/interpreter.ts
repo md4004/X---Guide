@@ -55,6 +55,7 @@ import {
   queryToSelectClauses,
   type QueryRunState,
 } from "./query";
+import { CocError, type ResolvedChain } from "./coc";
 import {
   ClassTableError,
   allFields,
@@ -159,6 +160,26 @@ export interface RunResult {
    * dressing it up as a failure would teach the opposite.
    */
   stoppedByDebugger?: boolean;
+  /**
+   * Every Chain of Command the run actually resolved.
+   *
+   * Collected during execution rather than derived from the source, so what the visualiser
+   * draws is what really ran — including which link declined to pass the result on.
+   */
+  chains?: ResolvedChain[];
+}
+
+/**
+ * One entry on the interpreter's own stack.
+ *
+ * `chain` is present only while a Chain of Command wrapper is running: it is what `next`
+ * continues into, and it is why `next` is a statement the interpreter understands rather
+ * than an ordinary call it could look up.
+ */
+interface Frame {
+  owner: RuntimeClass | undefined;
+  self: ObjectInstance | undefined;
+  chain?: { links: RuntimeMethod[]; index: number };
 }
 
 /** Non-local control flow. None of these escape `run`. */
@@ -210,6 +231,9 @@ export class Interpreter {
   readonly #debug: DebugController | undefined;
   #stoppedByDebugger = false;
 
+  /** Chains resolved during this run, keyed `Target.method`, for the visualiser. */
+  readonly #chains = new Map<string, ResolvedChain>();
+
   /** Declared classes, by lowercased name. Filled in `execute`. */
   #classes = new Map<string, RuntimeClass>();
 
@@ -221,11 +245,9 @@ export class Interpreter {
    * method call, so access is judged from where the call is made rather than from where
    * the object came from.
    */
-  #frames: { owner: RuntimeClass | undefined; self: ObjectInstance | undefined }[] = [
-    { owner: undefined, self: undefined },
-  ];
+  #frames: Frame[] = [{ owner: undefined, self: undefined }];
 
-  get #frame(): { owner: RuntimeClass | undefined; self: ObjectInstance | undefined } {
+  get #frame(): Frame {
     return this.#frames[this.#frames.length - 1]!;
   }
 
@@ -305,6 +327,7 @@ export class Interpreter {
       durationMs: Date.now() - startedAt,
       uncommittedTransactionDepth: depth,
       ...(this.#stoppedByDebugger ? { stoppedByDebugger: true } : {}),
+      ...(this.#chains.size === 0 ? {} : { chains: [...this.#chains.values()] }),
     };
   }
 
@@ -315,7 +338,7 @@ export class Interpreter {
 
     // A malformed class hierarchy is a compile-time failure in a real environment, so it
     // is reported before any statement runs rather than as a runtime surprise.
-    if (error instanceof ClassTableError) {
+    if (error instanceof ClassTableError || error instanceof CocError) {
       this.#errors.push({
         code: XppErrorCodes.ConstructOutsideSubset,
         message: error.message,
@@ -881,6 +904,7 @@ export class Interpreter {
     self: ObjectInstance | undefined,
     args: XppValue[],
     span: SourceSpan,
+    chain?: { links: RuntimeMethod[]; index: number },
   ): Promise<XppValue> {
     if (method.isAbstract) {
       throw new RuntimeError(
@@ -902,7 +926,11 @@ export class Interpreter {
 
     const outerScope = this.#scope;
     this.#scope = this.#globals.child();
-    this.#frames.push({ owner: method.declaringClass, self });
+    this.#frames.push({
+      owner: method.declaringClass,
+      self,
+      ...(chain === undefined ? {} : { chain }),
+    });
     this.#callStack.push({
       name: `${method.declaringClass.name}.${method.name}`,
       line: span.start.line,
@@ -940,7 +968,13 @@ export class Interpreter {
         ? VOID
         : defaultValueFor(method.declaration.returnType.name);
     } catch (error) {
-      if (error instanceof ReturnSignal) return error.value;
+      // A method is statically typed, so what it returns is its declared type — a `real`
+      // method returning the literal `100` hands back 100.00, not an int that prints as
+      // "100". Without this the difference shows up in the Infolog and looks like a
+      // formatting bug rather than a typing one.
+      if (error instanceof ReturnSignal) {
+        return coerceToDeclaredType(method.declaration.returnType.name, error.value);
+      }
       throw error;
     } finally {
       this.#callStack.pop();
@@ -981,7 +1015,89 @@ export class Interpreter {
     }
 
     this.#requireAccess(method, runtime, span);
-    return this.#invoke(method, instance, args, span);
+    return this.#invokeChain(runtime, method, instance, args, span);
+  }
+
+  /**
+   * Runs a method through its Chain of Command, if anything wrapped it.
+   *
+   * The wrappers come first and the original implementation is the tail. Any link can
+   * decline to pass on what the rest returned — which compiles, and is the defect the
+   * customisation lesson is built around.
+   *
+   * The order among wrappers is **not** a guarantee (VB-063). They run in declaration
+   * order here because something has to go first; nothing in the product promises that,
+   * and the visualiser says so.
+   */
+  async #invokeChain(
+    owner: RuntimeClass,
+    method: RuntimeMethod,
+    self: ObjectInstance | undefined,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const wrappers = this.#wrappersFor(owner, method.name);
+    if (wrappers.length === 0) return this.#invoke(method, self, args, span);
+
+    this.#recordChain(owner, method, wrappers);
+    return this.#runChainLink([...wrappers, method], 0, self, args, span);
+  }
+
+  /**
+   * Notes a resolved chain for the visualiser, once per method.
+   *
+   * `orderIsUndefined` is set the moment there is more than one wrapper, because that is
+   * exactly when the sequence stops being knowable (VB-063). Drawing a confident order
+   * would be the most damaging thing this diagram could do — it is the assumption the
+   * documentation explicitly denies.
+   */
+  #recordChain(owner: RuntimeClass, method: RuntimeMethod, wrappers: RuntimeMethod[]): void {
+    const key = `${owner.name}.${method.name}`;
+    if (this.#chains.has(key)) return;
+
+    this.#chains.set(key, {
+      target: owner.name,
+      methodName: method.name,
+      links: [
+        ...wrappers.map((wrapper) => ({
+          kind: "wrapper" as const,
+          declaringClass: wrapper.declaringClass.name,
+          methodName: wrapper.name,
+        })),
+        {
+          kind: "base" as const,
+          declaringClass: method.declaringClass.name,
+          methodName: method.name,
+        },
+      ],
+      orderIsUndefined: wrappers.length > 1,
+    });
+  }
+
+  /**
+   * Every wrapper registered against this method, looked up along the inheritance chain.
+   *
+   * An extension of a derived class may wrap a method declared on its base (VB-066), and
+   * only instances of that derived class get the wrapper — which falls out of starting the
+   * search at the instance's own class.
+   */
+  #wrappersFor(runtime: RuntimeClass, name: string): RuntimeMethod[] {
+    const own = runtime.wrappers.get(name.toLowerCase()) ?? [];
+    const inherited = runtime.base === undefined ? [] : this.#wrappersFor(runtime.base, name);
+    return [...own, ...inherited];
+  }
+
+  async #runChainLink(
+    links: RuntimeMethod[],
+    index: number,
+    self: ObjectInstance | undefined,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const link = links[index];
+    if (link === undefined) return VOID;
+
+    return this.#invoke(link, self, args, span, { links, index });
   }
 
   /** `ClassName::method(args)`. */
@@ -1137,6 +1253,37 @@ export class Interpreter {
     }
 
     return this.#invoke(method, self, args, span);
+  }
+
+  /**
+   * `next someMethod(args)` — continue into the rest of the Chain of Command.
+   *
+   * The frame knows where in the chain it is, which is why this is a statement the
+   * interpreter understands rather than a call it could resolve by name: `next` does not
+   * name a method to find, it names the position after this one.
+   */
+  async #next(statement: Extract<Statement, { kind: "nextCall" }>): Promise<XppValue> {
+    return this.#continueChain(statement.arguments, statement.span);
+  }
+
+  /** Shared by the statement and expression forms of `next`. */
+  async #continueChain(argumentNodes: Expression[], span: SourceSpan): Promise<XppValue> {
+    const chain = this.#frame.chain;
+
+    if (chain === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        "`next` is only available inside a Chain of Command wrapper.",
+        "A wrapper is a method on a class marked `[ExtensionOf(...)]` whose name matches a method on the class it extends.",
+        "Error",
+        span,
+      );
+    }
+
+    const args: XppValue[] = [];
+    for (const argument of argumentNodes) args.push(await this.#evaluate(argument));
+
+    return this.#runChainLink(chain.links, chain.index + 1, this.#frame.self, args, span);
   }
 
   /** The instance `this` refers to, or a refusal that explains why there is none. */
@@ -1441,15 +1588,10 @@ export class Interpreter {
         return;
 
       case "nextCall":
-        // Chain of Command resolution lands in Phase 8. Refusing loudly is better than
-        // pretending the call did something.
-        throw new RuntimeError(
-          XppErrorCodes.ConstructOutsideSubset,
-          "Chain of Command is not available yet.",
-          "`next` needs the extension model, which arrives with the customisation track. For now, write the logic directly.",
-          "Error",
-          statement.span,
-        );
+        // A bare `next foo();` — the result is discarded, which is legal and is exactly
+        // how a wrapper silently swallows the rest of the chain's answer.
+        await this.#next(statement);
+        return;
 
       case "emptyStatement":
         return;
@@ -1939,6 +2081,9 @@ export class Interpreter {
 
       case "enumAccess":
         return this.#enumAccess(expression);
+
+      case "nextExpression":
+        return this.#continueChain(expression.arguments, expression.span);
 
       case "container": {
         const elements: XppValue[] = [];
@@ -2710,3 +2855,24 @@ function extractWhere(sql: string, alias: string): string | undefined {
 }
 
 export { formatString };
+
+/**
+ * Widens or narrows a returned value to the method's declared type.
+ *
+ * Deliberately numeric-only. A `real` method that returns an int literal should hand back
+ * a real, and an `int` method that returns a real should truncate — both are what a
+ * statically typed language does. Everything else is left alone, because coercing a `str`
+ * or a buffer here would be inventing conversions X++ does not perform silently.
+ */
+function coerceToDeclaredType(typeName: string, value: XppValue): XppValue {
+  switch (typeName.toLowerCase()) {
+    case "real":
+      return value.type === "real" ? value : real(toNumber(value));
+    case "int":
+      return value.type === "int" ? value : int(toNumber(value));
+    case "int64":
+      return value.type === "int64" ? value : { type: "int64", value: Math.trunc(toNumber(value)) };
+    default:
+      return value;
+  }
+}

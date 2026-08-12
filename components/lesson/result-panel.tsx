@@ -14,6 +14,7 @@ import type { TaskOutcome } from "@/lib/run-protocol";
 import { InfologPanel, SqlTracePanel } from "@/components/playground/panels";
 import { FormView } from "@/components/renderers/form-view";
 import { ReportView } from "@/components/renderers/report-view";
+import { ChainView } from "@/components/renderers/chain-view";
 
 type Tab = "result" | "infolog" | "sql" | "view";
 
@@ -37,6 +38,7 @@ export function ResultPanel({
   const hasView =
     outcome?.form !== undefined ||
     outcome?.report !== undefined ||
+    outcome?.chains !== undefined ||
     outcome?.viewError !== undefined;
 
   // Every new run drops the learner's tab choice, so the panel opens on whatever that run
@@ -62,7 +64,8 @@ export function ResultPanel({
 
   const sqlCount = outcome.sqlTrace?.length ?? 0;
   const infologCount = outcome.infolog?.length ?? 0;
-  const viewLabel = outcome.report === undefined ? "Form" : "Report";
+  const viewLabel =
+    outcome.chains !== undefined ? "Chain" : outcome.report === undefined ? "Form" : "Report";
 
   return (
     <div className="flex flex-col">
@@ -104,6 +107,7 @@ export function ResultPanel({
           <>
             {outcome.form !== undefined && <FormView view={outcome.form} />}
             {outcome.report !== undefined && <ReportView view={outcome.report} />}
+            {outcome.chains !== undefined && <ChainView chains={outcome.chains} />}
             {outcome.viewError !== undefined && (
               <p className="rounded border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
                 {outcome.viewError}

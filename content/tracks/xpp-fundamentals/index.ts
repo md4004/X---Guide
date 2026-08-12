@@ -24,6 +24,7 @@ import Integration from "./12-integration.mdx";
 import ClassesAndMethods from "./13-classes-and-methods.mdx";
 import ReportEndToEnd from "./14-report-end-to-end.mdx";
 import QueryObjects from "./15-query-objects.mdx";
+import ChainOfCommand from "./16-chain-of-command.mdx";
 
 export { track, orderedSlugs, neighbours } from "./lessons";
 export type { LessonData } from "./lessons";
@@ -48,6 +49,7 @@ const CONTENT: Record<string, MdxContent> = {
   "13-classes-and-methods": ClassesAndMethods,
   "14-report-end-to-end": ReportEndToEnd,
   "15-query-objects": QueryObjects,
+  "16-chain-of-command": ChainOfCommand,
 };
 
 export const lessons: Record<string, Lesson> = Object.fromEntries(

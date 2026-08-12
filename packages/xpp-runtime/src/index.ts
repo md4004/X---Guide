@@ -64,6 +64,10 @@ export {
 } from "./classes";
 export type { Access, RuntimeClass, RuntimeField, RuntimeMethod } from "./classes";
 
+/** Chain of Command: the rules, and the resolved chain the visualiser draws. */
+export { CocError, checkWrapper, extensionTargetOf } from "./coc";
+export type { ChainLink, ChainLinkKind, ResolvedChain } from "./coc";
+
 /**
  * The debugger. `DebugController` decides where a run stops; the interpreter gathers the
  * state each stop shows. Behaviours VB-022 to VB-026.

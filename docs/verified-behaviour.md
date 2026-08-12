@@ -124,6 +124,28 @@ that compiles and then fails review.
 | VB-059 | An OData **create** calls, in order: `clear()`, `initValue()`, set the supplied fields, `validateField()`, `defaultRow()`, `validateWrite()`, `write()`                             | [MS Learn, OData][21]                | 2026-08-12 | Which is why VB-013 matters: your own X++ `insert()` skips all of this, and the same entity written two ways validates differently                                           |
 | VB-060 | OData and custom services are **synchronous**; the batch data APIs are **asynchronous** and are the answer above roughly a few hundred thousand records                             | [MS Learn, integration overview][22] | 2026-08-12 | With a synchronous pattern the caller gets success or failure back. With an asynchronous one it gets only "scheduled", and must poll for the outcome                         |
 
+### Chain of Command (VB-061 to VB-067)
+
+The customisation model rests on this, and almost every rule is enforced by the
+**compiler** rather than at run time. That distinction is itself worth teaching: none of
+the code below would build.
+
+| ID     | Behaviour                                                                                                                    | Verified against                     | Date       | Notes                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| VB-061 | A wrapper **must always call `next`**, and the call must be a first-level statement                                          | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | Not inside an `if`, not in a loop, not after a `return`, and not in a logical expression — "at runtime, the execution of the complete expression isn't guaranteed" |
+| VB-062 | An extension class carries `[ExtensionOf(...)]` and must be declared **`final`**                                              | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | The wrapper method must have the same signature as the base, and must **omit** any default parameter value the base declares                    |
+| VB-063 | The **order among wrappers is not defined**                                                                                  | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | "The system randomly runs one of these methods … the system randomly picks another method in the CoC." Code that depends on running first or last is already broken |
+| VB-064 | Only **public and protected** methods can be wrapped                                                                          | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | Extensions can also reach protected fields and methods of the class they augment                                                               |
+| VB-065 | A `final` method cannot be wrapped unless it is marked `[Wrappable(true)]`; `[Hookable(false)]` blocks wrapping outright      | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | `[Wrappable(false)]` blocks an otherwise-wrappable public or protected method. `[Hookable(true)]` applies only to pre/post handlers, not to CoC |
+| VB-066 | An extension of a **derived** class may wrap a method declared on its base, and only instances of that derived class get it   | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | The doc's own worked example: `b.salute()` shows the wrapper, `a.salute()` and `c.salute()` do not                                              |
+| VB-067 | A method marked `[Replaceable]` may be wrapped **without** calling `next` — the compiler stops enforcing it                    | [MS Learn, method wrapping and CoC][23] | 2026-08-12 | "The compiler doesn't enforce calls to next for methods with the attribute, Replaceable"                                                        |
+
+> **The defect this is all about.** Every rule above is enforceable, and none of them
+> catches the mistake that actually costs time: calling `next` and then ignoring what it
+> returned. `next speak(); return "mine";` compiles, satisfies every check, and silently
+> discards the work of every other extension and of the original method. The engine
+> reproduces it exactly, and it is what the customisation lesson is built around.
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
 [2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
 [3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
@@ -146,6 +168,7 @@ that compiles and then fails review.
 [20]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/data-entities
 [21]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/odata
 [22]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/integration-overview
+[23]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/extensibility/method-wrapping-coc
 
 ### On VB-030: the merge table is Microsoft's, not ours
 

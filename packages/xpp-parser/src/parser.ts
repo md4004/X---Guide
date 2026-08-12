@@ -1505,6 +1505,25 @@ class Parser {
         this.#next();
         return { kind: "identifier", name: token.text, span: { start, end: this.#previousEnd() } };
 
+      /**
+       * `next` in value position: `var s = next doSomething(arg);`.
+       *
+       * The statement form still exists for a bare `next foo();`, but returning the
+       * chain's answer is the normal case — every wrapper of a method that returns
+       * something has to do it, or the rest of the chain's work is discarded.
+       */
+      case "next": {
+        this.#next();
+        const methodName = this.#memberName();
+        const args = this.#argumentList();
+        return {
+          kind: "nextExpression",
+          methodName,
+          arguments: args,
+          span: { start, end: this.#previousEnd() },
+        };
+      }
+
       default:
         break;
     }

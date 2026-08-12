@@ -8,7 +8,12 @@ import type { InfologEntry, SqlTraceEntry, XppError } from "@xpplab/xpp-core";
 import type { Row, TableName } from "@xpplab/virtual-db";
 import type { StepView, TaskDefinition } from "@xpplab/validators";
 import type { FormViewModel, ReportViewModel } from "@xpplab/renderers";
-import type { Breakpoint, DebugCommand, DebugPause } from "@xpplab/xpp-runtime";
+import type {
+  Breakpoint,
+  DebugCommand,
+  DebugPause,
+  ResolvedChain,
+} from "@xpplab/xpp-runtime";
 
 export interface RunRequest {
   id: number;
@@ -131,6 +136,8 @@ export interface TaskOutcome {
   report?: ReportViewModel;
   /** Why the view could not be built, when it could not. */
   viewError?: string;
+  /** Present when the step declared a `coc` view and the run resolved any chains. */
+  chains?: ResolvedChain[];
 }
 
 export interface TableSnapshot {

@@ -1,0 +1,326 @@
+---
+slug: 16-chain-of-command
+title: Chain of Command
+minutes: 30
+objectives:
+  - Wrap a method with an extension class instead of editing the original
+  - Apply the rules the compiler enforces on next, and know why they exist
+  - Recognise the wrapper that compiles and silently discards everyone else's work
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="why-extensions">
+
+You cannot edit standard code. Not "should not" — the model does not let you. Everything
+you change in F&O, you change from the outside.
+
+**Chain of Command** is how you change a method. You write a class that declares itself an
+extension of another, give it a method with the same name, and your version wraps the
+original:
+
+<Snippet lang="xpp">{`[ExtensionOf(classStr(SalesPriceService))]
+final class SalesPriceService_Extension
+{
+    public real priceFor(str _itemId)
+    {
+        real price = next priceFor(_itemId);
+        return price + 10;
+    }
+}`}</Snippet>
+
+Three parts, and each is load-bearing:
+
+- **`[ExtensionOf(classStr(...))]`** names what you are extending. It is resolved when the
+  code is compiled, so a typo is a build error rather than an extension that never runs.
+- **`final`** is required. An extension class is never instantiated and never subclassed.
+- **`next`** calls the rest of the chain, ending at the original method.
+
+Your wrapper is not a replacement. It is a link.
+
+</Step>
+
+<Step id="first-wrapper">
+
+## Your turn
+
+`SalesPriceService.priceFor()` returns `100`. Leave it alone — you are not allowed to
+change it, and that is the point.
+
+Write `SalesPriceService_Extension`:
+
+- `[ExtensionOf(classStr(SalesPriceService))]`
+- `final class`
+- a `public real priceFor(str _itemId)` that calls `next` and adds `10` to the answer
+
+Then log the price:
+
+`Price: 110.00`
+
+</Step>
+
+<Step id="the-rules">
+
+## The rules the compiler enforces
+
+A wrapper **must always call `next`**, and the call has to be a **first-level statement**
+in the method body. That means:
+
+| Where | Allowed |
+| --- | --- |
+| Straight in the body | yes |
+| Inside a `try` | yes |
+| Inside an `if` | **no** |
+| Inside a loop | **no** |
+| After a `return` that could skip it | **no** |
+| Inside `&&` or `\|\|` | **no** — the expression may short-circuit |
+
+The reason is one sentence: the compiler has to be able to *guarantee* the rest of the
+chain runs. A conditional `next` means somebody else's extension might silently never
+execute, and nobody would know whose.
+
+<Aside title="The one way out">
+  If a method's owner marks it `[Replaceable]`, the compiler stops enforcing `next` — the
+  attribute exists to say "breaking this chain is a supported thing to do". Separately,
+  `[Hookable(false)]` blocks wrapping altogether, and a `final` method cannot be wrapped
+  unless it is marked `[Wrappable(true)]`.
+</Aside>
+
+</Step>
+
+<Step id="next-is-not-optional">
+
+## Your turn
+
+The extension below refuses to build. Read the error, then fix it.
+
+It is trying to be clever: only add the surcharge for one item, so it hides the `next`
+inside an `if`. That is exactly what the rule forbids.
+
+Rewrite it so `next` runs unconditionally and the **condition applies to the result**
+instead. Log:
+
+`F-100: 110.00`
+
+`F-101: 100.00`
+
+The logic you wanted is still possible. It just has to be arranged so that the rest of the
+chain always gets its turn.
+
+</Step>
+
+<Step id="the-silent-defect">
+
+## The one that compiles
+
+Every rule so far is enforced. Here is the mistake that is not:
+
+<Snippet lang="xpp">{`public real priceFor(str _itemId)
+{
+    next priceFor(_itemId);   // called — and thrown away
+    return 250;
+}`}</Snippet>
+
+`next` is called. It is a first-level statement. It compiles, and it passes every check the
+platform makes.
+
+And it silently discards the work of the original method **and of every other extension in
+the chain**. Another team's surcharge, a localisation's tax rule, a hotfix — all of it ran,
+and all of it was thrown in the bin by a line that looks correct.
+
+This is the single most expensive Chain of Command bug, and the only defence is knowing
+what it looks like: **`next` whose return value goes nowhere.**
+
+</Step>
+
+<Step id="fix-the-swallow">
+
+## Your turn
+
+Two extensions wrap `priceFor` — one adds `10`, one adds `5`. The base returns `100`, so
+the answer should be:
+
+`Price: 115.00`
+
+One of them is swallowing the chain. Find it and fix it, so that both surcharges and the
+base price all reach the caller.
+
+When it passes, open the **Chain** tab. That is the chain that actually ran.
+
+</Step>
+
+<Step id="order-not-guaranteed">
+
+## Nobody promises an order
+
+Look again at the Chain tab from the last step. It says the order of the two wrappers is
+**not defined**, and that is not a limitation of this simulator.
+
+The platform's own words are that it "randomly runs one of these methods", and that on
+`next` it "randomly picks another method in the CoC". Two extensions on the same method
+have no guaranteed sequence between them — not alphabetical, not by model, not by install
+order.
+
+Which means the previous exercise was safe for a reason worth noticing: `+10` and `+5`
+give `115` in either order. **Addition commutes.** Logic that does not commute — "overwrite
+the price", "return early if X" — is a bug waiting for the day the order changes.
+
+<Aside title="If you need ordering, you need a different design">
+  Wanting your extension to run last is a sign the logic belongs somewhere else: a setting
+  the base reads, a value the chain accumulates, or an event you publish. It is not
+  something to solve by hoping.
+</Aside>
+
+</Step>
+
+<Step id="what-else">
+
+Two things sit next to Chain of Command and are worth telling apart.
+
+**Event handlers** — `[PreHandlerFor]` and `[PostHandlerFor]` — run before and after a
+method rather than around it. They cannot change the flow, they cannot see each other, and
+like wrappers they have **no guaranteed order**: events are broadcast. Reach for them when
+you want to observe; reach for CoC when you want to participate.
+
+**Overlayering** — editing the original — is what all of this exists to replace. It is why
+`[ExtensionOf]` is verbose: the verbosity is the point, because the alternative was a
+customisation nobody could upgrade.
+
+<KeyPoints>
+  - An extension class is `final` and carries `[ExtensionOf(...)]`
+  - `next` is compulsory and must be a first-level statement
+  - `next` whose result is discarded compiles, and throws away the whole chain
+  - The order between wrappers is not defined — write logic that does not care
+  - Handlers observe; Chain of Command participates
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "why-extensions",
+    title: "You change standard code from the outside",
+    example:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("Unextended: %1", service.priceFor("F-100")));\n',
+  },
+  { id: "first-wrapper", title: "Write a wrapper", taskId: "first-wrapper" },
+  {
+    id: "the-rules",
+    title: "The rules on next",
+    example:
+      'info("next must be a first-level statement, so the compiler can guarantee it runs.");\ninfo("Not in an if, not in a loop, not after a return. A try block is the exception.");\n',
+  },
+  { id: "next-is-not-optional", title: "Make next unconditional", taskId: "next-is-not-optional" },
+  {
+    id: "the-silent-defect",
+    title: "The one that compiles",
+    example:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Extension\n{\n    public real priceFor(str _itemId)\n    {\n        next priceFor(_itemId);\n        return 250;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("The base returned 100, and the caller sees: %1", service.priceFor("F-100")));\n',
+  },
+  {
+    id: "fix-the-swallow",
+    title: "Find the swallow",
+    taskId: "fix-the-swallow",
+    view: { kind: "coc" },
+  },
+  {
+    id: "order-not-guaranteed",
+    title: "Nobody promises an order",
+    example:
+      'info("+10 and +5 give 115 in either order. That is what makes the chain safe.");\ninfo("Overwriting the price would not be, and nothing would warn you.");\n',
+  },
+  {
+    id: "what-else",
+    title: "Handlers, and what this replaced",
+    example:
+      'info("Handlers observe. Chain of Command participates. Overlayering is what both replaced.");\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "first-wrapper",
+    prompt:
+      "Write SalesPriceService_Extension wrapping priceFor to add 10 to whatever next returns, then log: Price: 110.00.",
+    starter:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n// Your extension goes here. Do not change the class above.\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("Price: %1", service.priceFor("F-100")));\n',
+    solution:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Extension\n{\n    public real priceFor(str _itemId)\n    {\n        real price = next priceFor(_itemId);\n        return price + 10;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("Price: %1", service.priceFor("F-100")));\n',
+    hints: [
+      "The class declaration is `[ExtensionOf(classStr(SalesPriceService))]` on the line above `final class SalesPriceService_Extension`.",
+      "Inside it, declare `public real priceFor(str _itemId)` — the same signature as the method you are wrapping.",
+      "Capture the chain's answer first: `real price = next priceFor(_itemId);` then `return price + 10;`.",
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^Price: 110\\.00$",
+        type: "info",
+        message:
+          "The price should come out as 110.00 — the base's 100 plus your 10. If you got 100.00 the extension is not being reached; check the [ExtensionOf] target and that the method name matches exactly.",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "next",
+        message:
+          "The wrapper has to call `next`. Without it you have replaced the original rather than wrapping it — and the compiler would refuse to build it.",
+      },
+    ],
+  },
+
+  {
+    id: "next-is-not-optional",
+    prompt:
+      "Rewrite the extension so next runs unconditionally and the condition applies to its result. Log: F-100: 110.00 and F-101: 100.00.",
+    starter:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Extension\n{\n    public real priceFor(str _itemId)\n    {\n        // This does not build: next cannot live inside an if.\n        if (_itemId == "F-100")\n        {\n            return next priceFor(_itemId) + 10;\n        }\n\n        return 100;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("F-100: %1", service.priceFor("F-100")));\ninfo(strFmt("F-101: %1", service.priceFor("F-101")));\n',
+    solution:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Extension\n{\n    public real priceFor(str _itemId)\n    {\n        real price = next priceFor(_itemId);\n\n        if (_itemId == "F-100")\n        {\n            price = price + 10;\n        }\n\n        return price;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("F-100: %1", service.priceFor("F-100")));\ninfo(strFmt("F-101: %1", service.priceFor("F-101")));\n',
+    hints: [
+      "Call `next` first, unconditionally, and keep its answer in a variable.",
+      "Then apply the `if` to that variable rather than to whether `next` runs.",
+      "Return the variable at the end — one `next`, one `return`, and the condition in between.",
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^F-100: 110\\.00$",
+        type: "info",
+        message:
+          "F-100 should be 110.00 — the base price plus the surcharge that applies to it.",
+      },
+      {
+        kind: "output",
+        match: "^F-101: 100\\.00$",
+        type: "info",
+        message:
+          "F-101 gets no surcharge, so it should be the base's 100.00. Note that it still has to go through `next` — every call does.",
+      },
+    ],
+  },
+
+  {
+    id: "fix-the-swallow",
+    prompt:
+      "Two extensions add 10 and 5 to a base price of 100. One of them discards the chain's result. Fix it so the total is: Price: 115.00.",
+    starter:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Surcharge\n{\n    public real priceFor(str _itemId)\n    {\n        real price = next priceFor(_itemId);\n        return price + 10;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Handling\n{\n    public real priceFor(str _itemId)\n    {\n        // This one compiles, and throws the rest of the chain away.\n        next priceFor(_itemId);\n        return 5;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("Price: %1", service.priceFor("F-100")));\n',
+    solution:
+      'class SalesPriceService\n{\n    public real priceFor(str _itemId)\n    {\n        return 100;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Surcharge\n{\n    public real priceFor(str _itemId)\n    {\n        real price = next priceFor(_itemId);\n        return price + 10;\n    }\n}\n\n[ExtensionOf(classStr(SalesPriceService))]\nfinal class SalesPriceService_Handling\n{\n    public real priceFor(str _itemId)\n    {\n        real price = next priceFor(_itemId);\n        return price + 5;\n    }\n}\n\nSalesPriceService service = new SalesPriceService();\ninfo(strFmt("Price: %1", service.priceFor("F-100")));\n',
+    hints: [
+      "Only one of the two extensions is wrong. Compare them line by line.",
+      "`SalesPriceService_Handling` calls `next` and then ignores what came back.",
+      "Capture it — `real price = next priceFor(_itemId);` — and return `price + 5`.",
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^Price: 115\\.00$",
+        type: "info",
+        message:
+          "The total should be 115.00 — the base's 100, plus 10, plus 5. If you got 15.00 one extension is still discarding what `next` returned, so the base price never reaches the caller.",
+      },
+    ],
+  },
+];

@@ -83,7 +83,14 @@ export type StepView =
       title: string;
       groupBy: string[];
       totals: { column: string; aggregate: "sum" | "count" | "avg" }[];
-    };
+    }
+  /**
+   * The Chain of Command the run resolved.
+   *
+   * Unlike the other two this needs nothing from the database — it comes back on the run
+   * result, because a chain is a fact about the code rather than about the data.
+   */
+  | { kind: "coc" };
 
 export interface TrackDefinition {
   slug: string;

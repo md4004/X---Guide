@@ -13,6 +13,7 @@
  */
 
 import type { ClassDeclaration, MethodDeclaration, TypeReference } from "@xpplab/xpp-parser";
+import { CocError, checkWrapper, extensionTargetOf } from "./coc";
 import type { XppValue } from "./values";
 
 export type Access = "public" | "protected" | "private";
@@ -45,6 +46,16 @@ export interface RuntimeClass {
   fields: Map<string, RuntimeField>;
   /** Static field storage, shared by every instance and by the class itself. */
   statics: Map<string, XppValue>;
+  /**
+   * Wrappers contributed by `[ExtensionOf]` classes, keyed by lowercased method name.
+   *
+   * Stored on the *target* rather than on the extension, because that is how they are
+   * found: a call to `target.method()` has to discover everyone who wrapped it, and the
+   * extensions themselves are never named at the call site.
+   */
+  wrappers: Map<string, RuntimeMethod[]>;
+  /** `true` for an `[ExtensionOf]` class, which is never instantiated. */
+  isExtension: boolean;
 }
 
 const lower = (name: string): string => name.toLowerCase();
@@ -99,6 +110,8 @@ export function buildClassTable(
       methods: new Map(),
       fields: new Map(),
       statics: new Map(),
+      wrappers: new Map(),
+      isExtension: extensionTargetOf(declaration) !== undefined,
     });
   }
 
@@ -148,12 +161,110 @@ export function buildClassTable(
   // Third pass: the override rules, which can only be checked once bases are linked.
   for (const declaration of declarations) {
     const runtime = table.get(lower(declaration.name))!;
+    if (runtime.isExtension) continue;
+
     for (const method of runtime.methods.values()) {
       checkOverride(runtime, method);
     }
   }
 
+  // Fourth pass: hang each extension's wrappers on the class they wrap.
+  for (const declaration of declarations) {
+    const extension = table.get(lower(declaration.name))!;
+    const target = extensionTargetOf(declaration);
+    if (target === undefined) continue;
+
+    attachWrappers(table, extension, target.name);
+  }
+
   return table;
+}
+
+/**
+ * Registers one extension class's methods as wrappers on its target.
+ *
+ * Every rule checked here is a compile error in a real environment, so it is raised before
+ * a statement runs. A learner who meets "you cannot wrap a private method" at the moment
+ * of the call has been taught that this is a runtime concern, and it is not.
+ */
+function attachWrappers(
+  table: Map<string, RuntimeClass>,
+  extension: RuntimeClass,
+  targetName: string,
+): void {
+  const target = table.get(lower(targetName));
+
+  if (target === undefined) {
+    throw new CocError(
+      `'${extension.name}' extends '${targetName}', which does not exist.`,
+      "The [ExtensionOf] target has to be a class declared in this code. Check the spelling — a typo here is one of the most common reasons an extension silently never runs in a real environment.",
+    );
+  }
+
+  for (const wrapper of extension.methods.values()) {
+    // `new` on an extension is the extension's own constructor, not a wrapper.
+    if (wrapper.name.toLowerCase() === "new") continue;
+
+    const wrapped = findMethod(target, wrapper.name);
+
+    if (wrapped === undefined) {
+      throw new CocError(
+        `'${extension.name}.${wrapper.name}' wraps nothing — '${target.name}' has no method called '${wrapper.name}'.`,
+        "Chain of Command wraps an existing method; it cannot add a new one. Check the name and the signature against the class you are extending.",
+      );
+    }
+
+    // VB-064: only public and protected methods can be wrapped.
+    if (wrapped.access === "private") {
+      throw new CocError(
+        `'${wrapped.declaringClass.name}.${wrapped.name}' is private, so it cannot be wrapped.`,
+        "Chain of Command reaches public and protected methods. A private method is an implementation detail its owner has not offered you.",
+      );
+    }
+
+    // VB-065: `final` blocks wrapping unless the method opts back in.
+    if (wrapped.isFinal && !hasAttribute(wrapped, "wrappable")) {
+      throw new CocError(
+        `'${wrapped.declaringClass.name}.${wrapped.name}' is final, so it cannot be wrapped.`,
+        "A final method can only be wrapped if its owner marked it `[Wrappable(true)]`.",
+      );
+    }
+
+    if (hasAttribute(wrapped, "hookable")) {
+      throw new CocError(
+        `'${wrapped.declaringClass.name}.${wrapped.name}' is marked [Hookable(false)], so it cannot be wrapped.`,
+        "The owner has explicitly opted this method out of both Chain of Command and pre/post handlers.",
+      );
+    }
+
+    checkWrapper(extension.name, wrapper.declaration, {
+      replaceable: hasAttribute(wrapped, "replaceable"),
+    });
+
+    const key = lower(wrapper.name);
+    const existing = target.wrappers.get(key) ?? [];
+    target.wrappers.set(key, [...existing, wrapper]);
+  }
+}
+
+/**
+ * Whether a method carries an attribute whose single argument is not `false`.
+ *
+ * `[Hookable(false)]` and `[Wrappable(false)]` are the negative forms, and both matter, so
+ * the argument is read rather than the attribute's presence alone.
+ */
+function hasAttribute(method: RuntimeMethod, name: string): boolean {
+  const attribute = method.declaration.attributes.find(
+    (candidate) => candidate.name.toLowerCase() === name,
+  );
+  if (attribute === undefined) return false;
+
+  const argument = attribute.arguments[0];
+  const value =
+    argument?.kind === "literal" ? String(argument.value).toLowerCase() : "true";
+
+  // `[Hookable(false)]` blocks; `[Wrappable(true)]` and `[Replaceable]` permit.
+  return name === "hookable" ? value === "false" : value !== "false";
 }
 
 const RANK: Record<Access, number> = { private: 0, protected: 1, public: 2 };
