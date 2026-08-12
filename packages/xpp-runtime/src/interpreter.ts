@@ -44,6 +44,7 @@ import {
 } from "@xpplab/virtual-db";
 import { createVirtualAot, validateWrite, type VirtualAot } from "@xpplab/virtual-aot";
 import { callBuiltin, formatString, isBuiltin } from "./builtins";
+import { STUB_SOURCE } from "./stubs";
 import {
   QueryCompileError,
   addDataSource,
@@ -255,7 +256,15 @@ export class Interpreter {
     try {
       // Classes are registered before any statement runs, so a job at the top of the file
       // can call a class declared at the bottom of it. X++ has no ordering rule here.
-      this.#classes = buildClassTable(this.#options.ast.declarations, this.#options.classes);
+      // The teaching stubs first, so a learner's class can extend one. Parsed rather
+      // than hand-built: a stub written in X++ behaves like X++.
+      const stubs = parse(STUB_SOURCE);
+      const stubTable = buildClassTable(stubs.ast?.declarations ?? []);
+
+      this.#classes = buildClassTable(
+        this.#options.ast.declarations,
+        this.#options.classes ?? stubTable,
+      );
       await this.#initialiseStatics();
 
       for (const statement of this.#options.ast.statements) {
@@ -561,6 +570,19 @@ export class Interpreter {
       }
     }
 
+    if (holder.kind === "SrsReportRunController") {
+      // `ssrsReportStr(ItemSalesReport, Report)` arrives already flattened to a string.
+      if (name === "parmreportname") {
+        if (args.length > 0) holder.controller.reportName = text(0);
+        return str(holder.controller.reportName);
+      }
+      // A real controller takes the caller's Args to find the record it was opened from.
+      // There is no menu item here, so there is nothing to carry — and saying so beats
+      // accepting it silently and implying it did something.
+      if (name === "parmargs") return VOID;
+      if (name === "startoperation") return this.#startReport(holder.controller, span);
+    }
+
     if (holder.kind === "QueryRun") {
       if (name === "next") return this.#queryRunNext(holder.run, span);
       if (name === "get") {
@@ -648,6 +670,119 @@ export class Interpreter {
     return bool(true);
   }
 
+  // -- the report framework ------------------------------------------------
+
+  /**
+   * `SrsReportRunController.startOperation()`.
+   *
+   * This is the sequence a learner never writes and always depends on. The controller was
+   * given a report *name* and nothing else; everything it needs comes from the report
+   * element in the AOT:
+   *
+   *   1. resolve the report, and through it the data provider class
+   *   2. construct the provider
+   *   3. hand it the query the report declares       — `parmQuery()`
+   *   4. hand it the contract, if the provider has one — `parmDataContract()`
+   *   5. call `processReport()`, which is the learner's code
+   *   6. read the dataset back through the method carrying `[SRSReportDataSetAttribute]`
+   *
+   * Step 5 is the only one in the learner's hands, and steps 3, 4 and 6 are why the
+   * attributes exist. Running it for real is what makes that concrete.
+   */
+  async #startReport(
+    controller: { reportName: string; ran: boolean },
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    if (controller.reportName === "") {
+      throw new RuntimeError(
+        XppErrorCodes.ObjectNotFound,
+        "The controller has no report name, so there is nothing to run.",
+        "Call `controller.parmReportName(ssrsReportStr(YourReport, Report));` before startOperation().",
+        "Error",
+        span,
+      );
+    }
+
+    // `Report.Design` is how a report name is written; the report element is the first half.
+    const reportName = controller.reportName.split(".")[0]!;
+    const report = this.#aot.getReport(reportName);
+
+    if (report === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.ObjectNotFound,
+        `There is no report called '${reportName}'.`,
+        "A report is an AOT element, not a class. The controller finds the data provider through it, which is why the name has to match.",
+        "Error",
+        span,
+      );
+    }
+
+    const provider = this.#lookupClass(report.dataProviderClass);
+    if (provider === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.ObjectNotFound,
+        `'${report.name}' names '${report.dataProviderClass}' as its data provider, and no such class is declared.`,
+        `Declare \`class ${report.dataProviderClass} extends SRSReportDataProviderBase\` with a processReport() method.`,
+        "Error",
+        span,
+      );
+    }
+
+    const instance = await this.#construct(provider, [], span);
+    if (instance.type !== "object") return VOID;
+
+    // 3. The query the report declares, built the way a query object is built anywhere.
+    const query = createQuery();
+    addDataSource(query, report.queryTable);
+    if (findMethod(provider, "parmQuery") !== undefined) {
+      await this.#callInstanceMethod(
+        instance.instance,
+        "parmQuery",
+        [{ type: "queryObject", object: { kind: "Query", query } }],
+        span,
+      );
+    }
+
+    // 5. The learner's code.
+    if (findMethod(provider, "processReport") === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${provider.name}' has no processReport() method, so the framework has nothing to call.`,
+        "The base class declares an empty one; override it with `public void processReport()` and fill the table there.",
+        "Error",
+        span,
+      );
+    }
+    await this.#callInstanceMethod(instance.instance, "processReport", [], span);
+
+    // 6. The dataset getter is found by its attribute, not by its name — which is the
+    // point of the attribute, and why renaming the method breaks nothing.
+    const getter = [...provider.methods.values()].find((method) =>
+      method.declaration.attributes.some(
+        (attribute) => attribute.name.toLowerCase() === "srsreportdatasetattribute",
+      ),
+    );
+
+    if (getter === undefined) {
+      this.infolog.add(
+        "warning",
+        `${provider.name} filled the table, but no method carries [SRSReportDataSetAttribute], so a design would have nothing to bind to.`,
+        span.start.line,
+      );
+    } else {
+      await this.#callInstanceMethod(instance.instance, getter.name, [], span);
+    }
+
+    controller.ran = true;
+    this.infolog.add(
+      "info",
+      `Report ${report.name} ran: ${report.dataProviderClass}.processReport() filled ${report.table}.`,
+      span.start.line,
+    );
+
+    return VOID;
+  }
+
   // -- classes -------------------------------------------------------------
 
   /** Static fields exist once per class, so they are created before anything runs. */
@@ -683,8 +818,11 @@ export class Interpreter {
 
     const instance: ObjectInstance = { className: runtime.name, fields: new Map() };
     for (const field of allFields(runtime)) {
+      // `#initialValue`, not `defaultValueFor`: a field declared as a table gets a real
+      // empty buffer, exactly as a local of that type would. Without this, a data
+      // provider whose temp table is a class field has a null where its buffer should be.
       if (!field.isStatic)
-        instance.fields.set(field.name.toLowerCase(), defaultValueFor(field.type.name));
+        instance.fields.set(field.name.toLowerCase(), this.#initialValue(field.type));
     }
 
     // VB-042: a class may declare one `new`. Without one there is a parameterless default,
@@ -778,7 +916,7 @@ export class Interpreter {
         const value =
           supplied ??
           (parameter.defaultValue === undefined
-            ? defaultValueFor(parameter.type.name)
+            ? this.#initialValue(parameter.type)
             : await this.#evaluate(parameter.defaultValue));
         this.#scope.declare(parameter.name, value, parameter.type.name);
       }
@@ -2062,8 +2200,19 @@ export class Interpreter {
 
     if (target.kind === "memberAccess") {
       const holder = await this.#evaluate(target.object);
+
       if (holder.type === "object") {
         this.#writeField(holder.instance, target.member, value, target.span);
+        return;
+      }
+
+      // Same reason as the method call above: the buffer being written may be a field.
+      if (holder.type === "buffer") {
+        const buffer = holder.buffer;
+        const column = this.#column(buffer.tableName as TableName, target.member, target.span);
+        buffer.row ??= {};
+        buffer.row[column] = toSqlValue(value);
+        buffer.isEmpty = false;
         return;
       }
     }
@@ -2187,6 +2336,11 @@ export class Interpreter {
       }
       if (receiver.type === "queryObject") {
         return this.#queryMethod(receiver.object, expression.callee.member, args, expression.span);
+      }
+      // Evaluated rather than looked up in scope, because a buffer is just as likely to be
+      // a class field as a local — a data provider's temp table almost always is.
+      if (receiver.type === "buffer") {
+        return this.#bufferMethod(receiver.buffer, expression.callee.member, expression.span);
       }
     }
 
@@ -2436,6 +2590,13 @@ export class Interpreter {
 
     if (name === "query") {
       return { type: "queryObject", object: { kind: "Query", query: createQuery() } };
+    }
+
+    if (name === "srsreportruncontroller") {
+      return {
+        type: "queryObject",
+        object: { kind: "SrsReportRunController", controller: { reportName: "", ran: false } },
+      };
     }
 
     if (name === "queryrun") {

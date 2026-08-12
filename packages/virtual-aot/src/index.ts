@@ -16,7 +16,7 @@
 
 export * from "./types";
 export { createVirtualAot } from "./aot";
-export { BASE_MODEL, EDTS, ENTITIES, FORMS } from "./model";
+export { BASE_MODEL, EDTS, ENTITIES, FORMS, REPORTS } from "./model";
 
 export {
   addField,

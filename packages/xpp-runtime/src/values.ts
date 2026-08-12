@@ -73,7 +73,14 @@ export type QueryObject =
   | { kind: "Query"; query: QueryModel }
   | { kind: "QueryBuildDataSource"; dataSource: QueryDataSource }
   | { kind: "QueryBuildRange"; range: QueryRange }
-  | { kind: "QueryRun"; run: QueryRunState };
+  | { kind: "QueryRun"; run: QueryRunState }
+  /**
+   * The report controller. Native because `startOperation()` *is* the framework: it
+   * resolves the report from metadata and drives the provider in an order the caller does
+   * not choose. Written as an X++ stub it would have to invent a way to be handed the
+   * provider, and that would teach a sequence that does not exist.
+   */
+  | { kind: "SrsReportRunController"; controller: { reportName: string; ran: boolean } };
 
 export type XppCollection =
   | { kind: "List"; itemType: string; items: XppValue[] }

@@ -26,6 +26,7 @@ import type {
   FieldGroupMetadata,
   FieldMetadata,
   FormMetadata,
+  ReportMetadata,
   TableMetadata,
 } from "./types";
 
@@ -315,11 +316,37 @@ export const ENTITIES: readonly DataEntityMetadata[] = [
   },
 ];
 
+/**
+ * One report, and it is the one the reports lessons build.
+ *
+ * The design half lives here rather than in code, which is the whole point: grouping and
+ * totals are a property somebody sets, not something the data provider decides. A learner
+ * who changes `groupBy` here and re-runs sees the same rows arranged differently, without
+ * touching a line of X++.
+ */
+export const REPORTS: readonly ReportMetadata[] = [
+  {
+    name: "ItemSalesReport",
+    design: "Report",
+    dataProviderClass: "ItemSalesDP",
+    dataSetName: "ItemSales",
+    table: "TmpItemSales",
+    queryTable: "SalesLine",
+    groupBy: ["ItemGroupId"],
+    totals: [
+      { column: "LineAmount", aggregate: "sum" },
+      { column: "SalesQty", aggregate: "sum" },
+    ],
+    title: "Item sales by group",
+  },
+];
+
 export const BASE_MODEL: AotModel = {
   tables: TABLES.map((table) => ({ ...table })),
   edts: EDTS.map((edt) => ({ ...edt })),
   enums: ENUMS.map((baseEnum) => ({ ...baseEnum })),
   forms: FORMS.map((form) => ({ ...form })),
   entities: ENTITIES.map((entity) => ({ ...entity })),
+  reports: REPORTS.map((report) => ({ ...report })),
   stubClasses: [],
 };

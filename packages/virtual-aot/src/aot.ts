@@ -23,6 +23,7 @@ import type {
   ExtensionDefinition,
   FieldMetadata,
   FormMetadata,
+  ReportMetadata,
   TableMetadata,
   VirtualAot,
 } from "./types";
@@ -43,6 +44,7 @@ class Aot implements VirtualAot {
   #enums = new Map<string, BaseEnumMetadata>();
   #forms = new Map<string, FormMetadata>();
   #entities = new Map<string, DataEntityMetadata>();
+  #reports = new Map<string, ReportMetadata>();
 
   constructor(model: AotModel) {
     this.#baseline = cloneModel(model);
@@ -56,6 +58,7 @@ class Aot implements VirtualAot {
     this.#enums = new Map(this.#model.enums.map((item) => [lower(item.name), item]));
     this.#forms = new Map(this.#model.forms.map((form) => [lower(form.name), form]));
     this.#entities = new Map(this.#model.entities.map((entity) => [lower(entity.name), entity]));
+    this.#reports = new Map(this.#model.reports.map((report) => [lower(report.name), report]));
   }
 
   getModel(): AotModel {
@@ -80,6 +83,10 @@ class Aot implements VirtualAot {
 
   getEntity(name: string): DataEntityMetadata | undefined {
     return this.#entities.get(lower(name));
+  }
+
+  getReport(name: string): ReportMetadata | undefined {
+    return this.#reports.get(lower(name));
   }
 
   getField(tableName: string, fieldName: string): FieldMetadata | undefined {

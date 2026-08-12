@@ -203,6 +203,35 @@ export interface DataEntityMetadata {
 }
 
 // ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+/**
+ * A report element: the metadata that ties a design to the class that feeds it.
+ *
+ * This is the piece a learner cannot see from their own code, and the piece that explains
+ * how a controller finds anything. `SrsReportRunController` is given a *report name* and
+ * nothing else — everything it needs to run comes from here.
+ */
+export interface ReportMetadata {
+  name: string;
+  /** The design within the report, which is what `ssrsReportStr(Report, Design)` names. */
+  design: string;
+  /** The RDP class whose `processReport()` fills the dataset. */
+  dataProviderClass: string;
+  /** The `[SRSReportDataSetAttribute]` name the design binds to. */
+  dataSetName: string;
+  /** The temporary table the provider writes and the design reads. */
+  table: string;
+  /** The root table of the query handed to the provider as `parmQuery()`. */
+  queryTable: string;
+  /** Grouping and totals, which live in the design rather than in the provider. */
+  groupBy: string[];
+  totals: { column: string; aggregate: "sum" | "count" | "avg" }[];
+  title: string;
+}
+
+// ---------------------------------------------------------------------------
 // The model
 // ---------------------------------------------------------------------------
 
@@ -219,6 +248,7 @@ export interface AotModel {
   enums: BaseEnumMetadata[];
   forms: FormMetadata[];
   entities: DataEntityMetadata[];
+  reports: ReportMetadata[];
   /**
    * Our own minimal teaching stubs standing in for standard classes. Labelled as stubs
    * in the UI — we do not ship Microsoft source. See CLAUDE.md > Legal rule.
@@ -274,6 +304,7 @@ export interface VirtualAot {
   getEnum(name: string): BaseEnumMetadata | undefined;
   getForm(name: string): FormMetadata | undefined;
   getEntity(name: string): DataEntityMetadata | undefined;
+  getReport(name: string): ReportMetadata | undefined;
 
   /** One field's metadata, resolved case-insensitively as X++ resolves identifiers. */
   getField(tableName: string, fieldName: string): FieldMetadata | undefined;
