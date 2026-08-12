@@ -1007,8 +1007,18 @@ const dimensionValues: Row[] = [
   { RECID: 6122, DimensionAttribute: 6003, DisplayValue: "DEP-20", Description: "Operations" },
   { RECID: 6131, DimensionAttribute: 6004, DisplayValue: "FURNITURE", Description: "Furniture" },
   { RECID: 6132, DimensionAttribute: 6004, DisplayValue: "RAWMAT", Description: "Raw materials" },
-  { RECID: 6141, DimensionAttribute: 6005, DisplayValue: "PRJ-001", Description: "Otterbury fit-out" },
-  { RECID: 6142, DimensionAttribute: 6005, DisplayValue: "PRJ-002", Description: "Larkfield refresh" },
+  {
+    RECID: 6141,
+    DimensionAttribute: 6005,
+    DisplayValue: "PRJ-001",
+    Description: "Otterbury fit-out",
+  },
+  {
+    RECID: 6142,
+    DimensionAttribute: 6005,
+    DisplayValue: "PRJ-002",
+    Description: "Larkfield refresh",
+  },
 ].map((value) => ({ ...value, DATAAREAID: SHARED_DATAAREAID }));
 
 const dimensionSets: Row[] = [

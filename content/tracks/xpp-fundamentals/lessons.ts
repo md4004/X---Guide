@@ -24,11 +24,7 @@ import { frontmatter as f07, steps as s07, tasks as t07 } from "./07-companies.m
 import { frontmatter as f08, steps as s08, tasks as t08 } from "./08-exceptions.mdx";
 import { frontmatter as f09, steps as s09, tasks as t09 } from "./09-forms.mdx";
 import { frontmatter as f10, steps as s10, tasks as t10 } from "./10-reports.mdx";
-import {
-  frontmatter as f11,
-  steps as s11,
-  tasks as t11,
-} from "./11-financial-dimensions.mdx";
+import { frontmatter as f11, steps as s11, tasks as t11 } from "./11-financial-dimensions.mdx";
 
 export interface LessonData {
   frontmatter: LessonFrontmatter;

@@ -138,14 +138,14 @@ test.describe("a project is what makes an element editable", () => {
     await page.getByTestId("tree-node-AOT/Data Model/Tables/InventTable").dblclick();
     await page.getByTestId("designer-add-field").click();
 
-    await expect(page.getByTestId("tree-node-InventTable/Fields/NewField7")).toBeVisible();
+    await expect(page.getByTestId("tree-node-InventTable/Fields/NewField1")).toBeVisible();
     await expect(page.getByTestId("studio-status")).toContainText("the database does not");
 
     // The metadata changed; the database has not, until this command runs.
     await page.getByTestId("menu-Dynamics 365").click();
     await page.getByTestId("menu-item-Synchronize database").click();
     await expect(page.getByTestId("output-pane")).toContainText(
-      "ALTER TABLE InventTable ADD NewField7 TEXT",
+      "ALTER TABLE InventTable ADD NewField1 TEXT",
     );
   });
 

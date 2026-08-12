@@ -166,6 +166,7 @@ export function LessonWorkspace({
           <div className="max-h-[38%] shrink-0 overflow-auto border-t border-zinc-800">
             <ResultPanel
               outcome={outcome}
+              actionLabel={task === undefined ? "Run" : "Check"}
               onSelectLine={(line, column) => editorRef.current?.revealPosition(line, column)}
             />
           </div>

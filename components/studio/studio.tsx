@@ -221,10 +221,18 @@ export function Studio() {
   const handleAddField = useCallback(() => {
     if (openElement === undefined || openElement.type !== "table") return;
 
-    const existing = aot.getTable(openElement.name)?.fields.length ?? 0;
+    // The lowest unused NewFieldN, rather than one past the field count. A name derived
+    // from the count changes whenever the table gains a field for unrelated reasons, which
+    // makes it unpredictable for the learner and brittle for the tests.
+    const taken = new Set(
+      (aot.getTable(openElement.name)?.fields ?? []).map((field) => field.name.toLowerCase()),
+    );
+    let ordinal = 1;
+    while (taken.has(`newfield${ordinal}`)) ordinal++;
+
     const field: FieldMetadata = {
-      name: `NewField${existing + 1}`,
-      label: `New field ${existing + 1}`,
+      name: `NewField${ordinal}`,
+      label: `New field ${ordinal}`,
       baseType: "str",
       mandatory: false,
       allowEdit: true,

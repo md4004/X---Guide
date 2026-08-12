@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * What happened when you pressed Check, under the editor.
+ * What happened when you ran the code, under the editor.
  *
  * One message, never a list. Which message depends on how far the code got: it did not
  * parse, it failed at runtime, or it ran and did the wrong thing. The Infolog and the SQL
@@ -20,9 +20,16 @@ type Tab = "result" | "infolog" | "sql" | "view";
 export function ResultPanel({
   outcome,
   onSelectLine,
+  actionLabel,
 }: {
   outcome: TaskOutcome | undefined;
   onSelectLine: (line: number, column: number) => void;
+  /**
+   * What the button next to this panel actually says — "Check" on an exercise, "Run" on a
+   * reading step. Telling someone to press Check while the button says Run is a small lie,
+   * and it is the sort a learner blames themselves for.
+   */
+  actionLabel: string;
 }) {
   const [selected, setSelected] = useState<Tab | undefined>(undefined);
   const [lastOutcome, setLastOutcome] = useState(outcome);
@@ -48,7 +55,7 @@ export function ResultPanel({
   if (outcome === undefined) {
     return (
       <p className="px-4 py-3 text-xs text-zinc-600">
-        Press Check, or Ctrl/Cmd+Enter, to run your code.
+        Press {actionLabel}, or Ctrl/Cmd+Enter, to run your code.
       </p>
     );
   }
