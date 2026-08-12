@@ -146,6 +146,13 @@ the code below would build.
 > discards the work of every other extension and of the original method. The engine
 > reproduces it exactly, and it is what the customisation lesson is built around.
 
+### Numeric conversion and display (VB-068 to VB-069)
+
+| ID     | Behaviour                                                                                                     | Verified against                  | Date       | Notes                                                                                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------- | --------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VB-068 | An `int` is **automatically converted** to a `real`, and a `real` assigned into an `int` is truncated          | [MS Learn, X++ primitive types][24] | 2026-08-12 | "An integer is automatically converted to a **boolean**, **enum**, or **real**." The page's own example truncates `3.141528/3` to the int `1`. So a method declared `real` that returns the literal `100` hands back a real, and that is what the Infolog shows |
+| VB-069 | `strFmt` renders a `real` to **two decimal places**, rounding                                                  | [MS Learn, X++ primitive types][24] | 2026-08-12 | The page's own worked output: `real9 = 2.3456` prints as `strFmt says real9 == 2.35`. One documented data point, matched exactly — the engine does not claim to model per-EDT `NoOfDecimals` |
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
 [2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
 [3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
@@ -169,6 +176,7 @@ the code below would build.
 [21]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/odata
 [22]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/integration-overview
 [23]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/extensibility/method-wrapping-coc
+[24]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data-primitive
 
 ### On VB-030: the merge table is Microsoft's, not ours
 
