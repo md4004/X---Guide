@@ -93,6 +93,13 @@ function callsMethod(ast: SourceUnit, name: string): boolean {
         if (call.callee.kind === "identifier" && call.callee.name.toLowerCase() === target) {
           found = true;
         }
+        // `Tally::report()`. The parser shapes `::` as enum access, because at parse time
+        // `NoYes::Yes` and `Tally::report()` are indistinguishable — only the call around
+        // it says which. A static call is still a method call, and a validator that missed
+        // it would quietly pass any task about calling one.
+        if (call.callee.kind === "enumAccess" && call.callee.valueName.toLowerCase() === target) {
+          found = true;
+        }
       },
     },
     // `next insert();` is its own statement, not a call expression.

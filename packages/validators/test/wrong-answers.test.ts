@@ -357,6 +357,32 @@ const WRONG: WrongAnswer[] = [
     source: 'InventTable inventTable;\n\ninfo("validateWrite says: No");',
     expect: "Call validateWrite() on the buffer",
   },
+
+  // -- 13 Classes and methods ----------------------------------------------
+  {
+    lesson: "13-classes-and-methods",
+    task: "hide-a-field",
+    label: "logs the literal instead of reading it back through the accessor",
+    source:
+      'class Customer\n{\n    private str account;\n\n    public void setAccount(str _account)\n    {\n        account = _account;\n    }\n\n    public str getAccount()\n    {\n        return account;\n    }\n}\n\nCustomer customer = new Customer();\ncustomer.setAccount("C-1000");\ninfo("Account: C-1000");',
+    expect: "Read the value back through getAccount()",
+  },
+  {
+    lesson: "13-classes-and-methods",
+    task: "static-counter",
+    label: "makes the counter an instance field, so each object counts on its own",
+    source:
+      'class Tally\n{\n    public int total;\n\n    public void add(int _n)\n    {\n        total = total + _n;\n    }\n\n    public int report()\n    {\n        return total;\n    }\n}\n\nTally first = new Tally();\nTally second = new Tally();\nfirst.add(3);\nsecond.add(4);\ninfo(strFmt("Total: %1", second.report()));',
+    expect: "each object counted on its own",
+  },
+  {
+    lesson: "13-classes-and-methods",
+    task: "inherit",
+    label: "repeats the base class's string instead of calling super()",
+    source:
+      'class Animal\n{\n    public str speak()\n    {\n        return "...";\n    }\n}\n\nclass Dog extends Animal\n{\n    public str speak()\n    {\n        return "... woof";\n    }\n}\n\nDog dog = new Dog();\ninfo(dog.speak());',
+    expect: "Use super() for the first half",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {

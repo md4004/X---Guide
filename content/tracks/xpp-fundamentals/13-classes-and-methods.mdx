@@ -1,0 +1,366 @@
+---
+slug: 13-classes-and-methods
+title: Classes and methods
+minutes: 30
+objectives:
+  - Declare a class with fields and methods, and construct it
+  - Use public, protected and private with the defaults X++ actually has
+  - Tell a static method from an instance method, and know when each is right
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="why-a-class">
+
+Everything so far has been a **job**: a list of statements that runs top to bottom. Real
+F&O code is almost never that. It is classes — because a data provider is a class, a
+controller is a class, and a Chain of Command extension is a class.
+
+A class is a type you declare, with data of its own and methods that operate on it:
+
+<Snippet lang="xpp">{`class Square
+{
+    private int side;
+
+    public void new(int _side = 1)
+    {
+        side = _side;
+    }
+
+    public int getArea()
+    {
+        return side * side;
+    }
+}
+
+Square square = new Square(15);
+info(int2Str(square.getArea()));`}</Snippet>
+
+`new` is the constructor. A class may declare **one**, and if it declares none it still has
+a parameterless one — which is why `new Bare()` works on a class with no `new` at all.
+
+Run it. Then change `15` and run it again.
+
+</Step>
+
+<Step id="two-defaults">
+
+## The two defaults that are not what you expect
+
+If you have written C#, Java or TypeScript, you carry an assumption that is **wrong here**,
+and wrong in a way nothing complains about:
+
+| | X++ | C# |
+| --- | --- | --- |
+| A method with no access modifier | **public** | private |
+| A field with no access modifier | **protected** | private |
+
+Both directions hurt. A method you thought was internal is on your public surface, and a
+field you thought was private is visible to every subclass.
+
+<Snippet lang="xpp">{`class Point
+{
+    int x;              // protected — not private
+    str describe()      // public — not private
+    {
+        return int2Str(x);
+    }
+}`}</Snippet>
+
+So `private` is not the thing you get by saying nothing. It is a thing you have to write.
+
+<Aside title="Why fields are protected and not public">
+  A public field is part of your contract forever. The convention in F&O is a private field
+  plus an accessor — and the accessor has a naming convention of its own, `parm`, which the
+  last step of this lesson covers.
+</Aside>
+
+</Step>
+
+<Step id="hide-a-field">
+
+## Your turn
+
+Write a `Customer` class that keeps its data to itself.
+
+- a **private** `str` field called `account`
+- a **public** method `setAccount(str _account)` that assigns it
+- a **public** method `getAccount()` that returns it
+
+Then, below the class, create one, set the account to `C-1000`, and log it as:
+
+`Account: C-1000`
+
+If you leave `private` off the field, the code still works — and that is the point of
+writing it.
+
+</Step>
+
+<Step id="void-and-return">
+
+## Every method declares what it gives back
+
+There is no "no return type" in X++. A method that returns nothing says so, with `void`:
+
+<Snippet lang="xpp">{`public void announce(str _message)
+{
+    info(_message);
+    // A bare return is legal here, and there is an implicit one at the end.
+}
+
+public int twice(int _value)
+{
+    return _value * 2;
+}`}</Snippet>
+
+Two things follow that catch people out:
+
+- A `void` method can `return;` early, with no value.
+- A method with a declared return type that reaches the end without returning gives back
+  its type's **default** — `0`, `""`, `false` — rather than failing. A missing `return` is
+  a silent zero, not a crash.
+
+</Step>
+
+<Step id="static-counter">
+
+## Your turn
+
+A **static** method belongs to the class, not to an instance. You call it with `::` and you
+never construct anything:
+
+`MathHelp::twice(21)`
+
+A static method cannot touch instance fields, because there is no instance — and `this`
+means nothing inside one.
+
+Write a class `Tally` with:
+
+- a **public static** `int` field `total`
+- a **public** instance method `add(int _n)` that adds to it
+- a **public static** method `report()` that returns it
+
+Then create **two** `Tally` objects, add `3` through the first and `4` through the second,
+and log the total as:
+
+`Total: 7`
+
+Two objects, one counter. That is what static means.
+
+</Step>
+
+<Step id="access-rules">
+
+## Who is allowed to call what
+
+| Modifier | Callable from |
+| --- | --- |
+| `public` | anywhere the class is visible |
+| `protected` | the class, and any class that extends it |
+| `private` | only the class that declares it |
+
+Two rules sit on top of that, and both are compile errors rather than runtime surprises:
+
+- **You cannot override a `private` method.** A subclass cannot see it, so it is not
+  overriding anything — it is declaring a second, unrelated method with the same name.
+- **An override cannot narrow access.** If the base method is `public`, yours must be
+  `public` too. Anything that could call the base must still be able to call yours.
+
+And one rule that saves you from a lot of ceremony: **access modifiers never restrict two
+methods of the same class from calling each other**, whichever of them is static. A public
+method can always call its own class's private helper.
+
+</Step>
+
+<Step id="inherit">
+
+## Your turn
+
+`extends` gives you the base class's fields and methods, and `super()` calls the base's
+version of the method you are in.
+
+Write two classes:
+
+- `Animal`, with a **public** method `speak()` that returns `"..."`
+- `Dog extends Animal`, whose `speak()` returns the base's answer with `" woof"` on the end
+
+Then create a `Dog` and log what it says:
+
+`... woof`
+
+Use `super()` for the first half. Writing `"..."` again would work today and break the day
+somebody changes `Animal`.
+
+</Step>
+
+<Step id="parm-and-display">
+
+Two conventions you will read constantly before you write them.
+
+**`parm` methods.** One method that both gets and sets, using an optional parameter whose
+default is the field:
+
+<Snippet lang="xpp">{`public str parmAccount(str _account = account)
+{
+    account = _account;
+    return account;
+}`}</Snippet>
+
+Call it with an argument and it sets; call it with none and the parameter falls back to the
+field, so it returns. Every data contract in the reporting framework is built from these.
+
+**`display` methods.** A modifier, not a return type — it marks a method whose value is
+shown on a form or a report and cannot be edited there:
+
+<Snippet lang="xpp">{`public display Name fullName()
+{
+    return this.FirstName + " " + this.LastName;
+}`}</Snippet>
+
+The full modifier grammar, in order, is:
+
+`[edit | display] [public | protected | private] [static | abstract | final]`
+
+<KeyPoints>
+  - An unmarked method is public; an unmarked field is protected
+  - `void` is a return type, and a missing `return` gives you a default, not an error
+  - `static` belongs to the class — no instance, no `this`
+  - `private` cannot be overridden, and an override can never narrow access
+  - `parm` methods get and set with one method and an optional parameter
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "why-a-class",
+    title: "A class is a type you declare",
+    example:
+      'class Square\n{\n    private int side;\n\n    public void new(int _side = 1)\n    {\n        side = _side;\n    }\n\n    public int getArea()\n    {\n        return side * side;\n    }\n}\n\nSquare square = new Square(15);\ninfo(int2Str(square.getArea()));\n',
+  },
+  {
+    id: "two-defaults",
+    title: "The two defaults that surprise people",
+    example:
+      'class Point\n{\n    int x;\n\n    str describe()\n    {\n        return strFmt("x is %1", x);\n    }\n}\n\nPoint point = new Point();\ninfo(point.describe());\n\n// Now uncomment this line. The field is protected, not public.\n// info(int2Str(point.x));\n',
+  },
+  { id: "hide-a-field", title: "Keep a field to yourself", taskId: "hide-a-field" },
+  {
+    id: "void-and-return",
+    title: "void, and what a missing return gives you",
+    example:
+      'class Quiet\n{\n    public int forgot()\n    {\n    }\n\n    public void speak(boolean _silent)\n    {\n        if (_silent)\n        {\n            return;\n        }\n\n        info("said something");\n    }\n}\n\nQuiet quiet = new Quiet();\ninfo(strFmt("A missing return gives back %1", quiet.forgot()));\nquiet.speak(true);\nquiet.speak(false);\n',
+  },
+  { id: "static-counter", title: "Two objects, one counter", taskId: "static-counter" },
+  {
+    id: "access-rules",
+    title: "Who may call what",
+    example:
+      'class Vault\n{\n    private str secret()\n    {\n        return "shhh";\n    }\n\n    public str reveal()\n    {\n        return this.secret();\n    }\n}\n\nVault vault = new Vault();\ninfo(vault.reveal());\n\n// This one is refused, and the message says why:\n// info(vault.secret());\n',
+  },
+  { id: "inherit", title: "extends and super", taskId: "inherit" },
+  {
+    id: "parm-and-display",
+    title: "parm and display",
+    example:
+      'class Contract\n{\n    private str account;\n\n    public str parmAccount(str _account = account)\n    {\n        account = _account;\n        return account;\n    }\n}\n\nContract contract = new Contract();\ncontract.parmAccount("C-1000");\ninfo(strFmt("One method, both jobs: %1", contract.parmAccount()));\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "hide-a-field",
+    prompt:
+      "Write a Customer class with a private str field `account`, a public setAccount(str) and a public getAccount(). Then set it to C-1000 and log: Account: C-1000.",
+    starter:
+      'class Customer\n{\n    // A private field, and two public methods that reach it.\n}\n\n// Create one, set the account, and log it.\n',
+    solution:
+      'class Customer\n{\n    private str account;\n\n    public void setAccount(str _account)\n    {\n        account = _account;\n    }\n\n    public str getAccount()\n    {\n        return account;\n    }\n}\n\nCustomer customer = new Customer();\ncustomer.setAccount("C-1000");\ninfo(strFmt("Account: %1", customer.getAccount()));\n',
+    hints: [
+      "Inside the class: `private str account;` — private has to be written, because the default is protected.",
+      "setAccount takes a str and assigns it to the field; getAccount has return type str and returns it.",
+      'Below the class: `Customer customer = new Customer();`, then setAccount("C-1000"), then log with strFmt.',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^Account: C-1000$",
+        type: "info",
+        message:
+          'Log the account as `Account: C-1000` — use strFmt("Account: %1", customer.getAccount()).',
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "getAccount",
+        message:
+          "Read the value back through getAccount() rather than logging the literal. The point of the accessor is that it is the only way in.",
+      },
+    ],
+  },
+
+  {
+    id: "static-counter",
+    prompt:
+      "Write a Tally class with a public static int total, a public add(int), and a public static report(). Add 3 and 4 through two different objects, then log: Total: 7.",
+    starter:
+      "class Tally\n{\n    // One counter, shared by every instance.\n}\n\n// Two objects, one total.\n",
+    solution:
+      'class Tally\n{\n    public static int total;\n\n    public void add(int _n)\n    {\n        total = total + _n;\n    }\n\n    public static int report()\n    {\n        return total;\n    }\n}\n\nTally first = new Tally();\nTally second = new Tally();\nfirst.add(3);\nsecond.add(4);\ninfo(strFmt("Total: %1", Tally::report()));\n',
+    hints: [
+      "`public static int total;` — a static field exists once, not once per object.",
+      "add is an ordinary instance method: `public void add(int _n) { total = total + _n; }`.",
+      "report is static, so call it on the class: `Tally::report()`, not on an object.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "report",
+        message:
+          "Read the total back through `Tally::report()`. Calling a static method on the class rather than on an object is the part worth practising.",
+      },
+      {
+        // The count is the structural proof. A field that is not static gives each object
+        // its own copy, so this comes out as 3 or 4 rather than 7 — no separate check for
+        // the `static` keyword is needed, and the arithmetic is harder to fake.
+        kind: "output",
+        match: "^Total: 7$",
+        type: "info",
+        message:
+          "The total should be 7 — 3 through one object and 4 through the other, into one shared field. If you got 3 or 4 the field is not static, so each object counted on its own.",
+      },
+    ],
+  },
+
+  {
+    id: "inherit",
+    prompt:
+      "Write Animal with a public speak() returning \"...\", and Dog extends Animal whose speak() returns the base's answer plus \" woof\". Log a Dog speaking: ... woof",
+    starter:
+      'class Animal\n{\n    // A public speak() that returns "..."\n}\n\nclass Dog extends Animal\n{\n    // Override speak(), and call super() for the first half.\n}\n\n// Create a Dog and log what it says.\n',
+    solution:
+      'class Animal\n{\n    public str speak()\n    {\n        return "...";\n    }\n}\n\nclass Dog extends Animal\n{\n    public str speak()\n    {\n        return super() + " woof";\n    }\n}\n\nDog dog = new Dog();\ninfo(dog.speak());\n',
+    hints: [
+      "`class Dog extends Animal` — Dog gets Animal's methods, and may replace them.",
+      "Inside Dog.speak(), `super()` calls Animal's version of the same method.",
+      'Return `super() + " woof"` — note the space before woof.',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^\\.\\.\\. woof$",
+        type: "info",
+        message:
+          'The Dog should say `... woof` — the base class\'s answer, a space, then woof.',
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "super",
+        message:
+          'Use super() for the first half rather than writing "..." again. Repeating it works today and breaks the day somebody changes Animal.',
+      },
+    ],
+  },
+];

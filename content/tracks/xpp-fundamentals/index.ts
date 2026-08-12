@@ -21,6 +21,7 @@ import Forms from "./09-forms.mdx";
 import Reports from "./10-reports.mdx";
 import FinancialDimensions from "./11-financial-dimensions.mdx";
 import Integration from "./12-integration.mdx";
+import ClassesAndMethods from "./13-classes-and-methods.mdx";
 
 export { track, orderedSlugs, neighbours } from "./lessons";
 export type { LessonData } from "./lessons";
@@ -42,6 +43,7 @@ const CONTENT: Record<string, MdxContent> = {
   "10-reports": Reports,
   "11-financial-dimensions": FinancialDimensions,
   "12-integration": Integration,
+  "13-classes-and-methods": ClassesAndMethods,
 };
 
 export const lessons: Record<string, Lesson> = Object.fromEntries(
