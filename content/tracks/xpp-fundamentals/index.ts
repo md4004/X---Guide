@@ -23,6 +23,7 @@ import FinancialDimensions from "./11-financial-dimensions.mdx";
 import Integration from "./12-integration.mdx";
 import ClassesAndMethods from "./13-classes-and-methods.mdx";
 import ReportEndToEnd from "./14-report-end-to-end.mdx";
+import QueryObjects from "./15-query-objects.mdx";
 
 export { track, orderedSlugs, neighbours } from "./lessons";
 export type { LessonData } from "./lessons";
@@ -46,6 +47,7 @@ const CONTENT: Record<string, MdxContent> = {
   "12-integration": Integration,
   "13-classes-and-methods": ClassesAndMethods,
   "14-report-end-to-end": ReportEndToEnd,
+  "15-query-objects": QueryObjects,
 };
 
 export const lessons: Record<string, Lesson> = Object.fromEntries(

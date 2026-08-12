@@ -409,6 +409,32 @@ const WRONG: WrongAnswer[] = [
       'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n    }\n}\n\nSrsReportRunController controller = new SrsReportRunController();\ncontroller.parmReportName("ItemSales.Report");\ncontroller.startOperation();',
     expect: "no report called 'ItemSales'",
   },
+
+  // -- 15 Query objects ----------------------------------------------------
+  {
+    lesson: "15-query-objects",
+    task: "build-one",
+    label: "builds the query but never walks it",
+    source:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nint counter;\n\ninfo(strFmt("%1 items", counter));',
+    expect: "a QueryRun does nothing until you ask it for the first row",
+  },
+  {
+    lesson: "15-query-objects",
+    task: "range-it",
+    label: "leaves the cost range empty, which widens the query rather than emptying it",
+    source:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nQueryBuildRange groupRange = qbds.addRange(fieldNum(InventTable, ItemGroupId));\ngroupRange.value("FURNITURE");\n\nQueryBuildRange costRange = qbds.addRange(fieldNum(InventTable, StandardCost));\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nint counter;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n    info(inventTable.ItemId);\n    counter++;\n}\n\ninfo(strFmt("%1 expensive furniture items", counter));',
+    expect: "an empty range filters nothing rather than everything",
+  },
+  {
+    lesson: "15-query-objects",
+    task: "sort-and-run",
+    label: "sorts the wrong way round",
+    source:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nqbds.addSortField(fieldNum(InventTable, ItemId), SortOrder::Ascending);\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nboolean first = true;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n\n    if (first)\n    {\n        info(strFmt("First: %1", inventTable.ItemId));\n        first = false;\n    }\n}',
+    expect: "the sort order is ascending",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {

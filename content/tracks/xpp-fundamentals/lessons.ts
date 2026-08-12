@@ -28,6 +28,7 @@ import { frontmatter as f11, steps as s11, tasks as t11 } from "./11-financial-d
 import { frontmatter as f12, steps as s12, tasks as t12 } from "./12-integration.mdx";
 import { frontmatter as f13, steps as s13, tasks as t13 } from "./13-classes-and-methods.mdx";
 import { frontmatter as f14, steps as s14, tasks as t14 } from "./14-report-end-to-end.mdx";
+import { frontmatter as f15, steps as s15, tasks as t15 } from "./15-query-objects.mdx";
 
 export interface LessonData {
   frontmatter: LessonFrontmatter;
@@ -63,6 +64,7 @@ export const lessonData: Record<string, LessonData> = {
   "12-integration": data(f12, s12, t12),
   "13-classes-and-methods": data(f13, s13, t13),
   "14-report-end-to-end": data(f14, s14, t14),
+  "15-query-objects": data(f15, s15, t15),
 };
 
 /** Lesson slugs in the order `track.json` lists them, skipping any not yet written. */

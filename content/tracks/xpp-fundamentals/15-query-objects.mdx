@@ -1,0 +1,338 @@
+---
+slug: 15-query-objects
+title: Query objects
+minutes: 25
+objectives:
+  - Build a query at runtime with Query, QueryBuildDataSource and QueryRun
+  - Filter with ranges, including the advanced syntax that is not equality
+  - Recognise when a query object is the right tool and when a select is
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="a-select-you-assemble">
+
+A `while select` is written when you write the code. A **query object** is assembled while
+the code runs — which is what you need when the filter comes from a parameter, a form, or
+a report contract, rather than from you.
+
+<Snippet lang="xpp">{`Query query = new Query();
+QueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));
+
+QueryRun queryRun = new QueryRun(query);
+InventTable inventTable;
+
+while (queryRun.next())
+{
+    inventTable = queryRun.get(tableNum(InventTable));
+    info(inventTable.ItemId);
+}`}</Snippet>
+
+Four types, and each is exactly what its name says:
+
+| Type | Is |
+| --- | --- |
+| `Query` | the whole statement |
+| `QueryBuildDataSource` | one table in it |
+| `QueryBuildRange` | one filter on that table |
+| `QueryRun` | the execution, and the cursor |
+
+Run it, then **open the SQL trace**. It is a plain parameterised `SELECT` — the same one
+the equivalent `while select` would produce. A query object is not a different mechanism.
+It is the same mechanism, assembled at a different time.
+
+</Step>
+
+<Step id="build-one">
+
+## Your turn
+
+Build a query over `InventTable`, walk it with a `QueryRun`, and count the rows.
+
+Log the count as:
+
+`8 items`
+
+`tableNum(InventTable)` names the table. It is checked when the code is compiled, not when
+it runs — which is why a typo there is a build error rather than an empty result.
+
+</Step>
+
+<Step id="ranges">
+
+## A range is not an equals
+
+`QueryBuildRange` filters a data source. The obvious use is equality:
+
+<Snippet lang="xpp">{`QueryBuildRange qbr = qbds.addRange(fieldNum(InventTable, ItemGroupId));
+qbr.value("FURNITURE");`}</Snippet>
+
+But the value is a small **expression language**, not a literal, and this is where filters
+go quietly wrong:
+
+| You write | It means |
+| --- | --- |
+| `"FURNITURE"` | equals |
+| `">200"` | greater than |
+| `"<=10"` | less than or equal |
+| `"F-100..F-200"` | between, inclusive |
+| `"F-1*"` | starts with |
+| `""` | **no restriction at all** |
+
+That last row is the one that bites. An empty range does not match nothing — it filters
+nothing, and the query returns everything. A parameter that arrives blank widens your
+query rather than emptying it.
+
+<Aside title="queryValue() is how you get a literal in safely">
+  When the value comes from a variable — especially an enum — wrap it:
+  `qbr.value(queryValue(someValue))`. It formats the value the way the range parser
+  expects, and it is the habit that stops a stray `*` in user input from becoming a
+  wildcard.
+</Aside>
+
+</Step>
+
+<Step id="range-it">
+
+## Your turn
+
+Filter with two ranges on the same data source.
+
+Find the `FURNITURE` items that cost more than 200:
+
+- a range on `ItemGroupId` with the value `FURNITURE`
+- a range on `StandardCost` with the value `>200`
+
+Log each one's item number, then the count:
+
+`2 expensive furniture items`
+
+Two ranges on one data source combine with **and**. Check the SQL trace afterwards — you
+should see one statement, with both values bound as parameters.
+
+</Step>
+
+<Step id="find-before-add">
+
+## Find before you add
+
+Real framework code almost never calls `addRange` on its own. It does this:
+
+<Snippet lang="xpp">{`QueryBuildDataSource qbds = query.dataSourceTable(tableNum(InventTable));
+QueryBuildRange qbr = qbds.findRange(fieldNum(InventTable, ItemGroupId));
+
+if (!qbr)
+{
+    qbr = qbds.addRange(fieldNum(InventTable, ItemGroupId));
+}
+
+if (!qbr.value())
+{
+    qbr.value("FURNITURE");
+}`}</Snippet>
+
+Read it as a sentence: *is there already a range on this field? If not, add one. Does it
+already have a value? If not, set mine.*
+
+The reason is that the query may have arrived from somewhere else — a report contract, a
+form's data source, a user's filter — and a plain `addRange` would add a **second** range
+next to the user's, quietly narrowing their results. This is the exact shape the report
+data provider walkthrough uses, and it is worth copying.
+
+</Step>
+
+<Step id="sort-and-run">
+
+## Your turn
+
+Sort a query, and prove it costs one statement.
+
+Build a query over `InventTable`, add a sort field on `ItemId` **descending**, walk it, and
+log only the first item you see:
+
+`First: S-900`
+
+`addSortField` takes the field and a `SortOrder` — `SortOrder::Ascending` or
+`SortOrder::Descending`.
+
+</Step>
+
+<Step id="when-to-use">
+
+## When a query object earns its place
+
+Use one when the shape of the query is **not known when you write the code**:
+
+- a report's filter comes from the contract the user filled in
+- a form's data source is filtered by what the user typed
+- a lookup is narrowed by a parameter
+
+Use a `while select` when it is known — which is most of the time in your own business
+logic. A query object is more code and more indirection; it buys you runtime shape, and
+nothing else.
+
+**What this simulator does not do.** Joining one data source to another —
+`qbds.addDataSource(...)`, `joinMode`, `relations` — is out of scope here, and asking for
+it says so rather than quietly running half the query. Write the join as a
+`while select ... join ...`; the SQL trace will show you they are the same thing.
+
+<KeyPoints>
+  - A query object is a `select` assembled at runtime, and compiles to the same SQL
+  - Ranges are an expression language: `>`, `..`, `*` — and empty means *no filter*
+  - `findRange` before `addRange`, or you narrow somebody else's query
+  - Reach for one when the shape is a runtime decision, not before
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "a-select-you-assemble",
+    title: "A select you assemble at runtime",
+    example:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n    info(inventTable.ItemId);\n}\n',
+  },
+  { id: "build-one", title: "Build one", taskId: "build-one" },
+  {
+    id: "ranges",
+    title: "A range is not an equals",
+    example:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\nQueryBuildRange qbr = qbds.addRange(fieldNum(InventTable, ItemId));\n\n// Change this to "F-1*", to "F-100..F-102", or to "" and run it again.\nqbr.value("F-100");\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nint counter;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n    counter++;\n}\n\ninfo(strFmt("%1 rows matched", counter));\n',
+  },
+  { id: "range-it", title: "Two ranges, one statement", taskId: "range-it" },
+  {
+    id: "find-before-add",
+    title: "Find before you add",
+    example:
+      'Query query = new Query();\nquery.addDataSource(tableNum(InventTable));\n\nQueryBuildDataSource qbds = query.dataSourceTable(tableNum(InventTable));\nQueryBuildRange qbr = qbds.findRange(fieldNum(InventTable, ItemGroupId));\n\nif (!qbr)\n{\n    info("No range on that field yet, so this is where you would add one.");\n    qbr = qbds.addRange(fieldNum(InventTable, ItemGroupId));\n}\n\nif (!qbr.value())\n{\n    info("It has no value either, so setting one takes nothing away.");\n    qbr.value("FURNITURE");\n}\n\ninfo(strFmt("The range now reads: %1", qbr.value()));\n',
+  },
+  { id: "sort-and-run", title: "Sort it", taskId: "sort-and-run" },
+  {
+    id: "when-to-use",
+    title: "When to reach for one",
+    example:
+      'info("Runtime shape is the only thing a query object buys you.");\ninfo("If you know the filter when you write the code, a while select is shorter and clearer.");\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "build-one",
+    prompt:
+      "Build a Query over InventTable, walk it with a QueryRun, and log the row count as: 8 items.",
+    starter:
+      "Query query = new Query();\nInventTable inventTable;\nint counter;\n\n// Add the data source, make a QueryRun, and walk it.\n",
+    solution:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nint counter;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n    counter++;\n}\n\ninfo(strFmt("%1 items", counter));\n',
+    hints: [
+      "`query.addDataSource(tableNum(InventTable));` adds the table to the query.",
+      "`QueryRun queryRun = new QueryRun(query);` — the QueryRun executes it and holds the cursor.",
+      "`while (queryRun.next())` walks the rows; `queryRun.get(tableNum(InventTable))` hands you the buffer.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "addDataSource",
+        message:
+          "A query with no data source has nothing to run. Call query.addDataSource(tableNum(InventTable)).",
+      },
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "next",
+        message:
+          "Walk the results with `while (queryRun.next())` — a QueryRun does nothing until you ask it for the first row.",
+      },
+      {
+        kind: "output",
+        match: "^8 items$",
+        type: "info",
+        message:
+          "There are 8 items in this company. If you got 0, check that you called next() in the loop condition.",
+      },
+    ],
+  },
+
+  {
+    id: "range-it",
+    prompt:
+      "Add ranges on ItemGroupId (FURNITURE) and StandardCost (>200), log each item number, then: 2 expensive furniture items.",
+    starter:
+      "Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\n// Two ranges on this data source, then walk it.\n",
+    solution:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nQueryBuildRange groupRange = qbds.addRange(fieldNum(InventTable, ItemGroupId));\ngroupRange.value("FURNITURE");\n\nQueryBuildRange costRange = qbds.addRange(fieldNum(InventTable, StandardCost));\ncostRange.value(">200");\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nint counter;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n    info(inventTable.ItemId);\n    counter++;\n}\n\ninfo(strFmt("%1 expensive furniture items", counter));\n',
+    hints: [
+      "`qbds.addRange(fieldNum(InventTable, ItemGroupId))` returns the range; set it with `.value(\"FURNITURE\")`.",
+      'The second range goes on StandardCost, and its value is the string ">200" — the comparison lives inside the value.',
+      "Two ranges on one data source combine with and, so you just add both before running.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "addRange",
+        message: "Filter with addRange on the data source rather than testing inside the loop.",
+      },
+      {
+        kind: "output",
+        match: "^F-101$",
+        type: "info",
+        message:
+          "F-101 costs 212 and is furniture, so it should be in the results. Check the ItemGroupId range.",
+      },
+      {
+        kind: "output",
+        match: "^2 expensive furniture items$",
+        type: "info",
+        message:
+          "Two furniture items cost more than 200. If you got 4 the cost range is missing or empty — and an empty range filters nothing rather than everything.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "This ran more than one query. Both ranges belong on the same data source, applied before the walk starts.",
+      },
+    ],
+  },
+
+  {
+    id: "sort-and-run",
+    prompt:
+      "Build a query over InventTable sorted by ItemId descending, walk it, and log only the first row as: First: S-900.",
+    starter:
+      "Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\n// Sort descending, then log only the first row you see.\n",
+    solution:
+      'Query query = new Query();\nQueryBuildDataSource qbds = query.addDataSource(tableNum(InventTable));\n\nqbds.addSortField(fieldNum(InventTable, ItemId), SortOrder::Descending);\n\nQueryRun queryRun = new QueryRun(query);\nInventTable inventTable;\nboolean first = true;\n\nwhile (queryRun.next())\n{\n    inventTable = queryRun.get(tableNum(InventTable));\n\n    if (first)\n    {\n        info(strFmt("First: %1", inventTable.ItemId));\n        first = false;\n    }\n}\n',
+    hints: [
+      "`qbds.addSortField(fieldNum(InventTable, ItemId), SortOrder::Descending);`",
+      "Walk the query as before, but keep a boolean so you only log on the first pass.",
+      'Log it as strFmt("First: %1", inventTable.ItemId).',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "addSortField",
+        message:
+          "Sort in the query with addSortField rather than sorting after the fact — the database is better at it and it costs nothing extra.",
+      },
+      {
+        kind: "output",
+        match: "^First: S-900$",
+        type: "info",
+        message:
+          "Sorted by item number descending, S-900 comes first. If you got F-100 the sort order is ascending.",
+      },
+      {
+        kind: "sql",
+        rule: "matches",
+        value: "ORDER BY",
+        message:
+          "The sort should be in the SQL. Look at the trace: addSortField becomes an ORDER BY, which is the whole reason to use it.",
+      },
+    ],
+  },
+];
