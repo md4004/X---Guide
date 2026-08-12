@@ -19,9 +19,11 @@ import type {
   AotObjectRef,
   AotObjectType,
   BaseEnumMetadata,
+  DataEntityMetadata,
   EdtMetadata,
   FieldMetadata,
   FormMetadata,
+  ReportMetadata,
   TableMetadata,
   VirtualAot,
 } from "./types";
@@ -222,9 +224,192 @@ export function buildDesigner(aot: VirtualAot, ref: AotObjectRef): DesignerNode 
       const form = aot.getForm(ref.name);
       return form === undefined ? undefined : formDesigner(form);
     }
+    // A view opens on the same designer as a table. That is not a shortcut — a view is a
+    // set of fields with a query behind it, and the designer differs by what it *lacks*:
+    // no indexes of its own, and a Query property where a table has storage.
+    case "view": {
+      const view = aot.getTable(ref.name);
+      return view === undefined ? undefined : tableDesigner(aot, view);
+    }
+    case "dataEntity": {
+      const entity = aot.getEntity(ref.name);
+      return entity === undefined ? undefined : entityDesigner(entity);
+    }
+    case "report": {
+      const report = aot.getReport(ref.name);
+      return report === undefined ? undefined : reportDesigner(report);
+    }
     default:
       return undefined;
   }
+}
+
+/**
+ * The data entity designer.
+ *
+ * Two things a learner needs to see here and nowhere else: the **two independent
+ * switches** that decide which integration route can reach it, and the mapping from an
+ * entity property to the `Table.Field` behind it — which is the whole abstraction, made
+ * visible.
+ */
+function entityDesigner(entity: DataEntityMetadata): DesignerNode {
+  const root = entity.name;
+
+  return {
+    ...node(
+      root,
+      entity.name,
+      "element",
+      [
+        { name: "Name", value: entity.name, category: "General", changed: false },
+        {
+          name: "Public Collection Name",
+          value: entity.publicCollectionName,
+          category: "General",
+          changed: true,
+        },
+        { name: "Entity Category", value: entity.category, category: "General", changed: true },
+        {
+          name: "Primary Data Source",
+          value: entity.primaryTable,
+          category: "Data",
+          changed: true,
+          goTo: { type: "table", name: entity.primaryTable },
+        },
+        // The two switches. Independent, and the reason "it's not on OData" almost never
+        // means "it does not exist".
+        {
+          name: "Enable Public API",
+          value: entity.isPublic ? "Yes" : "No",
+          category: "Behavior",
+          changed: !entity.isPublic,
+        },
+        {
+          name: "Enable Data Management",
+          value: entity.dataManagementEnabled ? "Yes" : "No",
+          category: "Behavior",
+          changed: !entity.dataManagementEnabled,
+        },
+      ],
+      [
+        node(
+          `${root}/Fields`,
+          "Fields",
+          "folder",
+          [],
+          Object.entries(entity.mappings).map(([property, source]) =>
+            node(`${root}/Fields/${property}`, property, "field", [
+              { name: "Name", value: property, category: "General", changed: false },
+              // The point of an entity in one row: the name the caller uses is not the
+              // name the database uses.
+              { name: "Maps To", value: source, category: "Data", changed: true },
+            ]),
+          ),
+        ),
+        node(
+          `${root}/Data Sources`,
+          "Data Sources",
+          "folder",
+          [],
+          [entity.primaryTable, ...entity.joins.map((join) => join.table)].map((table) =>
+            node(`${root}/Data Sources/${table}`, table, "dataSource", [
+              {
+                name: "Table",
+                value: table,
+                category: "Data",
+                changed: true,
+                goTo: { type: "table", name: table },
+              },
+              {
+                name: "Role",
+                value: table === entity.primaryTable ? "Primary" : "Joined",
+                category: "General",
+                changed: table !== entity.primaryTable,
+              },
+            ]),
+          ),
+        ),
+      ],
+    ),
+    ref: { type: "dataEntity", name: entity.name },
+  };
+}
+
+/**
+ * The report designer.
+ *
+ * The grouping and totals live here rather than in the provider, and seeing them as
+ * *properties* is what makes "the rows are right, the layout is wrong" a diagnosable
+ * sentence rather than a shrug.
+ */
+function reportDesigner(report: ReportMetadata): DesignerNode {
+  const root = report.name;
+
+  return {
+    ...node(
+      root,
+      report.name,
+      "element",
+      [
+        { name: "Name", value: report.name, category: "General", changed: false },
+        { name: "Title", value: report.title, category: "Appearance", changed: true },
+      ],
+      [
+        node(
+          `${root}/Datasets`,
+          "Datasets",
+          "folder",
+          [],
+          [
+            node(`${root}/Datasets/${report.dataSetName}`, report.dataSetName, "dataSource", [
+              { name: "Name", value: report.dataSetName, category: "General", changed: false },
+              // The property the walkthrough has you set by hand, and the reason the
+              // provider class is reachable from here at all.
+              {
+                name: "Data Source Type",
+                value: "Report Data Provider",
+                category: "Data",
+                changed: true,
+              },
+              {
+                name: "Query",
+                value: report.dataProviderClass,
+                category: "Data",
+                changed: true,
+              },
+              { name: "Table", value: report.table, category: "Data", changed: true },
+            ]),
+          ],
+        ),
+        node(
+          `${root}/Designs`,
+          "Designs",
+          "folder",
+          [],
+          [
+            node(`${root}/Designs/${report.design}`, report.design, "control", [
+              { name: "Name", value: report.design, category: "General", changed: false },
+              {
+                name: "Groupings",
+                value: report.groupBy.join(", ") || "—",
+                category: "Data",
+                changed: report.groupBy.length > 0,
+              },
+              {
+                name: "Totals",
+                value:
+                  report.totals.map((total) => `${total.aggregate}(${total.column})`).join(", ") ||
+                  "—",
+                category: "Data",
+                changed: report.totals.length > 0,
+              },
+            ]),
+          ],
+        ),
+      ],
+    ),
+    ref: { type: "report", name: report.name },
+  };
 }
 
 /**

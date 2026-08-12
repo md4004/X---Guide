@@ -370,3 +370,73 @@ describe("building and synchronising", () => {
     expect(warnings.some((message) => message.element === "InventTable.Warranty")).toBe(true);
   });
 });
+
+describe("the data entity designer", () => {
+  const entity = () => buildDesigner(aot(), { type: "dataEntity", name: "CustomerV3Entity" })!;
+
+  it("shows the two switches separately, because they are independent", () => {
+    // VB-054. "It's not on OData" almost never means "it does not exist" — it means one of
+    // these two is off, and the designer is where you find out which.
+    const properties = new Map(entity().properties.map((p) => [p.name, p.value]));
+
+    expect(properties.get("Enable Public API")).toBe("Yes");
+    expect(properties.get("Enable Data Management")).toBe("Yes");
+
+    const notPublic = buildDesigner(aot(), {
+      type: "dataEntity",
+      name: "SalesOrderHeaderV2Entity",
+    })!;
+    const other = new Map(notPublic.properties.map((p) => [p.name, p.value]));
+
+    expect(other.get("Enable Public API")).toBe("No");
+    expect(other.get("Enable Data Management")).toBe("Yes");
+  });
+
+  it("maps each entity property to the Table.Field behind it", () => {
+    const field = findNode(entity(), "CustomerV3Entity/Fields/OrganizationName");
+    expect(field?.properties.find((p) => p.name === "Maps To")?.value).toBe("DirPartyTable.Name");
+  });
+
+  it("lists the joined data source as well as the primary one", () => {
+    expect(labels(findNode(entity(), "CustomerV3Entity/Data Sources"))).toEqual([
+      "CustTable",
+      "DirPartyTable",
+    ]);
+  });
+});
+
+describe("the report designer", () => {
+  const report = () => buildDesigner(aot(), { type: "report", name: "ItemSalesReport" })!;
+
+  it("separates the dataset from the design", () => {
+    expect(labels(report())).toEqual(["Datasets", "Designs"]);
+  });
+
+  it("names the provider class as the dataset's query", () => {
+    const dataset = findNode(report(), "ItemSalesReport/Datasets/ItemSales");
+    const properties = new Map((dataset?.properties ?? []).map((p) => [p.name, p.value]));
+
+    expect(properties.get("Data Source Type")).toBe("Report Data Provider");
+    expect(properties.get("Query")).toBe("ItemSalesDP");
+  });
+
+  it("puts grouping and totals on the design, not on the provider", () => {
+    // The point of the last reports step: if the rows are right, stop reading your X++.
+    const design = findNode(report(), "ItemSalesReport/Designs/Report");
+    const properties = new Map((design?.properties ?? []).map((p) => [p.name, p.value]));
+
+    expect(properties.get("Groupings")).toBe("ItemGroupId");
+    expect(properties.get("Totals")).toBe("sum(LineAmount), sum(SalesQty)");
+  });
+});
+
+describe("the view designer", () => {
+  it("opens on the same nodes as a table, with no indexes of its own", () => {
+    const view = buildDesigner(aot(), { type: "view", name: "CustSalesOrderView" })!;
+
+    expect(labels(view)).toEqual(["Fields", "Field Groups", "Indexes", "Relations", "Methods"]);
+    expect(labels(findNode(view, "CustSalesOrderView/Indexes"))).toEqual([]);
+    // CustGroup comes from CustTable — the field the view exists to bring across.
+    expect(labels(findNode(view, "CustSalesOrderView/Fields"))).toContain("CustGroup");
+  });
+});
