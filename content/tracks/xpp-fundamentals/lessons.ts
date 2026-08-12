@@ -24,6 +24,11 @@ import { frontmatter as f07, steps as s07, tasks as t07 } from "./07-companies.m
 import { frontmatter as f08, steps as s08, tasks as t08 } from "./08-exceptions.mdx";
 import { frontmatter as f09, steps as s09, tasks as t09 } from "./09-forms.mdx";
 import { frontmatter as f10, steps as s10, tasks as t10 } from "./10-reports.mdx";
+import {
+  frontmatter as f11,
+  steps as s11,
+  tasks as t11,
+} from "./11-financial-dimensions.mdx";
 
 export interface LessonData {
   frontmatter: LessonFrontmatter;
@@ -55,6 +60,7 @@ export const lessonData: Record<string, LessonData> = {
   "08-exceptions": data(f08, s08, t08),
   "09-forms": data(f09, s09, t09),
   "10-reports": data(f10, s10, t10),
+  "11-financial-dimensions": data(f11, s11, t11),
 };
 
 /** Lesson slugs in the order `track.json` lists them, skipping any not yet written. */

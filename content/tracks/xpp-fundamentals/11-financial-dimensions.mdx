@@ -1,0 +1,386 @@
+---
+slug: 11-financial-dimensions
+title: Financial dimensions
+minutes: 30
+objectives:
+  - Follow a DefaultDimension foreign key through to a readable dimension value
+  - Recognise that an empty dimension is stored as nothing at all
+  - Apply the precedence rule when two sets of dimensions are merged
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="stored-somewhere-else">
+
+Financial dimensions are how a business slices its numbers: cost centre, department,
+project, business unit. On screen they look like a couple of extra fields on a customer.
+
+In the database they are nothing of the sort. Read a customer and look at what
+`DefaultDimension` actually holds:
+
+<Snippet lang="xpp">{`CustTable custTable;
+
+select firstonly custTable where custTable.AccountNum == "C-1000";
+info(strFmt("DefaultDimension = %1", custTable.DefaultDimension));`}</Snippet>
+
+A number. `DefaultDimension` is a `RecId` pointing at a row in
+**DimensionAttributeValueSet**, and that row is little more than an identity — the values
+themselves hang off it, one row each, in **DimensionAttributeValueSetItem**.
+
+So "this customer has a cost centre" is stored across four tables:
+
+| Table                              | Holds                                       |
+| ---------------------------------- | ------------------------------------------- |
+| `DimensionAttribute`               | the dimension itself — `CostCenter`         |
+| `DimensionAttributeValue`          | a value of it — `CC-100`                    |
+| `DimensionAttributeValueSet`       | a set, which is just something to point at  |
+| `DimensionAttributeValueSetItem`   | one row per value in that set               |
+
+Run it, then open the SQL trace.
+
+<Aside title="This is why dimension bugs are hard">
+  Nothing about a customer record tells you what its dimensions are. You cannot read them
+  without three joins, which is why so much dimension code is written by guesswork. Learn
+  the query once and the guesswork stops.
+</Aside>
+
+</Step>
+
+<Step id="follow-the-chain">
+
+## Your turn
+
+Read customer `C-1000` and log its financial dimensions, one per line, in the form:
+
+`CostCenter = CC-100`
+
+Start from `DimensionAttributeValueSetItem`, filtered to the customer's `DefaultDimension`.
+Join to `DimensionAttributeValue` to reach the dimension it belongs to, then to
+`DimensionAttribute` for the name. The item already carries the `DisplayValue`, so you do
+not need to go back for it.
+
+Do it in one query — the joins are the whole point.
+
+</Step>
+
+<Step id="empty-is-not-stored">
+
+The framework stores a row only for a dimension that has a value. A dimension left blank
+has **no row at all**.
+
+That has a consequence people trip over constantly: once the data is saved, a dimension
+that was never filled in and a dimension that a user deliberately cleared look identical.
+There is nothing to tell them apart, because in both cases there is nothing there.
+
+The documented workaround is to create a real dimension value that means "empty" — named
+`empty`, `n/a` or `*blank*` — so a user can choose it and leave a trace.
+
+The same rule applies one level up. A record with no dimensions at all does not point at
+an empty set; it points at nothing, and a `RecId` of nothing is `0`:
+
+<Snippet lang="xpp">{`CustTable custTable;
+
+while select custTable where custTable.DefaultDimension == 0
+{
+    info(strFmt("%1 has no dimensions", custTable.AccountNum));
+}`}</Snippet>
+
+</Step>
+
+<Step id="count-the-values">
+
+## Your turn
+
+Log every customer in the current company that has no financial dimensions at all, one per
+line, in the form:
+
+`C-1001 has no dimensions`
+
+Then finish with a count in the form:
+
+`3 of 4 customers have none`
+
+A `RecId` field that has never been set holds `0`, so that is what you filter on.
+
+</Step>
+
+<Step id="never-updated">
+
+Dimension records are **immutable**. They are written once and never updated or deleted.
+
+Add a value to a customer's dimensions and the framework does not add a row to the
+existing set. It creates a **new** set, writes a full copy of the values into it, and
+repoints the customer at the new set. The old set is left exactly as it was.
+
+That sounds wasteful until you think about what is pointing at it. A posted voucher from
+last year references a dimension set. If somebody edits the customer's cost centre today
+and that edit rewrote the set in place, the historical voucher would silently change
+meaning. Immutability is what stops your accounts from rewriting themselves.
+
+<Aside title="What this means for your code">
+  Never write an `update()` against a dimension table. If you find yourself wanting to, you
+  are working against the framework — build a new set instead, and repoint the record at it.
+</Aside>
+
+</Step>
+
+<Step id="merging">
+
+Documents collect dimensions from several places at once. A sales order line can take them
+from the order header, from the customer, and from the item — and something has to decide
+which wins.
+
+The rule is **the target wins**:
+
+- If the target already has a value for a dimension, the source is ignored.
+- If the target is blank for a dimension, the source's value is copied in.
+
+Microsoft publishes a worked example of this. Merging an item's dimensions into a line that
+already has some produces:
+
+| Dimension    | Target  | Item    | Merged  | Why                                    |
+| ------------ | ------- | ------- | ------- | -------------------------------------- |
+| BusinessUnit |         |         |         | blank in both                          |
+| CostCenter   |         | 008     | 008     | blank on the target, so copied         |
+| Department   | 027     | 023     | 027     | already set on the target, so skipped  |
+| ItemGroup    |         | AudioRM | AudioRM | blank on the target, so copied         |
+| Project      | 000003  |         | 000003  | already set on the target              |
+
+`Department` is the row worth staring at. The item carried `023` and it lost. Merging is
+**not** last-writer-wins, and code written on that assumption produces a defaulting bug
+that only appears on the documents where both sources happen to be filled in.
+
+</Step>
+
+<Step id="merge-two-sets">
+
+## Your turn
+
+Merge item `F-100`'s dimensions into customer `C-1000`'s, with the **customer** as the
+target, and log the result one line per dimension in the form:
+
+`CostCenter = CC-100`
+
+The customer has `CostCenter` and `Department`. The item has `CostCenter` and `ItemGroup`.
+Applying the rule, the merged set is three dimensions — and the item's `CostCenter` is not
+one of them.
+
+Log the target's own values first, then walk the item's and log only those the customer
+does not already have a value for. To decide that, look for an item in the customer's set
+whose value belongs to the same `DimensionAttribute`.
+
+</Step>
+
+<Step id="in-a-real-environment">
+
+You have just done by hand what a real environment gives you an API for. It is worth
+knowing the names, because you will read them in standard code long before you write them:
+
+<Snippet lang="xpp">{`// Reading and building a set of default dimensions
+DimensionAttributeValueSetStorage storage;
+
+// Merging, with exactly the precedence you implemented above
+DimensionDefault merged = DimensionDefaultFacade::serviceMergeDefaultDimensions(
+    targetDimension,
+    sourceDimension);
+
+// Combining dimensions with a main account to make a ledger account combination
+LedgerDimensionAccount ledgerDimension = LedgerDimensionFacade::serviceCreateLedgerDimension(
+    defaultAccount,
+    mergedDimension);`}</Snippet>
+
+Two things to take away from those signatures.
+
+**Default dimensions carry every dimension except the main account.** A ledger account
+combination is a main account plus a set of dimension values, ordered by the account
+structure — which is why creating one takes a separate call that supplies the account.
+
+**These APIs are not simulated here.** Account structures, advanced rules, and the
+posting-time validation that decides whether a combination is even legal are a large piece
+of machinery, and a version of it that was wrong in the details would be worse than not
+having it. What you have learned is the data model underneath, and that part does not
+change.
+
+<KeyPoints>
+  - `DefaultDimension` is a `RecId` pointing at a set, not a value
+  - A dimension with no value has no row, so cleared and never-set are indistinguishable
+  - Dimension records are never updated — a change writes a new set
+  - When two sets merge, the target's existing values win
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "stored-somewhere-else",
+    title: "A dimension is not a column",
+    example:
+      'CustTable custTable;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\ninfo(strFmt("DefaultDimension = %1", custTable.DefaultDimension));\n',
+  },
+  { id: "follow-the-chain", title: "Follow the chain", taskId: "follow-the-chain" },
+  {
+    id: "empty-is-not-stored",
+    title: "Empty is stored as nothing",
+    example:
+      'CustTable custTable;\n\nwhile select custTable where custTable.DefaultDimension == 0\n{\n    info(strFmt("%1 has no dimensions", custTable.AccountNum));\n}\n',
+  },
+  { id: "count-the-values", title: "Nothing to find", taskId: "count-the-values" },
+  {
+    id: "never-updated",
+    title: "Nothing is ever updated",
+    example:
+      'DimensionAttributeValueSet dimensionSet;\nint counter;\n\nwhile select dimensionSet\n{\n    counter++;\n}\n\ninfo(strFmt("%1 dimension sets exist", counter));\n',
+  },
+  {
+    id: "merging",
+    title: "When two sets meet",
+    example:
+      'DimensionAttributeValueSetItem setItem;\nDimensionAttributeValue dimensionValue;\nDimensionAttribute dimensionAttribute;\n\nwhile select setItem\n    join dimensionValue\n    where dimensionValue.RecId == setItem.DimensionAttributeValue\n    join dimensionAttribute\n    where dimensionAttribute.RecId == dimensionValue.DimensionAttribute\n{\n    info(strFmt("set %1: %2 = %3", setItem.DimensionAttributeValueSet, dimensionAttribute.Name, setItem.DisplayValue));\n}\n',
+  },
+  { id: "merge-two-sets", title: "Merge two sets", taskId: "merge-two-sets" },
+  {
+    id: "in-a-real-environment",
+    title: "In a real environment",
+    example:
+      'CustTable custTable;\nDimensionAttributeValueSetItem setItem;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\n\nwhile select setItem\n    where setItem.DimensionAttributeValueSet == custTable.DefaultDimension\n{\n    info(setItem.DisplayValue);\n}\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "follow-the-chain",
+    prompt:
+      "Log customer C-1000's financial dimensions, one per line, in the form: CostCenter = CC-100. Use a single query with two joins.",
+    starter:
+      'CustTable custTable;\nDimensionAttributeValueSetItem setItem;\nDimensionAttributeValue dimensionValue;\nDimensionAttribute dimensionAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\n\n// Walk the customer\'s dimension set and log each value.\n',
+    solution:
+      'CustTable custTable;\nDimensionAttributeValueSetItem setItem;\nDimensionAttributeValue dimensionValue;\nDimensionAttribute dimensionAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\n\nwhile select setItem\n    where setItem.DimensionAttributeValueSet == custTable.DefaultDimension\n    join dimensionValue\n    where dimensionValue.RecId == setItem.DimensionAttributeValue\n    join dimensionAttribute\n    where dimensionAttribute.RecId == dimensionValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", dimensionAttribute.Name, setItem.DisplayValue));\n}\n',
+    hints: [
+      "Start the loop from DimensionAttributeValueSetItem, filtered where its DimensionAttributeValueSet equals custTable.DefaultDimension.",
+      "Join DimensionAttributeValue on its RecId matching setItem.DimensionAttributeValue, then join DimensionAttribute on its RecId matching dimensionValue.DimensionAttribute.",
+      'Log strFmt("%1 = %2", dimensionAttribute.Name, setItem.DisplayValue) — the display value is already on the item.',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message: "You need a while select to walk the set's values — there is more than one.",
+      },
+      {
+        kind: "output",
+        match: "^CostCenter = CC-100$",
+        type: "info",
+        message:
+          "The CostCenter line is missing. Log the dimension's Name, then a space, an equals sign, a space, and the item's DisplayValue.",
+      },
+      {
+        kind: "output",
+        match: "^Department = DEP-10$",
+        type: "info",
+        message:
+          "Only one line came out, and this customer has two dimensions. Check that you are looping rather than selecting firstonly.",
+      },
+      {
+        kind: "output",
+        match: "CC-200",
+        type: "info",
+        negate: true,
+        message:
+          "CC-200 belongs to the item, not the customer. Your filter is picking up more than the customer's own set — check that you compared against custTable.DefaultDimension.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 2,
+        message:
+          "Look at the SQL trace: this ran a query per value. Reaching the name needs a join, not a second select inside the loop.",
+      },
+    ],
+  },
+
+  {
+    id: "count-the-values",
+    prompt:
+      "Log every customer in this company with no financial dimensions, as: C-1001 has no dimensions. Finish with: 3 of 4 customers have none.",
+    starter:
+      "CustTable custTable;\nint without;\nint total;\n\n// A RecId that was never set holds 0.\n",
+    solution:
+      'CustTable custTable;\nint without;\nint total;\n\nwhile select custTable\n{\n    total++;\n\n    if (custTable.DefaultDimension == 0)\n    {\n        info(strFmt("%1 has no dimensions", custTable.AccountNum));\n        without++;\n    }\n}\n\ninfo(strFmt("%1 of %2 customers have none", without, total));\n',
+    hints: [
+      "Loop every customer so you can count the total as well as the ones without dimensions.",
+      "A record that points at no dimension set has DefaultDimension == 0 — there is no such thing as an empty set to point at.",
+      'Finish with info(strFmt("%1 of %2 customers have none", without, total)).',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^C-1001 has no dimensions$",
+        type: "info",
+        message:
+          "C-1001 has no dimensions and should have been logged. Check the message format: the account number, then ' has no dimensions'.",
+      },
+      {
+        kind: "output",
+        match: "^C-1000 has no dimensions$",
+        type: "info",
+        negate: true,
+        message:
+          "C-1000 does have dimensions, so it should not be in the list. Your condition is matching every customer.",
+      },
+      {
+        kind: "output",
+        match: "^3 of 4 customers have none$",
+        type: "info",
+        message:
+          "The count is wrong. Three of this company's four customers have no dimension set — count every customer for the total, and only the ones with DefaultDimension == 0 for the first number.",
+      },
+    ],
+  },
+
+  {
+    id: "merge-two-sets",
+    prompt:
+      "Merge item F-100's dimensions into customer C-1000's, with the customer winning, and log each merged dimension as: CostCenter = CC-100.",
+    starter:
+      'CustTable custTable;\nInventTable inventTable;\nDimensionAttributeValueSetItem targetItem, sourceItem, probe;\nDimensionAttributeValue targetValue, sourceValue, probeValue;\nDimensionAttribute targetAttribute, sourceAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\nselect firstonly inventTable where inventTable.ItemId == "F-100";\n\n// 1. Log the customer\'s own dimensions.\n// 2. Log the item\'s, but only where the customer has nothing for that dimension.\n',
+    solution:
+      'CustTable custTable;\nInventTable inventTable;\nDimensionAttributeValueSetItem targetItem, sourceItem, probe;\nDimensionAttributeValue targetValue, sourceValue, probeValue;\nDimensionAttribute targetAttribute, sourceAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\nselect firstonly inventTable where inventTable.ItemId == "F-100";\n\nwhile select targetItem\n    where targetItem.DimensionAttributeValueSet == custTable.DefaultDimension\n    join targetValue\n    where targetValue.RecId == targetItem.DimensionAttributeValue\n    join targetAttribute\n    where targetAttribute.RecId == targetValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", targetAttribute.Name, targetItem.DisplayValue));\n}\n\nwhile select sourceItem\n    where sourceItem.DimensionAttributeValueSet == inventTable.DefaultDimension\n    join sourceValue\n    where sourceValue.RecId == sourceItem.DimensionAttributeValue\n    join sourceAttribute\n    where sourceAttribute.RecId == sourceValue.DimensionAttribute\n{\n    select firstonly probe\n        where probe.DimensionAttributeValueSet == custTable.DefaultDimension\n        join probeValue\n        where probeValue.RecId == probe.DimensionAttributeValue\n           && probeValue.DimensionAttribute == sourceValue.DimensionAttribute;\n\n    if (!probe)\n    {\n        info(strFmt("%1 = %2", sourceAttribute.Name, sourceItem.DisplayValue));\n    }\n}\n',
+    hints: [
+      "Log the customer's values first, with the same three-table join you wrote earlier.",
+      "Then loop the item's values. For each one, look for an item in the customer's set whose value belongs to the same DimensionAttribute.",
+      "A buffer that found nothing is falsy, so `if (!probe)` means the customer has no value for that dimension — log the item's.",
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^CostCenter = CC-100$",
+        type: "info",
+        message:
+          "The customer's CostCenter should be in the merged result. Start by logging the target's own values.",
+      },
+      {
+        kind: "output",
+        match: "^CostCenter = CC-200$",
+        type: "info",
+        negate: true,
+        message:
+          "CC-200 is the item's CostCenter, and the customer already has one — so the item's value loses. This is the rule that catches people out: the target wins, it is not last-writer-wins.",
+      },
+      {
+        kind: "output",
+        match: "^ItemGroup = FURNITURE$",
+        type: "info",
+        message:
+          "ItemGroup is missing. The customer has no value for it, so the item's value should be copied into the merged result.",
+      },
+      {
+        kind: "output",
+        match: "^Department = DEP-10$",
+        type: "info",
+        message:
+          "Department is missing. The customer has it and the item does not, so it carries straight through.",
+      },
+    ],
+  },
+];

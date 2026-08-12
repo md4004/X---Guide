@@ -3,7 +3,7 @@
   "title": "X++ fundamentals",
   "summary": "Write X++ that reads, writes and queries a real database — and see exactly what it does.",
   "level": "beginner",
-  "estimatedMinutes": 230,
+  "estimatedMinutes": 260,
   "lessons": [
     "01-hello-infolog",
     "02-buffers-and-select",
@@ -14,7 +14,8 @@
     "07-companies",
     "08-exceptions",
     "09-forms",
-    "10-reports"
+    "10-reports",
+    "11-financial-dimensions"
   ],
   "requiresEngine": ["db", "runtime", "aot", "forms", "reports"]
 }
