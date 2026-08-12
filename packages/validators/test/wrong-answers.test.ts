@@ -324,6 +324,39 @@ const WRONG: WrongAnswer[] = [
       'CustTable custTable;\nInventTable inventTable;\nDimensionAttributeValueSetItem targetItem, sourceItem;\nDimensionAttributeValue targetValue, sourceValue;\nDimensionAttribute targetAttribute, sourceAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\nselect firstonly inventTable where inventTable.ItemId == "F-100";\n\nwhile select targetItem\n    where targetItem.DimensionAttributeValueSet == custTable.DefaultDimension\n    join targetValue\n    where targetValue.RecId == targetItem.DimensionAttributeValue\n    join targetAttribute\n    where targetAttribute.RecId == targetValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", targetAttribute.Name, targetItem.DisplayValue));\n}\n\nwhile select sourceItem\n    where sourceItem.DimensionAttributeValueSet == inventTable.DefaultDimension\n    join sourceValue\n    where sourceValue.RecId == sourceItem.DimensionAttributeValue\n    join sourceAttribute\n    where sourceAttribute.RecId == sourceValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", sourceAttribute.Name, sourceItem.DisplayValue));\n}',
     expect: "the target wins, it is not last-writer-wins",
   },
+
+  // -- 12 Integration ------------------------------------------------------
+  {
+    lesson: "12-integration",
+    task: "denormalise",
+    label: "queries the party inside the loop instead of joining",
+    source:
+      'CustTable custTable;\nDirPartyTable dirPartyTable;\nint counter;\n\nwhile select custTable\n{\n    select firstonly dirPartyTable where dirPartyTable.RecId == custTable.Party;\n    info(strFmt("%1 = %2", custTable.AccountNum, dirPartyTable.Name));\n    counter++;\n}\n\ninfo(strFmt("%1 customers", counter));',
+    expect: "The join is what an entity saves you",
+  },
+  {
+    lesson: "12-integration",
+    task: "cross-company",
+    label: "forgets crosscompany, which is the bug the step is about",
+    source:
+      'CustTable custTable;\nint here;\nint everywhere;\n\nwhile select custTable\n{\n    here++;\n}\n\nwhile select custTable\n{\n    everywhere++;\n}\n\ninfo(strFmt("HVND: %1", here));\ninfo(strFmt("All companies: %1", everywhere));',
+    expect: "Nothing here used crosscompany",
+  },
+  {
+    lesson: "12-integration",
+    task: "validate-through-the-entity",
+    label: "asks validateWrite and then writes the record anyway",
+    source:
+      'InventTable inventTable;\nboolean allowed;\n\nallowed = inventTable.validateWrite();\ninfo(strFmt("validateWrite says: %1", allowed));\n\nttsbegin;\ninventTable.ItemId = "X-1";\ninventTable.insert();\nttscommit;',
+    expect: "validateWrite() answers the question without writing anything",
+  },
+  {
+    lesson: "12-integration",
+    task: "validate-through-the-entity",
+    label: "never asks, and just states the answer it expects",
+    source: 'InventTable inventTable;\n\ninfo("validateWrite says: No");',
+    expect: "Call validateWrite() on the buffer",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {

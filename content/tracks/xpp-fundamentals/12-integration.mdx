@@ -1,0 +1,364 @@
+---
+slug: 12-integration
+title: Integration patterns
+minutes: 30
+objectives:
+  - Choose between the synchronous and asynchronous integration patterns
+  - Explain what a data entity is and which switch exposes it to which route
+  - Recognise the two defaults that make an integration silently return too few rows
+requiresEngine: [db, runtime]
+seed: default
+---
+
+<Step id="six-doors">
+
+There is no single "the API". F&O has six ways in and out, and picking the wrong one is
+the most expensive mistake in an integration project — not because it fails, but because
+it works for six months and then falls over on volume.
+
+| Pattern                    | Shape                                    | Use it for                                              |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------- |
+| **OData**                  | REST over data entities, synchronous     | Real-time CRUD from another system, at modest volume     |
+| **Custom service**         | SOAP or REST over your own X++, sync     | Business logic that is not a row — "what is on hand?"    |
+| **Batch data API**         | File packages, asynchronous              | Bulk import and export, hundreds of thousands of rows    |
+| **Business and data events** | You push, they listen                  | Telling another system something happened                |
+| **Consume external services** | F&O is the caller                     | Calling out to someone else's API                        |
+| **Power Platform / Excel** | Virtual entities, add-in                 | Low-code and end-user-driven scenarios                   |
+
+Two things narrow the choice fast. What volume, at peak? And does anyone actually need it
+in real time, or does "real time" mean "nobody has asked how fresh it has to be"?
+
+<Aside title="Events are not an export mechanism">
+  Business events are meant to be small and quick — a nudge saying something happened, not
+  a payload carrying the something. Using them to move data is a well-trodden route to an
+  integration that cannot be replayed and cannot be reconciled.
+</Aside>
+
+</Step>
+
+<Step id="sync-async">
+
+## Synchronous and asynchronous are not a style choice
+
+OData and custom services are **synchronous**: you call, the business logic runs, and you
+get the outcome. Insert a sales order over OData and the order is there — or the response
+tells you exactly why it is not.
+
+The batch data APIs are **asynchronous**: you call, and what comes back is *"scheduled"*.
+The work happens later, in a batch job.
+
+That difference decides who owns failure:
+
+| | Synchronous | Asynchronous |
+| --- | --- | --- |
+| What the caller gets | Success or the actual error | Confirmation that it was queued |
+| Who finds out it failed | The caller, immediately | Nobody, unless the caller polls |
+| Retry | The caller's decision, with the error in hand | Needs a whole design of its own |
+
+The rule of thumb for volume: above roughly **a few hundred thousand records**, use the
+batch data API. Below it, and where freshness matters, OData.
+
+<Aside title="These numbers are a gauge, not a limit">
+  The documented volumes are there to help you pick a pattern, not to define a hard
+  ceiling. What an environment actually sustains depends on the entity and on how much
+  business logic runs per record.
+</Aside>
+
+</Step>
+
+<Step id="what-an-entity-is">
+
+Every route except the custom service goes through a **data entity**, so it is worth being
+precise about what one is.
+
+A data entity is a **de-normalised view**. A customer in the database is spread across
+several tables; the entity presents one flat row with all of it, so an integration never
+has to know the physical schema — and does not break when the schema changes.
+
+Entities come in five categories, and the category is a statement about what the data is
+for: **Parameter**, **Reference**, **Master**, **Document**, **Transaction**. It matters
+most during a migration: you migrate master data, and you generally do *not* migrate
+completed transactions in detail.
+
+Two switches decide which routes can see an entity, and they are **independent**:
+
+- **Enable public API** — it appears on the OData endpoint.
+- **Enable data management capabilities** — the DMF and the batch APIs can use it, and a
+  staging table is generated.
+
+An entity can have one and not the other. "It's not on OData" almost never means "it does
+not exist"; it means somebody left the first switch off.
+
+</Step>
+
+<Step id="denormalise">
+
+## Your turn
+
+See what an entity would be doing for you.
+
+The `CustomersV3` entity presents `OrganizationName` as if it were a field on the customer.
+It is not — it lives on `DirPartyTable`, reached through `CustTable.Party`.
+
+Write the join the entity would write for you, and log one line per customer in the current
+company, in the form:
+
+`C-1000 = Bramley & Fitch Retail`
+
+Then finish with the count:
+
+`4 customers`
+
+</Step>
+
+<Step id="odata-shapes">
+
+An OData URL is a query in someone else's syntax. The shapes:
+
+<Snippet lang="xpp">{`[root]/data                                  the service root - every public entity
+[root]/data/CustomersV3                       the collection
+[root]/data/CustomersV3("C-1000")             one record, by key
+[root]/data/CustomersV3?$select=CustomerAccount,OrganizationName
+[root]/data/CustomersV3?$filter=CustomerGroupId eq 'RETAIL'
+[root]/data/CustomersV3?$top=50&$skip=100&$orderby=CustomerAccount desc`}</Snippet>
+
+The query options are `$filter`, `$select`, `$orderby`, `$top`, `$skip`, `$count` and
+`$expand` — and `$expand` goes **one level only**. Paging is server-driven with a maximum
+page size of **10,000**, so an unbounded read is not unbounded.
+
+`$filter` has `eq ne gt ge lt le`, `and`, `or`, `not`, and arithmetic. Two traps:
+
+- **`has` and `in` are not supported**, even though the OData specification has them. A
+  filter using either comes back 400.
+- `contains` is done with a wildcard: `$filter=Name eq '*retail*'`.
+
+</Step>
+
+<Step id="cross-company">
+
+## Your turn
+
+Here is the bug that produces "the integration is missing rows".
+
+By default an OData request returns **only the caller's default company**. Not an error,
+not a warning — just fewer rows than the person who wrote the spec was imagining. The fix
+is `?cross-company=true`, and the same trap exists one layer down in X++.
+
+Prove it to yourself. Count the customers the current company can see, then count them
+across all companies, and log:
+
+`HVND: 4`
+
+`All companies: 10`
+
+</Step>
+
+<Step id="validation-differs">
+
+## Your turn
+
+The last trap is the one that makes an integration behave differently from the code beside
+it.
+
+When OData creates a record it runs the entity's whole chain: `clear()`, `initValue()`,
+set the fields, `validateField()`, `defaultRow()`, `validateWrite()`, `write()`.
+
+When *your* X++ calls `buffer.insert()`, it runs **none of that**. Not `validateWrite()`,
+not `defaultRow()`. So the same bad record is rejected through the entity and accepted
+through your code.
+
+Show it. Build an `InventTable` buffer with nothing filled in, ask `validateWrite()` whether
+it would be accepted, and log the answer as:
+
+`validateWrite says: No`
+
+Do not insert it — just ask.
+
+</Step>
+
+<Step id="choosing">
+
+Put together, the decision is nearly mechanical. These are the documented scenarios and
+what each one was solved with:
+
+| Scenario                                        | Real time? | Peak volume        | Pattern            |
+| ----------------------------------------------- | ---------- | ------------------ | ------------------ |
+| Third-party system creates and updates products | Yes        | 1,000 / hour       | OData              |
+| Customer portal reads order status              | Yes        | 5,000 / hour       | OData              |
+| PLM system approves a BOM                       | Yes        | 1,000 / hour       | OData **action**   |
+| Scheduling app looks up on-hand inventory       | Yes        | 1,000 / hour       | Custom service     |
+| Front-end system imports sales orders           | No         | 200,000 / hour     | Batch data API     |
+| Export purchase orders to a warehouse system    | No         | 300,000 / hour     | Batch data API     |
+
+The two rows worth noticing are the ones that are not plain CRUD. Approving a BOM is a
+*verb*, not a row, so it becomes an OData **action** — a method on the entity, exposed with
+`[SysODataActionAttribute]`. Looking up on-hand inventory is a calculation rather than a
+record, so it becomes a custom service.
+
+<KeyPoints>
+  - Pick on volume and freshness, in that order
+  - Synchronous hands failure to the caller; asynchronous hands it to nobody until they poll
+  - An entity has two independent switches, and "not on OData" usually means one is off
+  - OData reads one company unless told otherwise
+  - An entity write validates; your `insert()` does not
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "six-doors",
+    title: "Six ways in and out",
+    example:
+      'info("Integration starts as a choice, not as code. The next steps are what the choice turns on.");\n',
+  },
+  {
+    id: "sync-async",
+    title: "Synchronous and asynchronous",
+    example:
+      'CustTable custTable;\nint counter;\n\nwhile select custTable\n{\n    counter++;\n}\n\ninfo(strFmt("A synchronous call would return these %1 rows to the caller and wait.", counter));\n',
+  },
+  {
+    id: "what-an-entity-is",
+    title: "What a data entity is",
+    example:
+      'CustTable custTable;\nDirPartyTable dirPartyTable;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000"\n    join dirPartyTable\n    where dirPartyTable.RecId == custTable.Party;\n\ninfo(strFmt("Two tables: %1 and %2", custTable.AccountNum, dirPartyTable.Name));\n',
+  },
+  { id: "denormalise", title: "De-normalise it yourself", taskId: "denormalise" },
+  {
+    id: "odata-shapes",
+    title: "The shape of an OData call",
+    example:
+      'info("$filter=CustomerGroupId eq \'RETAIL\' becomes a WHERE with a bound parameter.");\ninfo("Watch the SQL trace on the next exercise to see the same thing happen in X++.");\n',
+  },
+  { id: "cross-company", title: "The missing rows", taskId: "cross-company" },
+  { id: "validation-differs", title: "Two ways to write, one of them checked", taskId: "validate-through-the-entity" },
+  {
+    id: "choosing",
+    title: "Choosing, mechanically",
+    example:
+      'info("Volume first, freshness second. Everything else follows from those two answers.");\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "denormalise",
+    prompt:
+      "Join CustTable to DirPartyTable and log one line per customer as: C-1000 = Bramley & Fitch Retail. Finish with: 4 customers.",
+    starter:
+      'CustTable custTable;\nDirPartyTable dirPartyTable;\nint counter;\n\n// The entity would do this join for you. Do it yourself once.\n',
+    solution:
+      'CustTable custTable;\nDirPartyTable dirPartyTable;\nint counter;\n\nwhile select custTable\n    join dirPartyTable\n    where dirPartyTable.RecId == custTable.Party\n{\n    info(strFmt("%1 = %2", custTable.AccountNum, dirPartyTable.Name));\n    counter++;\n}\n\ninfo(strFmt("%1 customers", counter));\n',
+    hints: [
+      "Loop CustTable and join DirPartyTable in the same statement.",
+      "The join condition is dirPartyTable.RecId == custTable.Party — the customer stores the party's RecId.",
+      'Log strFmt("%1 = %2", custTable.AccountNum, dirPartyTable.Name), then the count after the loop.',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message: "Loop the customers with a while select — there is more than one.",
+      },
+      {
+        kind: "output",
+        match: "^C-1000 = Bramley & Fitch Retail$",
+        type: "info",
+        message:
+          "The line for C-1000 is missing. Log the account number, a space, an equals sign, a space, then the party's Name.",
+      },
+      {
+        kind: "output",
+        match: "^4 customers$",
+        type: "info",
+        message:
+          "The count should be 4 — this company's customers. If you got 10 you are reading every company; that is the next step's lesson, not this one.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "Look at the SQL trace: this ran more than one query. The join is what an entity saves you, and it is a single statement.",
+      },
+    ],
+  },
+
+  {
+    id: "cross-company",
+    prompt:
+      "Count the customers in the current company, then across all companies. Log: HVND: 4 and All companies: 10.",
+    starter:
+      "CustTable custTable;\nint here;\nint everywhere;\n\n// One of these two loops needs crosscompany.\n",
+    solution:
+      'CustTable custTable;\nint here;\nint everywhere;\n\nwhile select custTable\n{\n    here++;\n}\n\nwhile select crosscompany custTable\n{\n    everywhere++;\n}\n\ninfo(strFmt("HVND: %1", here));\ninfo(strFmt("All companies: %1", everywhere));\n',
+    hints: [
+      "The first loop is an ordinary while select — it already sees only the current company.",
+      "The second needs the crosscompany modifier: while select crosscompany custTable.",
+      'Log strFmt("HVND: %1", here) and strFmt("All companies: %1", everywhere).',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesModifier",
+        value: "crosscompany",
+        message:
+          "Nothing here used crosscompany. Without it every read is scoped to one company — which is exactly the OData default this step is about.",
+      },
+      {
+        kind: "output",
+        match: "^HVND: 4$",
+        type: "info",
+        message:
+          "The current company has 4 customers. If you got 10, both loops are crossing companies.",
+      },
+      {
+        kind: "output",
+        match: "^All companies: 10$",
+        type: "info",
+        message:
+          "Across all three companies there are 10 customers. If you got 4, the second loop is missing crosscompany.",
+      },
+    ],
+  },
+
+  {
+    id: "validate-through-the-entity",
+    prompt:
+      "Ask an empty InventTable buffer whether validateWrite() would accept it, and log: validateWrite says: No.",
+    starter:
+      "InventTable inventTable;\n\n// Do not insert anything. Just ask whether it would be allowed.\n",
+    solution:
+      'InventTable inventTable;\nboolean allowed;\n\nallowed = inventTable.validateWrite();\ninfo(strFmt("validateWrite says: %1", allowed));\n',
+    hints: [
+      "validateWrite() returns a boolean — it reports, it does not write and it does not throw.",
+      "Call it on the empty buffer and keep the answer in a boolean variable.",
+      'Log it with strFmt("validateWrite says: %1", allowed). A boolean prints as Yes or No.',
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "validateWrite",
+        message:
+          "Call validateWrite() on the buffer. That is the check an OData create runs for you and your insert() does not.",
+      },
+      {
+        kind: "state",
+        table: "InventTable",
+        count: 8,
+        message:
+          "The item count changed, so something was written. validateWrite() answers the question without writing anything — that is the whole point of it.",
+      },
+      {
+        kind: "output",
+        match: "^validateWrite says: No$",
+        type: "info",
+        message:
+          "An empty buffer is missing its mandatory fields, so validateWrite() returns false — which prints as No. Log it as `validateWrite says: %1`.",
+      },
+    ],
+  },
+];

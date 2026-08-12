@@ -196,12 +196,15 @@ describe("buildReportView", () => {
 });
 
 describe("what is still refused", () => {
-  it("refuses an OData request rather than answering it wrongly", () => {
-    expect(() =>
-      handleODataRequest(
-        { method: "GET", entity: "Customers" },
-        { entities: [], db: {} as VirtualDb },
-      ),
-    ).toThrowError(/integration track/);
+  it("refuses a write rather than running half of an entity's validation chain", async () => {
+    // OData reads are implemented — see odata.test.ts. Writes are not, because an entity
+    // write runs six validation steps (VB-059) and this engine implements two of them.
+    const response = await handleODataRequest(
+      { method: "POST", entity: "ReleasedProductsV2" },
+      { entities: [], db: {} as VirtualDb },
+    );
+
+    expect(response.status).toBe(501);
+    expect(response.error?.message).toContain("not simulated");
   });
 });

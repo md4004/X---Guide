@@ -8,12 +8,11 @@
  *   form.ts    form metadata + a database -> the structure a form component draws
  *   report.ts  a data provider's dataset + a design -> grouped, totalled report rows
  *
- * The OData console is declared below and not implemented; it belongs to a later track.
+ *   odata.ts   a data entity + a request -> the JSON a client sees, and the SQL behind it
  */
 
-import type { SqlValue } from "@xpplab/xpp-core";
-import type { DataEntityMetadata } from "@xpplab/virtual-aot";
-import type { VirtualDb } from "@xpplab/virtual-db";
+export { MAX_PAGE_SIZE, ODataError, handleODataRequest, listPublicCollections } from "./odata";
+export type { ODataContext, ODataRequest, ODataResponse } from "./odata";
 
 export { buildFormView } from "./form";
 export type {
@@ -33,45 +32,3 @@ export type {
   ReportGroupViewModel,
   ReportViewModel,
 } from "./report";
-
-// ---------------------------------------------------------------------------
-// OData console (later track)
-// ---------------------------------------------------------------------------
-
-export interface ODataRequest {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
-  /** Entity public collection name, e.g. `CustomersV3`. */
-  entity: string;
-  key?: Record<string, SqlValue>;
-  query?: {
-    select?: string[];
-    filter?: string;
-    top?: number;
-    skip?: number;
-    expand?: string[];
-    orderby?: string[];
-    count?: boolean;
-  };
-  body?: Record<string, SqlValue>;
-}
-
-export interface ODataResponse {
-  status: number;
-  /** The JSON payload, already shaped the way F&O shapes it (`@odata.context`, `value`). */
-  body: unknown;
-  /** The SQL the request generated — shown next to the JSON. That pairing is the lesson. */
-  sql: { statement: string; parameters: SqlValue[] }[];
-  error?: { code: string; message: string };
-}
-
-export interface ODataContext {
-  entities: DataEntityMetadata[];
-  db: VirtualDb;
-}
-
-export function handleODataRequest(
-  _request: ODataRequest,
-  _context: ODataContext,
-): Promise<ODataResponse> {
-  throw new Error("The OData console arrives with the integration track.");
-}

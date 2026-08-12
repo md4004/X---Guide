@@ -21,6 +21,7 @@ import {
 import type {
   AotModel,
   BaseEnumMetadata,
+  DataEntityMetadata,
   EdtMetadata,
   FieldGroupMetadata,
   FieldMetadata,
@@ -236,11 +237,89 @@ export const FORMS: readonly FormMetadata[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Data entities
+// ---------------------------------------------------------------------------
+
+/**
+ * Three entities, in three of the five categories, and all ours.
+ *
+ * The names follow the real public collection names because those are API surface and
+ * fine to reference — but the field sets are hand-authored and deliberately small. See
+ * CLAUDE.md > Legal rule.
+ *
+ * `CustomersV3` is the one that earns its place. It de-normalises `DirPartyTable.Name`
+ * onto the customer, which is Microsoft's own worked example of what an entity is *for*
+ * (VB-052) — and it means a learner can see one OData GET produce a join.
+ *
+ * `SalesOrderHeadersV2` is deliberately **not** public: it is the entity a learner tries
+ * first and cannot find on the endpoint, which is the fastest way to learn that
+ * `IsPublic` is a switch somebody has to throw (VB-055).
+ */
+export const ENTITIES: readonly DataEntityMetadata[] = [
+  {
+    name: "CustomerV3Entity",
+    publicCollectionName: "CustomersV3",
+    category: "Master",
+    primaryTable: "CustTable",
+    joins: [{ table: "DirPartyTable", fromField: "Party", toField: "RECID" }],
+    primaryKeyFields: ["CustomerAccount"],
+    mappings: {
+      CustomerAccount: "CustTable.AccountNum",
+      OrganizationName: "DirPartyTable.Name",
+      CustomerGroupId: "CustTable.CustGroup",
+      SalesCurrencyCode: "CustTable.CurrencyCode",
+      PaymentTerms: "CustTable.PaymTermId",
+      CreditLimit: "CustTable.CreditMax",
+      IsBlocked: "CustTable.Blocked",
+    },
+    isPublic: true,
+    dataManagementEnabled: true,
+  },
+  {
+    name: "ReleasedProductV2Entity",
+    publicCollectionName: "ReleasedProductsV2",
+    category: "Master",
+    primaryTable: "InventTable",
+    joins: [],
+    primaryKeyFields: ["ItemNumber"],
+    mappings: {
+      ItemNumber: "InventTable.ItemId",
+      ProductName: "InventTable.ItemName",
+      ItemModelGroupId: "InventTable.ItemGroupId",
+      ProductType: "InventTable.ItemType",
+      IsStopped: "InventTable.Blocked",
+      StandardCost: "InventTable.StandardCost",
+    },
+    isPublic: true,
+    dataManagementEnabled: true,
+  },
+  {
+    name: "SalesOrderHeaderV2Entity",
+    publicCollectionName: "SalesOrderHeadersV2",
+    category: "Document",
+    primaryTable: "SalesTable",
+    joins: [],
+    primaryKeyFields: ["SalesOrderNumber"],
+    mappings: {
+      SalesOrderNumber: "SalesTable.SalesId",
+      SalesOrderName: "SalesTable.SalesName",
+      OrderingCustomerAccountNumber: "SalesTable.CustAccount",
+      SalesOrderStatus: "SalesTable.SalesStatus",
+      RequestedShippingDate: "SalesTable.DeliveryDate",
+      CurrencyCode: "SalesTable.CurrencyCode",
+    },
+    // Data management can see it; OData cannot. The two switches are independent.
+    isPublic: false,
+    dataManagementEnabled: true,
+  },
+];
+
 export const BASE_MODEL: AotModel = {
   tables: TABLES.map((table) => ({ ...table })),
   edts: EDTS.map((edt) => ({ ...edt })),
   enums: ENUMS.map((baseEnum) => ({ ...baseEnum })),
   forms: FORMS.map((form) => ({ ...form })),
-  entities: [],
+  entities: ENTITIES.map((entity) => ({ ...entity })),
   stubClasses: [],
 };

@@ -161,13 +161,45 @@ export interface FormMetadata {
 // Data entities (Phase 10)
 // ---------------------------------------------------------------------------
 
+/**
+ * What an entity is *for*, which decides what a data migration does with it (VB-053).
+ *
+ * Not decoration: `Transaction` entities are the ones you generally do not migrate in
+ * detail, and knowing the category is how you tell.
+ */
+export type DataEntityCategory = "Parameter" | "Reference" | "Master" | "Document" | "Transaction";
+
+/** A related table an entity de-normalises fields out of. */
+export interface DataEntityJoin {
+  table: string;
+  /** `Field` on the primary table. */
+  fromField: string;
+  /** `Field` on the joined table. */
+  toField: string;
+}
+
 export interface DataEntityMetadata {
   name: string;
   publicCollectionName: string;
+  category: DataEntityCategory;
+  /** The root data source the entity is built on. */
+  primaryTable: string;
+  /**
+   * Extra data sources, which is what makes an entity a *de-normalised view* rather than
+   * a second name for a table (VB-052). Joined for reads; writes go to the primary table.
+   */
+  joins: DataEntityJoin[];
   primaryKeyFields: string[];
   /** Entity field name to `Table.Field`. */
   mappings: Record<string, string>;
+  /** **Enable public API** — whether it appears on the OData endpoint at all (VB-055). */
   isPublic: boolean;
+  /**
+   * **Enable data management capabilities** — whether the DMF and the batch data APIs can
+   * see it. Independent of `isPublic`, which is why an entity can be reachable by one
+   * integration route and invisible to the other (VB-054).
+   */
+  dataManagementEnabled: boolean;
 }
 
 // ---------------------------------------------------------------------------

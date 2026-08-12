@@ -110,6 +110,20 @@ that compiles and then fails review.
 > those classes. But the walkthroughs are old, so the _shape_ is what we teach and the
 > exact current wording is logged in `docs/unverified.md` as needing a live check.
 
+### Integration (VB-052 to VB-060)
+
+| ID     | Behaviour                                                                                                                                                                           | Verified against                     | Date       | Notes                                                                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VB-052 | A data entity is a **de-normalised view** over one or more tables, not a table. Its job is to hide the physical schema from integrations                                            | [MS Learn, data entities][20]        | 2026-08-12 | "in normalized tables, a lot of the data for each customer might be stored in a customer table … the data entity for the customer concept appears as one de-normalized view" |
+| VB-053 | Entities fall into five categories: **Parameter**, **Reference**, **Master**, **Document**, **Transaction**                                                                         | [MS Learn, data entities][20]        | 2026-08-12 | The category drives what a data migration does with it — transactions are usually summarised rather than migrated in detail                                                  |
+| VB-054 | Two capabilities are switched on separately: **Enable public API** exposes it to OData, **Enable data management capabilities** exposes it to the DMF and generates a staging table | [MS Learn, data entities][20]        | 2026-08-12 | They are independent, which is why an entity can be visible to one integration route and invisible to the other                                                              |
+| VB-055 | Only entities marked **IsPublic** appear on the OData endpoint, whose root is `[root URL]/data`                                                                                     | [MS Learn, OData][21]                | 2026-08-12 | A collection is `/data/Customers`, one record `/data/Customers("key")`, a navigation `/data/Customers("key")/Reservations`                                                   |
+| VB-056 | Supported query options are `$filter`, `$count`, `$orderby`, `$skip`, `$top`, `$expand` (first level only) and `$select`                                                            | [MS Learn, OData][21]                | 2026-08-12 | Server-driven paging with a **maximum page size of 10,000**                                                                                                                  |
+| VB-057 | `$filter` supports `eq ne gt ge lt le and or not` and arithmetic; **`has` and `in` are not supported**; `contains` is done with a `*` wildcard                                      | [MS Learn, OData][21]                | 2026-08-12 | `$filter=StringField eq '*retail*'` is the documented wildcard form                                                                                                          |
+| VB-058 | OData returns **only the user's default company** unless the request carries `cross-company=true`                                                                                   | [MS Learn, OData][21]                | 2026-08-12 | To target one other company: `?$filter=dataAreaId eq 'usrt'&cross-company=true`. This is the same trap as `crosscompany` in X++, one layer out                               |
+| VB-059 | An OData **create** calls, in order: `clear()`, `initValue()`, set the supplied fields, `validateField()`, `defaultRow()`, `validateWrite()`, `write()`                             | [MS Learn, OData][21]                | 2026-08-12 | Which is why VB-013 matters: your own X++ `insert()` skips all of this, and the same entity written two ways validates differently                                           |
+| VB-060 | OData and custom services are **synchronous**; the batch data APIs are **asynchronous** and are the answer above roughly a few hundred thousand records                             | [MS Learn, integration overview][22] | 2026-08-12 | With a synchronous pattern the caller gets success or failure back. With an asynchronous one it gets only "scheduled", and must poll for the outcome                         |
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
 [2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
 [3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
@@ -129,6 +143,9 @@ that compiles and then fails review.
 [17]: https://learn.microsoft.com/en-us/dynamicsax-2012/appuser-itpro/walkthrough-creating-a-report-bound-to-a-report-data-provider-class-x-business-logic
 [18]: https://learn.microsoft.com/en-us/dynamicsax-2012/appuser-itpro/report-programming-model
 [19]: https://learn.microsoft.com/en-us/training/modules/build-reports-finance-operations/query-objects-query-builder
+[20]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/data-entities
+[21]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/odata
+[22]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/integration-overview
 
 ### On VB-030: the merge table is Microsoft's, not ours
 
