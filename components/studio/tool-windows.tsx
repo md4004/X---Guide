@@ -69,7 +69,14 @@ export function ErrorList({ messages }: { messages: BuildMessage[] }) {
   );
 }
 
-export function Locals({ pause }: { pause?: DebugPause }) {
+export function Locals({
+  pause,
+  onExpand,
+}: {
+  pause?: DebugPause;
+  /** Fired when a table buffer is expanded — the guided tour watches for it. */
+  onExpand?: () => void;
+}) {
   if (pause === undefined) return <Empty>Not debugging. Press F5 to start.</Empty>;
   if (pause.locals.length === 0) {
     return <Empty>No variables are in scope yet.</Empty>;
@@ -78,13 +85,13 @@ export function Locals({ pause }: { pause?: DebugPause }) {
   return (
     <div className="p-1 font-mono text-[11px]" data-testid="locals-pane">
       {pause.locals.map((local) => (
-        <LocalRow key={local.name} local={local} />
+        <LocalRow key={local.name} local={local} onExpand={onExpand} />
       ))}
     </div>
   );
 }
 
-function LocalRow({ local }: { local: DebugVariable }) {
+function LocalRow({ local, onExpand }: { local: DebugVariable; onExpand?: () => void }) {
   const [open, setOpen] = useState(false);
   const expandable = local.fields !== undefined && local.fields.length > 0;
 
@@ -92,7 +99,11 @@ function LocalRow({ local }: { local: DebugVariable }) {
     <div>
       <div
         className="flex cursor-default items-baseline gap-2 px-1 py-px hover:bg-zinc-800/60"
-        onClick={() => expandable && setOpen((current) => !current)}
+        onClick={() => {
+          if (!expandable) return;
+          setOpen((current) => !current);
+          onExpand?.();
+        }}
         data-testid={`local-${local.name}`}
       >
         <span className="w-2 text-[9px] text-zinc-500">{expandable ? (open ? "▾" : "▸") : ""}</span>

@@ -42,6 +42,8 @@ import { TreeView } from "./tree-view";
 import { ContextMenu, type ContextCommand } from "./context-menu";
 import { PropertiesWindow } from "./properties-window";
 import { Autos, Breakpoints, CallStack, ErrorList, Infolog, Locals, Output } from "./tool-windows";
+import { TourPanel } from "./tour-panel";
+import { EMPTY_SNAPSHOT, type StudioSnapshot } from "./tour";
 
 const CodeWindow = dynamic(() => import("./code-window").then((module) => module.CodeWindow), {
   ssr: false,
@@ -130,6 +132,20 @@ export function Studio() {
     { node: DesignerNode; x: number; y: number } | undefined
   >();
 
+  /**
+   * What the guided tour watches.
+   *
+   * Held as observed facts rather than as "which step are we on", so a learner who does
+   * things in their own order still gets them ticked off — and one who already knows the
+   * tool finds the list filling in behind them.
+   */
+  const [tour, setTour] = useState<StudioSnapshot>(EMPTY_SNAPSHOT);
+  const [tourOpen, setTourOpen] = useState(true);
+  const observe = useCallback(
+    (change: Partial<StudioSnapshot>) => setTour((current) => ({ ...current, ...change })),
+    [],
+  );
+
   // Resuming has to send the breakpoints as they are *now*, and the F5 key handler is
   // registered once, so both reach the current list through a ref.
   const breakpointsRef = useRef(breakpoints);
@@ -197,11 +213,15 @@ export function Studio() {
 
   // -- commands ------------------------------------------------------------
 
-  const openDesigner = useCallback((ref: AotObjectRef) => {
-    setOpenElement(ref);
-    setCentreTab("designer");
-    setSelectedNode(undefined);
-  }, []);
+  const openDesigner = useCallback(
+    (ref: AotObjectRef) => {
+      setOpenElement(ref);
+      setCentreTab("designer");
+      setSelectedNode(undefined);
+      observe({ openedElement: ref.name });
+    },
+    [observe],
+  );
 
   /** **Add to project** — the command that makes an element editable at all (VB-015). */
   const handleAddToProject = useCallback(
@@ -243,6 +263,7 @@ export function Studio() {
       setStatus(
         `${field.name} added to ${openElement.name}. The metadata has it; the database does not until you synchronise.`,
       );
+      setTour((current) => ({ ...current, fieldsAdded: current.fieldsAdded + 1 }));
       // Both: the field landed on the table (so the designer and the property grid are
       // stale) and on the project's pending list (so Solution Explorer is too).
       touch();
@@ -263,6 +284,7 @@ export function Studio() {
     setMessages(result.messages);
     setBottomTab(result.messages.length > 0 ? "errors" : "output");
     setStatus(result.ok ? "Build succeeded" : "Build failed");
+    observe({ built: true, ...(result.synchronised ? { synchronised: true } : {}) });
 
     if (result.synchronised) {
       const plan = planSynchronisation(project);
@@ -272,7 +294,7 @@ export function Studio() {
       }
     }
     touchProject();
-  }, [aot, project, touchProject]);
+  }, [aot, observe, project, touchProject]);
 
   /** Dynamics 365 > Synchronize database (VB-021). */
   const handleSynchronise = useCallback(() => {
@@ -287,8 +309,9 @@ export function Studio() {
     markSynchronised(project);
     setBottomTab("output");
     setStatus("Database synchronised");
+    observe({ synchronised: true });
     touchProject();
-  }, [project, touchProject]);
+  }, [observe, project, touchProject]);
 
   // -- debugging -----------------------------------------------------------
 
@@ -307,6 +330,7 @@ export function Studio() {
       breakpointsRef.current,
       (next) => {
         setPause(next);
+        observe({ hasPaused: true });
         setHits((current) => ({
           ...current,
           ...(next.reason === "breakpoint" ? { [next.line]: (current[next.line] ?? 0) + 1 } : {}),
@@ -330,12 +354,15 @@ export function Studio() {
           : `Ready — ${result.statementsExecuted} statements in ${result.durationMs}ms`,
     );
     if (result !== undefined && result.errors.length === 0) setBottomTab("infolog");
-  }, [busy, debug, source]);
+  }, [busy, debug, observe, source]);
 
   const send = useCallback(
     (command: DebugCommand) => {
       setPause(undefined);
       setStatus(command === "stop" ? "Stopping" : "Running");
+      if (command !== "stop" && command !== "continue") {
+        setTour((current) => ({ ...current, stepCount: current.stepCount + 1 }));
+      }
       resume(command, breakpointsRef.current);
     },
     [resume],
@@ -436,6 +463,19 @@ export function Studio() {
     [handleAddToProject, openDesigner, project],
   );
 
+  /**
+   * What the tour actually checks.
+   *
+   * Two of these are derived rather than stored: the breakpoint list and the project's
+   * elements already exist as state, and keeping a second copy in the tour's own state is
+   * how those two quietly drift apart.
+   */
+  const tourSnapshot: StudioSnapshot = {
+    ...tour,
+    breakpointCount: breakpoints.length,
+    projectElements: project.elements.map((entry) => entry.name),
+  };
+
   const enabledLines = breakpoints
     .filter((breakpoint) => breakpoint.enabled !== false)
     .map((breakpoint) => breakpoint.line);
@@ -469,7 +509,10 @@ export function Studio() {
         <Pane title="Application Explorer" className="w-64 border-r border-zinc-800">
           <input
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              if (event.target.value.trim() !== "") observe({ usedFilter: true });
+            }}
             placeholder="Filter the AOT…"
             data-testid="aot-filter"
             className="w-full border-b border-zinc-800 bg-zinc-900 px-2 py-1 font-mono text-[11px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:bg-zinc-900/60"
@@ -481,7 +524,9 @@ export function Studio() {
               onSelect={setSelectedNode}
               onActivate={(node) => node.ref !== undefined && openDesigner(node.ref)}
               onContextMenu={(node, position) => {
-                if (node.ref !== undefined) setContextMenu({ node, ...position });
+                if (node.ref === undefined) return;
+                setContextMenu({ node, ...position });
+                observe({ openedContextMenu: true });
               }}
               initiallyExpanded={["AOT", "AOT/Data Model", "AOT/Data Model/Tables"]}
               badge={(node) =>
@@ -579,16 +624,21 @@ export function Studio() {
             </p>
           </Pane>
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col" data-testid="properties-pane">
             <PropertiesWindow
               title={propertiesTitle}
               properties={properties}
               ordering={ordering}
               onOrderingChange={setOrdering}
-              onGoTo={openDesigner}
+              onGoTo={(ref) => {
+                openDesigner(ref);
+                observe({ followedGoTo: true });
+              }}
             />
           </div>
         </div>
+
+        {tourOpen && <TourPanel snapshot={tourSnapshot} onClose={() => setTourOpen(false)} />}
       </div>
 
       {/* Tool windows */}
@@ -612,7 +662,12 @@ export function Studio() {
         <div className="min-h-0 flex-1 overflow-auto">
           {bottomTab === "output" && <Output lines={output} />}
           {bottomTab === "errors" && <ErrorList messages={messages} />}
-          {bottomTab === "locals" && <Locals {...(pause === undefined ? {} : { pause })} />}
+          {bottomTab === "locals" && (
+            <Locals
+              {...(pause === undefined ? {} : { pause })}
+              onExpand={() => observe({ expandedBuffer: true })}
+            />
+          )}
           {bottomTab === "autos" && <Autos {...(pause === undefined ? {} : { pause })} />}
           {bottomTab === "callStack" && <CallStack {...(pause === undefined ? {} : { pause })} />}
           {bottomTab === "breakpoints" && (
@@ -644,6 +699,16 @@ export function Studio() {
           {status}
         </span>
         <span className="flex items-center gap-3 text-zinc-600">
+          {!tourOpen && (
+            <button
+              type="button"
+              onClick={() => setTourOpen(true)}
+              data-testid="open-tour"
+              className="hover:text-zinc-400"
+            >
+              Guided tour
+            </button>
+          )}
           <span>HVND</span>
           <Link href="/playground" className="hover:text-zinc-400">
             Sandbox

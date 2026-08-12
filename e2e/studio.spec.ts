@@ -20,20 +20,19 @@ async function openStudio(page: Page) {
   await expect(page.locator(".monaco-editor").first()).toBeVisible({ timeout: 30_000 });
 }
 
-/** Clicks the glyph margin next to a line, which is how most people set a breakpoint. */
+/**
+ * Sets a breakpoint on the line containing `lineText`.
+ *
+ * Clicks into the line to put the cursor there, then presses F9 — the second of the two
+ * gestures the product documents, and the one that does not depend on hitting a nine-pixel
+ * margin whose position moves with the layout.
+ */
 async function setBreakpoint(page: Page, lineText: string) {
   const line = page.locator(".view-line", { hasText: lineText }).first();
   await expect(line).toBeVisible();
 
-  const box = await line.boundingBox();
-  if (box === null) throw new Error(`No box for the line containing ${lineText}`);
-
-  // The glyph margin sits to the left of the text, inside the editor's own left edge.
-  const editor = page.locator(".monaco-editor").first();
-  const editorBox = await editor.boundingBox();
-  if (editorBox === null) throw new Error("No box for the editor");
-
-  await page.mouse.click(editorBox.x + 10, box.y + box.height / 2);
+  await line.click();
+  await page.keyboard.press("F9");
 }
 
 test.describe("Application Explorer", () => {
@@ -159,6 +158,79 @@ test.describe("a project is what makes an element editable", () => {
     await expect(output).toContainText("Metadata validation");
     await expect(output).toContainText("Best practice checks");
     await expect(output).toContainText("Compilation and IL generation... (not simulated");
+  });
+});
+
+test.describe("the guided tour", () => {
+  test("ticks itself off as the tool is actually driven", async ({ page }) => {
+    // The point of the tour is that nothing is marked done by clicking "next" — it is
+    // marked done because the Studio's state changed. So this walks the real commands and
+    // asserts the checklist follows.
+    await openStudio(page);
+
+    await expect(page.getByTestId("tour-progress")).toHaveText("0/12");
+
+    await page.getByTestId("aot-filter").fill("invent");
+    await expect(page.getByTestId("tour-step-filter")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("aot-filter").fill("");
+    await page.getByTestId("tree-node-AOT/Data Model/Tables/InventTable").dblclick();
+    await expect(page.getByTestId("tour-step-open-designer")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("tree-node-InventTable/Fields/ItemId").click();
+    await page.getByTestId("property-goto-Extended Data Type").click();
+    await expect(page.getByTestId("tour-step-read-properties")).toHaveAttribute(
+      "data-done",
+      "true",
+    );
+
+    await page
+      .getByTestId("tree-node-AOT/Data Model/Tables/InventTable")
+      .click({ button: "right" });
+    await expect(page.getByTestId("tour-step-context-menu")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("context-Add to project").click();
+    await expect(page.getByTestId("tour-step-add-to-project")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("tree-node-AOT/Data Model/Tables/InventTable").dblclick();
+    await page.getByTestId("designer-add-field").click();
+    await expect(page.getByTestId("tour-step-add-field")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("menu-Build").click();
+    await page.getByTestId("menu-item-Build XppLabTutorial").click();
+    await expect(page.getByTestId("tour-step-build")).toHaveAttribute("data-done", "true");
+    await expect(page.getByTestId("tour-step-synchronise")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("tab-code").click();
+    await setBreakpoint(page, "inventTable.update();");
+    await expect(page.getByTestId("tour-step-breakpoint")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("debug-start").click();
+    await expect(page.getByTestId("studio-status")).toContainText("Paused");
+    await expect(page.getByTestId("tour-step-start-debugging")).toHaveAttribute(
+      "data-done",
+      "true",
+    );
+
+    await page.getByTestId("bottom-tab-locals").click();
+    await page.getByTestId("local-inventTable").click();
+    await expect(page.getByTestId("tour-step-inspect")).toHaveAttribute("data-done", "true");
+
+    await page.getByTestId("debug-step-over").click();
+    await expect(page.getByTestId("tour-step-step")).toHaveAttribute("data-done", "true");
+
+    await expect(page.getByTestId("tour-progress")).toHaveText("12/12");
+    await expect(page.getByTestId("tour-complete")).toBeVisible();
+  });
+
+  test("can be closed and reopened", async ({ page }) => {
+    await openStudio(page);
+
+    await page.getByRole("button", { name: "Close the guided tour" }).click();
+    await expect(page.getByTestId("tour-panel")).toHaveCount(0);
+
+    await page.getByTestId("open-tour").click();
+    await expect(page.getByTestId("tour-panel")).toBeVisible();
   });
 });
 
