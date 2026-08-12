@@ -28,6 +28,24 @@ export type { RunOptions, RunResult } from "./interpreter";
 export { createInfolog } from "./infolog";
 export type { Infolog } from "./infolog";
 
+export {
+  QueryCompileError,
+  addDataSource,
+  addRange,
+  createQuery,
+  findDataSource,
+  findRange,
+  parseRangeValue,
+  queryToSelectClauses,
+} from "./query";
+export type {
+  QueryDataSource,
+  QueryModel,
+  QueryRange,
+  QueryRunState,
+  RangeComparison,
+} from "./query";
+
 export { Scope, closestName } from "./scope";
 
 /**

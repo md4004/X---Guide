@@ -129,8 +129,15 @@ reverses that, recorded here rather than made silently, as scope discipline requ
 
 **In:** `Query`, `QueryRun`, `QueryBuildDataSource`, `QueryBuildRange`, and the methods
 `addDataSource`, `dataSourceTable`, `addRange`, `findRange`, `value`, `addSortField`,
-`joinMode`, `relations`, `next`, `get`; the enums `SortOrder` and `JoinMode`; the globals
-`tableNum`, `fieldNum`, `queryStr`, `queryValue`.
+`next`, `get`; the enum `SortOrder`; the globals `tableNum`, `fieldNum`, `queryValue`.
+
+**In:** the documented advanced range syntax — `>2`, `<=10`, `A..M`, and `*` wildcards.
+A range with no value restricts nothing, which is the framework's behaviour and a common
+surprise.
+
+**Out:** **joined data sources** — `qbds.addDataSource(...)`, `joinMode`, `relations`. One
+data source per query. A query with a second one is refused with a message pointing at
+`while select ... join ...`, rather than being compiled with half of itself missing.
 
 **Out:** `QueryFilter`, date-effective queries, `QueryBuildFieldList` beyond field
 selection, computed columns, and the SysDa classes.

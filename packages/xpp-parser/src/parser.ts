@@ -116,13 +116,16 @@ const REJECTED_SELECT_MODIFIERS: Record<string, string> = {
 };
 
 /** Types that exist in X++ but that the v1 subset does not model. */
+/**
+ * Types that are real X++ but outside what this simulator covers.
+ *
+ * `Query`, `QueryRun`, `QueryBuildDataSource` and `QueryBuildRange` used to be on this
+ * list. They came off it when the query object model was accepted as an explicit subset
+ * extension — see docs/language-subset.md. What remains out is the *joined* form, and
+ * that is refused at runtime by the method that would have built the join, where the
+ * message can name the alternative precisely.
+ */
 const REJECTED_TYPES: Record<string, string> = {
-  query:
-    "The Query/QueryRun object model is out of subset. Write the same thing as a `select` statement — that is what the lessons teach.",
-  queryrun:
-    "The Query/QueryRun object model is out of subset. Write the same thing as a `select` statement.",
-  querybuilddatasource: "The Query object model is out of subset. Use a `select` statement.",
-  querybuildrange: "The Query object model is out of subset. Use a `where` clause.",
   recordsortedlist: "RecordSortedList is out of subset. Use a `List` or a `while select`.",
   recordlinklist: "RecordLinkList is out of subset. Use a `List` or a `while select`.",
 };

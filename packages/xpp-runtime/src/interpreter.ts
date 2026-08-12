@@ -45,6 +45,16 @@ import {
 import { createVirtualAot, validateWrite, type VirtualAot } from "@xpplab/virtual-aot";
 import { callBuiltin, formatString, isBuiltin } from "./builtins";
 import {
+  QueryCompileError,
+  addDataSource,
+  addRange,
+  createQuery,
+  findDataSource,
+  findRange,
+  queryToSelectClauses,
+  type QueryRunState,
+} from "./query";
+import {
   ClassTableError,
   allFields,
   buildClassTable,
@@ -90,6 +100,7 @@ import {
   toSqlValue,
   valuesEqual,
   type ObjectInstance,
+  type QueryObject,
   type TableBuffer,
   type XppValue,
 } from "./values";
@@ -412,6 +423,229 @@ export class Interpreter {
     if (this.#options.onStatement?.(line) === false) {
       throw new BudgetExceeded(XppErrorCodes.ExecutionTimeout, "Execution was stopped.", "");
     }
+  }
+
+  // -- the query object model ----------------------------------------------
+
+  /**
+   * `tableNum(X)`, `fieldNum(X, F)` and `queryValue(v)`.
+   *
+   * Handled before arguments are evaluated, because their arguments are *names*, not
+   * values — `tableNum(InventTable)` names a table, and evaluating `InventTable` as a
+   * variable would fail. The real compiler resolves these at compile time for the same
+   * reason.
+   *
+   * They answer with the name as a string. A real environment answers with a numeric id
+   * out of its own id space, and this simulator has no such space — inventing numbers
+   * that look like real table ids would be worse than a visible difference. Nobody writes
+   * the literal in either case; that is the whole point of the function.
+   */
+  #compileTimeName(expression: Extract<Expression, { kind: "call" }>): XppValue | undefined {
+    if (expression.callee.kind !== "identifier") return undefined;
+
+    const name = expression.callee.name.toLowerCase();
+    const nameOf = (argument: Expression | undefined): string =>
+      argument === undefined
+        ? ""
+        : argument.kind === "identifier"
+          ? argument.name
+          : argument.kind === "literal"
+            ? String(argument.value)
+            : "";
+
+    if (name === "tablenum" || name === "tablestr") {
+      const table = nameOf(expression.arguments[0]);
+      if (getTableSchema(table as TableName) === undefined) {
+        throw new RuntimeError(
+          XppErrorCodes.ObjectNotFound,
+          `There is no table called '${table}'.`,
+          "`tableNum` is checked at compile time in a real environment, which is why a typo here is caught before the code ever runs.",
+          "Error",
+          expression.span,
+        );
+      }
+      return str(table);
+    }
+
+    if (name === "fieldnum" || name === "fieldstr") {
+      const table = nameOf(expression.arguments[0]);
+      const field = nameOf(expression.arguments[1]);
+      const schema = getTableSchema(table as TableName);
+      const known =
+        schema !== undefined &&
+        [RECID_FIELD, DATAAREAID_FIELD, ...schema.fields.map((entry) => entry.name)].some(
+          (candidate) => candidate.toLowerCase() === field.toLowerCase(),
+        );
+
+      if (!known) {
+        throw new RuntimeError(
+          XppErrorCodes.FieldNotFound,
+          `'${table}' has no field called '${field}'.`,
+          "`fieldNum` is compile-time checked in a real environment — this is the error you would get at build time.",
+          "Error",
+          expression.span,
+        );
+      }
+      return str(field);
+    }
+
+    return undefined;
+  }
+
+  /** Methods on `Query`, `QueryBuildDataSource`, `QueryBuildRange` and `QueryRun`. */
+  async #queryMethod(
+    holder: QueryObject,
+    method: string,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const name = method.toLowerCase();
+    const text = (index: number): string => toDisplayString(args[index] ?? NULL);
+
+    if (holder.kind === "Query") {
+      if (name === "adddatasource") {
+        return {
+          type: "queryObject",
+          object: {
+            kind: "QueryBuildDataSource",
+            dataSource: addDataSource(holder.query, text(0)),
+          },
+        };
+      }
+      if (name === "datasourcetable") {
+        const found = findDataSource(holder.query, text(0));
+        return found === undefined
+          ? NULL
+          : { type: "queryObject", object: { kind: "QueryBuildDataSource", dataSource: found } };
+      }
+    }
+
+    if (holder.kind === "QueryBuildDataSource") {
+      if (name === "addrange") {
+        return {
+          type: "queryObject",
+          object: { kind: "QueryBuildRange", range: addRange(holder.dataSource, text(0)) },
+        };
+      }
+      if (name === "findrange") {
+        const found = findRange(holder.dataSource, text(0));
+        return found === undefined
+          ? NULL
+          : { type: "queryObject", object: { kind: "QueryBuildRange", range: found } };
+      }
+      if (name === "addsortfield") {
+        const direction =
+          args[1] !== undefined && toDisplayString(args[1]).toLowerCase() === "descending"
+            ? "desc"
+            : "asc";
+        holder.dataSource.sortFields.push({ field: text(0), direction });
+        return VOID;
+      }
+      if (name === "adddatasource" || name === "joinmode" || name === "relations") {
+        throw new RuntimeError(
+          XppErrorCodes.ConstructOutsideSubset,
+          `'${method}' joins one query data source to another, which is not simulated.`,
+          "This engine's query objects cover one data source with ranges and sorting. Write the join as `while select ... join ...` — the SQL trace shows they are the same thing.",
+          "Error",
+          span,
+        );
+      }
+    }
+
+    if (holder.kind === "QueryBuildRange") {
+      // `value()` with no argument reads, with one it writes — the parm shape again.
+      if (name === "value") {
+        if (args.length === 0) return str(holder.range.value);
+        holder.range.value = text(0);
+        return str(holder.range.value);
+      }
+    }
+
+    if (holder.kind === "QueryRun") {
+      if (name === "next") return this.#queryRunNext(holder.run, span);
+      if (name === "get") {
+        const table = text(0);
+        const values = holder.run.rows?.[holder.run.cursor - 1];
+        const columns = holder.run.columns ?? [];
+
+        const row: Row = {};
+        if (values !== undefined) {
+          for (const [index, column] of columns.entries()) row[column] = values[index] ?? null;
+        }
+
+        return {
+          type: "buffer",
+          buffer: {
+            tableName: table,
+            selectedForUpdate: false,
+            isEmpty: values === undefined,
+            ...(values === undefined ? {} : { row }),
+          },
+        };
+      }
+    }
+
+    throw new RuntimeError(
+      XppErrorCodes.MethodNotFound,
+      `'${method}' is not available on ${holder.kind}.`,
+      "See docs/language-subset.md for the query methods this engine simulates.",
+      "Error",
+      span,
+    );
+  }
+
+  /**
+   * `queryRun.next()`.
+   *
+   * The query is compiled and executed on the first call, then walked from memory — which
+   * is what makes the SQL trace show **one** statement for the whole loop rather than one
+   * per row.
+   */
+  async #queryRunNext(run: QueryRunState, span: SourceSpan): Promise<XppValue> {
+    if (!run.started) {
+      run.started = true;
+
+      let clauses;
+      try {
+        clauses = queryToSelectClauses(run.query);
+      } catch (error) {
+        if (error instanceof QueryCompileError) {
+          throw new RuntimeError(
+            XppErrorCodes.ConstructOutsideSubset,
+            error.message,
+            error.hint,
+            "Error",
+            span,
+          );
+        }
+        throw error;
+      }
+
+      const table = run.query.dataSources[0]!.table as TableName;
+      const compiled = selectToSql(clauses, {
+        company: this.#db.getCompany() as CompanyId,
+        resolveBuffer: (name) => (name === run.query.dataSources[0]!.buffer ? table : undefined),
+      });
+
+      if (!isCompiled(compiled)) {
+        throw new RuntimeError(
+          XppErrorCodes.ConstructOutsideSubset,
+          compiled.errors[0]?.message ?? "This query could not be compiled.",
+          compiled.errors[0]?.hint ?? "Check the ranges you added.",
+          "Error",
+          span,
+        );
+      }
+
+      const result = await this.#exec(compiled.sql, compiled.parameters, span, "QueryRun.next()");
+      run.rows = result.rows;
+      run.columns = compiled.outputs[run.query.dataSources[0]!.buffer] ?? [];
+      run.cursor = 0;
+    }
+
+    if (run.cursor >= (run.rows?.length ?? 0)) return bool(false);
+    run.cursor += 1;
+    return bool(true);
   }
 
   // -- classes -------------------------------------------------------------
@@ -1897,8 +2131,22 @@ export class Interpreter {
   }
 
   async #call(expression: Extract<Expression, { kind: "call" }>): Promise<XppValue> {
+    // Compile-time name functions take identifiers, so they are resolved before anything
+    // is evaluated as a value.
+    const compileTime = this.#compileTimeName(expression);
+    if (compileTime !== undefined) return compileTime;
+
     const args: XppValue[] = [];
     for (const argument of expression.arguments) args.push(await this.#evaluate(argument));
+
+    // `queryValue(x)` formats a value for a range. It is a plain conversion, but naming
+    // it is what makes a range readable — and it is where enum-to-range conversion lives.
+    if (
+      expression.callee.kind === "identifier" &&
+      expression.callee.name.toLowerCase() === "queryvalue"
+    ) {
+      return str(toDisplayString(args[0] ?? NULL));
+    }
 
     // `super(...)` — the base class's version of the method we are currently in.
     if (expression.callee.kind === "identifier" && expression.callee.name === "super") {
@@ -1936,6 +2184,9 @@ export class Interpreter {
           args,
           expression.span,
         );
+      }
+      if (receiver.type === "queryObject") {
+        return this.#queryMethod(receiver.object, expression.callee.member, args, expression.span);
       }
     }
 
@@ -2180,6 +2431,30 @@ export class Interpreter {
       return {
         type: "collection",
         collection: { kind: "Map", keyType: "", valueType: "", entries: [] },
+      };
+    }
+
+    if (name === "query") {
+      return { type: "queryObject", object: { kind: "Query", query: createQuery() } };
+    }
+
+    if (name === "queryrun") {
+      const source = await this.#evaluate(expression.arguments[0]!);
+      if (source?.type !== "queryObject" || source.object.kind !== "Query") {
+        throw new RuntimeError(
+          XppErrorCodes.TypeMismatch,
+          "`new QueryRun(...)` takes a Query.",
+          "Build one with `Query query = new Query();` and pass that.",
+          "Error",
+          expression.span,
+        );
+      }
+      return {
+        type: "queryObject",
+        object: {
+          kind: "QueryRun",
+          run: { query: source.object.query, cursor: 0, started: false },
+        },
       };
     }
 

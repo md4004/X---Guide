@@ -52,9 +52,10 @@ select firstonly where AccountNum == "C-1000";
 CustTable custTable;
 select forceliterals custTable where custTable.AccountNum == "C-1000";
 
-//== query-object-out-of-subset
-Query query = new Query();
-QueryRun queryRun = new QueryRun(query);
+//== record-sorted-list-out-of-subset
+// The Query object model came *into* the subset as an explicit extension, so the
+// out-of-subset case is now one of the collection types that stayed out.
+RecordSortedList sorted = new RecordSortedList();
 
 //== invalid-numeric-literal
 real price = 12.34.56;

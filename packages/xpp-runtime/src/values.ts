@@ -7,6 +7,7 @@
  */
 
 import type { SqlValue } from "@xpplab/xpp-core";
+import type { QueryDataSource, QueryModel, QueryRange, QueryRunState } from "./query";
 import type { Row } from "@xpplab/virtual-db";
 
 export type XppValue =
@@ -24,7 +25,12 @@ export type XppValue =
   | { type: "null" }
   | { type: "buffer"; buffer: TableBuffer }
   | { type: "object"; instance: ObjectInstance }
-  | { type: "collection"; collection: XppCollection };
+  | { type: "collection"; collection: XppCollection }
+  /**
+   * A query-framework object. Native rather than an `ObjectInstance` because its methods
+   * do real work — building a select and running it — instead of executing X++ bodies.
+   */
+  | { type: "queryObject"; object: QueryObject };
 
 /**
  * A table buffer — a first-class value, not a row object.
@@ -55,6 +61,19 @@ export interface ObjectInstance {
   className: string;
   fields: Map<string, XppValue>;
 }
+
+/**
+ * The four query-framework types, tagged so method dispatch can tell them apart.
+ *
+ * They hold references into one shared `QueryModel`, exactly as the real classes do: a
+ * `QueryBuildDataSource` handed back by `addDataSource` is a live handle, so adding a
+ * range to it changes the query it came from.
+ */
+export type QueryObject =
+  | { kind: "Query"; query: QueryModel }
+  | { kind: "QueryBuildDataSource"; dataSource: QueryDataSource }
+  | { kind: "QueryBuildRange"; range: QueryRange }
+  | { kind: "QueryRun"; run: QueryRunState };
 
 export type XppCollection =
   | { kind: "List"; itemType: string; items: XppValue[] }
@@ -185,6 +204,8 @@ export function toDisplayString(value: XppValue): string {
       return value.collection.kind;
     case "object":
       return value.instance.className;
+    case "queryObject":
+      return value.object.kind;
     case "null":
       return "";
     case "void":

@@ -31,6 +31,15 @@ export const BASE_ENUMS: readonly BaseEnum[] = [
     ["No", 0, "No"],
     ["Yes", 1, "Yes"],
   ]),
+  /**
+   * A system enum rather than a data one: no table field has this type, and it exists
+   * because `QueryBuildDataSource.addSortField` takes it. Real F&O has plenty of these,
+   * and a learner meets them as parameters long before they meet one on a table.
+   */
+  defineEnum("SortOrder", [
+    ["Ascending", 0, "Ascending"],
+    ["Descending", 1, "Descending"],
+  ]),
   defineEnum("ItemType", [
     ["Item", 0, "Item"],
     ["Service", 1, "Service"],

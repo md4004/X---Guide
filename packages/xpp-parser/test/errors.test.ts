@@ -82,10 +82,10 @@ const EXPECTED: Record<string, Expectation> = {
     line: 2,
     contains: "forceliterals",
   },
-  "query-object-out-of-subset": {
+  "record-sorted-list-out-of-subset": {
     code: XppErrorCodes.ConstructOutsideSubset,
-    line: 1,
-    contains: "query",
+    line: 3,
+    contains: "recordsortedlist",
   },
   "invalid-numeric-literal": {
     code: XppErrorCodes.InvalidNumericLiteral,
