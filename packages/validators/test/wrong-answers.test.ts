@@ -383,6 +383,32 @@ const WRONG: WrongAnswer[] = [
       'class Animal\n{\n    public str speak()\n    {\n        return "...";\n    }\n}\n\nclass Dog extends Animal\n{\n    public str speak()\n    {\n        return "... woof";\n    }\n}\n\nDog dog = new Dog();\ninfo(dog.speak());',
     expect: "Use super() for the first half",
   },
+
+  // -- 14 A report, end to end ---------------------------------------------
+  {
+    lesson: "14-report-end-to-end",
+    task: "write-the-provider",
+    label: "forgets the transaction around the inserts",
+    source:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        SalesLine salesLine;\n        InventTable inventTable;\n        int counter;\n\n        while select salesLine\n            join inventTable\n            where inventTable.ItemId == salesLine.ItemId\n        {\n            tmpItemSales.clear();\n            tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n            tmpItemSales.ItemId = inventTable.ItemId;\n            tmpItemSales.insert();\n            counter++;\n        }\n\n        info(strFmt("Provider wrote %1 rows", counter));\n    }\n}\n\nItemSalesDP provider = new ItemSalesDP();\nprovider.processReport();',
+    expect: "transaction",
+  },
+  {
+    lesson: "14-report-end-to-end",
+    task: "run-the-report",
+    label: "calls the provider directly instead of letting the controller find it",
+    source:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        SalesLine salesLine;\n        InventTable inventTable;\n\n        ttsbegin;\n        while select salesLine\n            join inventTable\n            where inventTable.ItemId == salesLine.ItemId\n        {\n            tmpItemSales.clear();\n            tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n            tmpItemSales.ItemId = inventTable.ItemId;\n            tmpItemSales.insert();\n        }\n        ttscommit;\n    }\n}\n\nItemSalesDP provider = new ItemSalesDP();\nprovider.processReport();',
+    expect: "Nothing started the report",
+  },
+  {
+    lesson: "14-report-end-to-end",
+    task: "run-the-report",
+    label: "gets the report name wrong, which is the framework's first failure",
+    source:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n    }\n}\n\nSrsReportRunController controller = new SrsReportRunController();\ncontroller.parmReportName("ItemSales.Report");\ncontroller.startOperation();',
+    expect: "no report called 'ItemSales'",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {

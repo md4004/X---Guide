@@ -1,0 +1,372 @@
+---
+slug: 14-report-end-to-end
+title: A report, end to end
+minutes: 35
+objectives:
+  - Build the four elements an RDP report is made of, and say what each one is for
+  - Write a data contract, a data provider and a controller that runs them
+  - Follow the sequence the framework runs them in, and why the attributes exist
+requiresEngine: [db, runtime, aot, reports]
+seed: default
+---
+
+<Step id="four-elements">
+
+Lesson 10 built half a report — a provider filling a table. This is the other half, and
+the reason reports feel opaque until somebody shows you: **four elements**, only three of
+which you write, connected by attributes rather than by calls.
+
+| Element | What it is | Who writes it |
+| --- | --- | --- |
+| **Temporary table** | The rows the design prints | you |
+| **Data contract** | The parameters the user is prompted for | you |
+| **Data provider (RDP)** | The X++ that fills the table | you |
+| **Report** | The design, its dataset binding, its grouping | you, in the designer |
+
+Nothing in your code calls anything else in your code. The **controller** is handed a
+report *name*, and everything after that is the framework following metadata.
+
+In Visual Studio you create them from **Solution Explorer ▸ right-click the project ▸
+Add ▸ New Item**, under **Dynamics 365 Items**:
+
+- **Data Model ▸ Table** for the temp table, then set its **Table Type** property to
+  `TempDB` or `InMemory`
+- **Code ▸ Class** for the contract and the provider
+- **Reports ▸ Report** for the report itself
+
+</Step>
+
+<Step id="the-contract">
+
+## The contract is parameters, and nothing else
+
+A data contract is a class of `parm` methods. The attributes are what make it a contract
+rather than a bag of getters:
+
+<Snippet lang="xpp">{`[DataContractAttribute]
+class ItemSalesContract
+{
+    private str itemGroup;
+
+    [DataMemberAttribute("ItemGroup")]
+    public str parmItemGroup(str _itemGroup = itemGroup)
+    {
+        itemGroup = _itemGroup;
+        return itemGroup;
+    }
+}`}</Snippet>
+
+`[DataContractAttribute]` on the class says "these are report parameters". The name inside
+`[DataMemberAttribute("ItemGroup")]` is the name the **report design** sees — not the
+method name, not the field name. Rename `parmItemGroup` and nothing breaks. Change the
+string and the design loses its parameter.
+
+That indirection is the whole trick, and it is the same trick twice more in this lesson.
+
+</Step>
+
+<Step id="the-provider">
+
+## The provider fills a table and hands it over
+
+<Snippet lang="xpp">{`class ItemSalesDP extends SRSReportDataProviderBase
+{
+    private TmpItemSales tmpItemSales;
+
+    [SRSReportDataSetAttribute("ItemSales")]
+    public TmpItemSales getItemSales()
+    {
+        return tmpItemSales;
+    }
+
+    public void processReport()
+    {
+        // Fill tmpItemSales here.
+    }
+}`}</Snippet>
+
+Three things are doing work:
+
+- **`extends SRSReportDataProviderBase`** gives you `parmQuery()` and `parmDataContract()`.
+  You do not set them — the framework does, before it calls you.
+- **`processReport()`** is an override. It is the only method here the framework calls, and
+  the only one that is yours to write.
+- **`[SRSReportDataSetAttribute("ItemSales")]`** marks the getter the design binds to. Found
+  by the attribute, not by the name.
+
+<Aside title="SRSReportDataProviderBase is our own teaching stub">
+  This simulator ships a minimal stand-in for that base class, written in X++ and clearly
+  labelled — not Microsoft's source. It gives you `parmQuery`, `parmDataContract` and an
+  empty `processReport` to override, which is the surface the lesson needs.
+</Aside>
+
+</Step>
+
+<Step id="write-the-provider">
+
+## Your turn
+
+Write `ItemSalesDP`, extending `SRSReportDataProviderBase`.
+
+- a private `TmpItemSales` field
+- a getter carrying `[SRSReportDataSetAttribute("ItemSales")]` that returns it
+- a `processReport()` that walks `SalesLine`, joins `InventTable` on `ItemId`, and inserts
+  one `TmpItemSales` row per line with `ItemGroupId`, `ItemId`, `ItemName`, `SalesQty` and
+  `LineAmount`
+
+Then log how many rows you wrote:
+
+`Provider wrote 6 rows`
+
+Remember `clear()` at the top of each pass, and that inserts need a transaction.
+
+</Step>
+
+<Step id="the-controller">
+
+## The controller is four lines
+
+A menu item does not point at your provider. It points at a **controller**, and the usual
+one is three lines of setup and a go:
+
+<Snippet lang="xpp">{`class ItemSalesController
+{
+    public static void main(Args _args)
+    {
+        SrsReportRunController controller = new SrsReportRunController();
+
+        controller.parmReportName(ssrsReportStr(ItemSalesReport, Report));
+        controller.parmArgs(_args);
+        controller.startOperation();
+    }
+}`}</Snippet>
+
+`ssrsReportStr(Report, Design)` is a compile-time function: it produces the string
+`"ItemSalesReport.Report"` and fails the build if either half does not exist.
+
+`startOperation()` is where the framework takes over. In order, it:
+
+1. resolves the report element, and through it the provider class
+2. constructs the provider
+3. calls `parmQuery()` with the report's query
+4. calls `parmDataContract()` with the parameters the user chose
+5. calls **`processReport()`** — your code, and only now
+6. reads the dataset back through the `[SRSReportDataSetAttribute]` getter
+
+Step 5 is the only one you wrote. Steps 3, 4 and 6 are why the attributes exist.
+
+<Aside title="Extending the controller">
+  When a controller does need extending, the documented rule is narrow: override
+  `prePromptModifyContract` or `preRunModifyContract`, and nothing else. Everything else in
+  that class is the framework's business.
+</Aside>
+
+</Step>
+
+<Step id="run-it">
+
+## Your turn
+
+Run the report you just built.
+
+Keep your `ItemSalesDP` from before, and below it write the controller code:
+
+- a `SrsReportRunController`
+- `parmReportName("ItemSalesReport.Report")`
+- `startOperation()`
+
+You write no call to `ItemSalesDP` at all. The framework finds it, because the
+**ItemSalesReport** element names it as its data provider.
+
+Open the **Report** tab when it passes — that is the design's grouping and totals applied
+to the rows your provider wrote.
+
+</Step>
+
+<Step id="the-design">
+
+## The design is metadata, not code
+
+Look at the report you just ran. The grouping by item group, the summed amounts, the
+title — none of that is in your X++. It is on the **report element**:
+
+| Property | Value here |
+| --- | --- |
+| Data provider | `ItemSalesDP` |
+| Dataset | `ItemSales` |
+| Group by | `ItemGroupId` |
+| Totals | `sum(LineAmount)`, `sum(SalesQty)` |
+
+In Visual Studio you reach it by double-clicking the report in **Solution Explorer**, which
+opens the report designer. From there:
+
+- **Datasets ▸ your dataset ▸ Properties** — set **Data Source Type** to
+  `Report Data Provider`, then pick the class through the **Query** property's `...` button
+- drag the dataset onto **Designs** to get an **AutoDesign**
+- right-click a field under the design to add **Groupings** and **Totals**
+- select the design and press **Preview** to run it without leaving the designer
+
+That separation is why "the numbers are wrong" and "the layout is wrong" are two different
+bugs with two different owners.
+
+</Step>
+
+<Step id="where-it-breaks">
+
+Four failures, and what each one actually means:
+
+| Symptom | Cause |
+| --- | --- |
+| "There is no report called X" | The controller's report name does not match the element |
+| Report runs, prints nothing | The provider filled the table but nothing carries `[SRSReportDataSetAttribute]` |
+| Parameters missing from the dialog | A `parm` method has no `[DataMemberAttribute]` |
+| Rows correct, grouping wrong | The design, not your code — nothing in X++ decides grouping |
+
+The last one is the one worth internalising. If the rows are right, stop reading your X++.
+
+<KeyPoints>
+  - Four elements: temp table, contract, provider, report — you write three
+  - Attributes are the wiring; names are not
+  - The framework calls `processReport()`, and it calls it *after* setting the query and
+    the contract
+  - Grouping and totals are design properties, not provider logic
+</KeyPoints>
+
+</Step>
+
+export const steps = [
+  {
+    id: "four-elements",
+    title: "Four elements, three of them yours",
+    example:
+      'SalesLine salesLine;\nint counter;\n\nwhile select salesLine\n{\n    counter++;\n}\n\ninfo(strFmt("%1 sales lines are waiting for a report to be built around them.", counter));\n',
+  },
+  {
+    id: "the-contract",
+    title: "The contract",
+    example:
+      '[DataContractAttribute]\nclass ItemSalesContract\n{\n    private str itemGroup;\n\n    [DataMemberAttribute("ItemGroup")]\n    public str parmItemGroup(str _itemGroup = itemGroup)\n    {\n        itemGroup = _itemGroup;\n        return itemGroup;\n    }\n}\n\nItemSalesContract contract = new ItemSalesContract();\ncontract.parmItemGroup("FURNITURE");\ninfo(strFmt("The design would prompt for ItemGroup, and get: %1", contract.parmItemGroup()));\n',
+  },
+  {
+    id: "the-provider",
+    title: "The data provider",
+    example:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        info("The framework calls this, and nothing else you wrote.");\n    }\n}\n\nItemSalesDP provider = new ItemSalesDP();\nprovider.processReport();\n',
+  },
+  { id: "write-the-provider", title: "Write the provider", taskId: "write-the-provider" },
+  {
+    id: "the-controller",
+    title: "The controller",
+    example:
+      'info("startOperation() resolves the report, builds the provider, and calls processReport().");\ninfo("You write none of that sequence — which is why the next step works with no call to the provider in it.");\n',
+  },
+  {
+    id: "run-it",
+    title: "Run it",
+    taskId: "run-the-report",
+    view: {
+      kind: "report",
+      table: "TmpItemSales",
+      title: "Item sales by group",
+      groupBy: ["ItemGroupId"],
+      totals: [
+        { column: "LineAmount", aggregate: "sum" },
+        { column: "SalesQty", aggregate: "sum" },
+      ],
+    },
+  },
+  {
+    id: "the-design",
+    title: "The design is metadata",
+    example:
+      'info("Grouping and totals are properties on the report element.");\ninfo("Nothing in the provider decides them, which is why changing them needs no rebuild of your class.");\n',
+  },
+  {
+    id: "where-it-breaks",
+    title: "Where it breaks",
+    example:
+      'SrsReportRunController controller = new SrsReportRunController();\n\ncontroller.parmReportName("NoSuchReport.Report");\ncontroller.startOperation();\n',
+  },
+];
+
+export const tasks = [
+  {
+    id: "write-the-provider",
+    prompt:
+      "Write ItemSalesDP extending SRSReportDataProviderBase, with a [SRSReportDataSetAttribute(\"ItemSales\")] getter and a processReport() that fills TmpItemSales from SalesLine joined to InventTable. Log: Provider wrote 6 rows.",
+    starter:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    // A getter carrying [SRSReportDataSetAttribute("ItemSales")].\n\n    // An override of processReport() that fills the table.\n}\n\nItemSalesDP provider = new ItemSalesDP();\nprovider.processReport();\n',
+    solution:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        SalesLine salesLine;\n        InventTable inventTable;\n        int counter;\n\n        ttsbegin;\n        while select salesLine\n            join inventTable\n            where inventTable.ItemId == salesLine.ItemId\n        {\n            tmpItemSales.clear();\n            tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n            tmpItemSales.ItemId = inventTable.ItemId;\n            tmpItemSales.ItemName = inventTable.ItemName;\n            tmpItemSales.SalesQty = salesLine.SalesQty;\n            tmpItemSales.LineAmount = salesLine.LineAmount;\n            tmpItemSales.insert();\n            counter++;\n        }\n        ttscommit;\n\n        info(strFmt("Provider wrote %1 rows", counter));\n    }\n}\n\nItemSalesDP provider = new ItemSalesDP();\nprovider.processReport();\n',
+    hints: [
+      'The getter is an ordinary method with an attribute above it: [SRSReportDataSetAttribute("ItemSales")] then `public TmpItemSales getItemSales()`.',
+      "processReport() joins SalesLine to InventTable on ItemId, exactly as lesson 5 did.",
+      "clear() the buffer at the top of each pass, wrap the inserts in ttsbegin/ttscommit, and count as you go.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "usesStatement",
+        value: "whileSelect",
+        message: "Walk the sales lines with a while select, joining InventTable in the same statement.",
+      },
+      {
+        kind: "ast",
+        rule: "wrappedIn",
+        value: "transaction",
+        message: "Inserts need a transaction — wrap the loop in ttsbegin and ttscommit.",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        count: 6,
+        message:
+          "The report table should hold 6 rows, one per sales line. If it holds fewer, check the join condition; if it holds none, check that processReport() is actually being called.",
+      },
+      {
+        kind: "output",
+        match: "^Provider wrote 6 rows$",
+        type: "info",
+        message: 'Finish with info(strFmt("Provider wrote %1 rows", counter)).',
+      },
+    ],
+  },
+
+  {
+    id: "run-the-report",
+    prompt:
+      "Keep the provider, and run the report through a controller: parmReportName(\"ItemSalesReport.Report\") then startOperation(). Write no call to the provider yourself.",
+    starter:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        SalesLine salesLine;\n        InventTable inventTable;\n\n        ttsbegin;\n        while select salesLine\n            join inventTable\n            where inventTable.ItemId == salesLine.ItemId\n        {\n            tmpItemSales.clear();\n            tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n            tmpItemSales.ItemId = inventTable.ItemId;\n            tmpItemSales.ItemName = inventTable.ItemName;\n            tmpItemSales.SalesQty = salesLine.SalesQty;\n            tmpItemSales.LineAmount = salesLine.LineAmount;\n            tmpItemSales.insert();\n        }\n        ttscommit;\n    }\n}\n\n// Three lines. None of them mention ItemSalesDP.\n',
+    solution:
+      'class ItemSalesDP extends SRSReportDataProviderBase\n{\n    private TmpItemSales tmpItemSales;\n\n    [SRSReportDataSetAttribute("ItemSales")]\n    public TmpItemSales getItemSales()\n    {\n        return tmpItemSales;\n    }\n\n    public void processReport()\n    {\n        SalesLine salesLine;\n        InventTable inventTable;\n\n        ttsbegin;\n        while select salesLine\n            join inventTable\n            where inventTable.ItemId == salesLine.ItemId\n        {\n            tmpItemSales.clear();\n            tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n            tmpItemSales.ItemId = inventTable.ItemId;\n            tmpItemSales.ItemName = inventTable.ItemName;\n            tmpItemSales.SalesQty = salesLine.SalesQty;\n            tmpItemSales.LineAmount = salesLine.LineAmount;\n            tmpItemSales.insert();\n        }\n        ttscommit;\n    }\n}\n\nSrsReportRunController controller = new SrsReportRunController();\n\ncontroller.parmReportName("ItemSalesReport.Report");\ncontroller.startOperation();\n',
+    hints: [
+      'Create the controller: `SrsReportRunController controller = new SrsReportRunController();`',
+      'Give it the report name: `controller.parmReportName("ItemSalesReport.Report");`',
+      "Then `controller.startOperation();` — and nothing else. The report element names ItemSalesDP as its provider, so the framework finds it.",
+    ],
+    validators: [
+      {
+        kind: "ast",
+        rule: "callsMethod",
+        value: "startOperation",
+        message:
+          "Nothing started the report. Build a SrsReportRunController, give it the report name, and call startOperation().",
+      },
+      {
+        kind: "output",
+        match: "^Report ItemSalesReport ran: ItemSalesDP\\.processReport\\(\\) filled TmpItemSales\\.$",
+        type: "info",
+        message:
+          "The framework did not get as far as running the report. Check that the report name is exactly \"ItemSalesReport.Report\".",
+      },
+      {
+        kind: "state",
+        table: "TmpItemSales",
+        count: 6,
+        message:
+          "The report ran but the table is not full. processReport() is what fills it — check that your provider still walks the sales lines.",
+      },
+    ],
+  },
+];
