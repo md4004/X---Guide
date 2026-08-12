@@ -39,7 +39,25 @@ export const TABLE_NAMES = [
   "DimensionAttributeValueSetItem",
 ] as const;
 
-export type TableName = (typeof TABLE_NAMES)[number];
+/**
+ * Views.
+ *
+ * A view is a `select` saved as an element you can select *from*. It has no storage of
+ * its own — SQLite creates a real `CREATE VIEW`, so reading one really does run the join
+ * underneath, and the SQL trace shows it.
+ *
+ * Kept in their own list rather than mixed into `TABLE_NAMES` because the AOT files them
+ * separately, and because nothing may ever seed or insert into one.
+ */
+export const VIEW_NAMES = ["CustSalesOrderView"] as const;
+
+export type TableName = (typeof TABLE_NAMES)[number] | (typeof VIEW_NAMES)[number];
+
+export type ViewName = (typeof VIEW_NAMES)[number];
+
+export function isViewName(name: string): name is ViewName {
+  return (VIEW_NAMES as readonly string[]).includes(name);
+}
 
 /** The system columns present on every table. */
 export const RECID_FIELD = "RECID";
@@ -100,6 +118,14 @@ export interface TableSchema {
    * and the lifetime difference is stated in prose rather than simulated.
    */
   isTemp?: boolean;
+  /**
+   * `true` for a view. A view has no storage: `viewSql` is created as a real SQLite
+   * `CREATE VIEW`, so selecting from one runs the join underneath and the trace shows it.
+   * Nothing may seed or insert into a view.
+   */
+  isView?: boolean;
+  /** The select behind a view. Required when `isView` is set, ignored otherwise. */
+  viewSql?: string;
   /**
    * `false` for tables that are shared across companies rather than company-scoped.
    * `DirPartyTable` is the reason this flag exists — it is genuinely global in F&O, and
@@ -544,7 +570,54 @@ export const SCHEMA: readonly TableSchema[] = [
       },
     ],
   },
+  // -------------------------------------------------------------------------
+  // Views
+  //
+  // Last, because a view can only be created once the tables it reads exist.
+  //
+  // `CustSalesOrderView` is the shape a view is actually for: a join somebody got tired of
+  // writing. It carries `DATAAREAID` so company scoping still works when you select from
+  // it — a view that dropped that column would silently return every company's orders,
+  // which is the classic way a view becomes a security problem rather than a convenience.
+  // -------------------------------------------------------------------------
+  {
+    name: "CustSalesOrderView",
+    label: "Sales orders with customer",
+    saveDataPerCompany: true,
+    isView: true,
+    viewSql: `SELECT
+        SalesTable.SalesId AS SalesId,
+        SalesTable.CustAccount AS CustAccount,
+        CustTable.CustGroup AS CustGroup,
+        SalesTable.SalesStatus AS SalesStatus,
+        SalesTable.CurrencyCode AS CurrencyCode,
+        SalesTable.RECID AS RECID,
+        SalesTable.DATAAREAID AS DATAAREAID
+      FROM SalesTable
+      INNER JOIN CustTable
+        ON CustTable.AccountNum = SalesTable.CustAccount
+       AND CustTable.DATAAREAID = SalesTable.DATAAREAID`,
+    fields: [
+      str("SalesId", 20, "Sales order"),
+      str("CustAccount", 20, "Customer account", "CustAccount"),
+      str("CustGroup", 10, "Customer group"),
+      enumField("SalesStatus", "SalesStatus", "Status"),
+      str("CurrencyCode", 3, "Currency"),
+    ],
+    indexes: [],
+    relations: [],
+  },
 ];
+
+/**
+ * The two halves of `SCHEMA`, because most invariants are about one or the other.
+ *
+ * A table has storage, a primary index and system columns of its own; a view has none of
+ * those and instead has to *select* the system columns, or company scoping stops working
+ * the moment somebody reads it.
+ */
+export const TABLES: readonly TableSchema[] = SCHEMA.filter((entry) => entry.isView !== true);
+export const VIEWS: readonly TableSchema[] = SCHEMA.filter((entry) => entry.isView === true);
 
 const SCHEMA_INDEX = new Map<string, TableSchema>(SCHEMA.map((table) => [table.name, table]));
 

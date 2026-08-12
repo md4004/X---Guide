@@ -20,7 +20,10 @@ export type AotObjectType =
   | "formExtension"
   | "class"
   | "classExtension"
-  | "dataEntity";
+  | "dataEntity"
+  | "view"
+  | "query"
+  | "report";
 
 export interface AotObjectRef {
   type: AotObjectType;

@@ -145,7 +145,14 @@ const node = (
  * than the one that exists.
  */
 const AOT_FOLDERS: { label: string; children: { label: string; type: AotObjectType }[] }[] = [
-  { label: "Data Model", children: [{ label: "Tables", type: "table" }] },
+  {
+    label: "Data Model",
+    children: [
+      { label: "Tables", type: "table" },
+      { label: "Views", type: "view" },
+      { label: "Data Entities", type: "dataEntity" },
+    ],
+  },
   {
     label: "Data Types",
     children: [
@@ -155,7 +162,7 @@ const AOT_FOLDERS: { label: string; children: { label: string; type: AotObjectTy
   },
   { label: "Code", children: [{ label: "Classes", type: "class" }] },
   { label: "User Interface", children: [{ label: "Forms", type: "form" }] },
-  { label: "Analytics", children: [] },
+  { label: "Analytics", children: [{ label: "Reports", type: "report" }] },
 ];
 
 /**

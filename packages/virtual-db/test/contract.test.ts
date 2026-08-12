@@ -10,19 +10,22 @@ import {
   COMPANIES,
   DATAAREAID_FIELD,
   RECID_FIELD,
-  SCHEMA,
   SEEDS,
+  TABLES,
+  VIEWS,
   SHARED_DATAAREAID,
   TABLE_NAMES,
+  createIndexStatements,
   createSchemaStatements,
   createTableStatement,
+  dropSchemaStatements,
   getBaseEnum,
   getTableSchema,
 } from "../src/index.js";
 
 describe("table set", () => {
   it("defines every table named in the Phase 1 plan, and no others", () => {
-    expect(SCHEMA.map((table) => table.name).sort()).toEqual([...TABLE_NAMES].sort());
+    expect(TABLES.map((table) => table.name).sort()).toEqual([...TABLE_NAMES].sort());
   });
 
   it("has unique table names", () => {
@@ -37,7 +40,7 @@ describe("table set", () => {
 });
 
 describe("every table", () => {
-  it.each(SCHEMA.map((table) => [table.name, table] as const))(
+  it.each(TABLES.map((table) => [table.name, table] as const))(
     "%s carries RECID and DATAAREAID without declaring them as ordinary fields",
     (_name, table) => {
       const fieldNames = table.fields.map((field) => field.name);
@@ -50,7 +53,7 @@ describe("every table", () => {
     },
   );
 
-  it.each(SCHEMA.map((table) => [table.name, table] as const))(
+  it.each(TABLES.map((table) => [table.name, table] as const))(
     "%s has unique field names and at least one field",
     (_name, table) => {
       const fieldNames = table.fields.map((field) => field.name);
@@ -59,7 +62,7 @@ describe("every table", () => {
     },
   );
 
-  it.each(SCHEMA.map((table) => [table.name, table] as const))(
+  it.each(TABLES.map((table) => [table.name, table] as const))(
     "%s indexes and relations only reference fields that exist",
     (_name, table) => {
       const known = new Set([...table.fields.map((f) => f.name), RECID_FIELD, DATAAREAID_FIELD]);
@@ -84,7 +87,7 @@ describe("every table", () => {
     },
   );
 
-  it.each(SCHEMA.map((table) => [table.name, table] as const))(
+  it.each(TABLES.map((table) => [table.name, table] as const))(
     "%s names a base enum that exists for each enum field",
     (_name, table) => {
       for (const field of table.fields) {
@@ -96,8 +99,61 @@ describe("every table", () => {
   );
 
   it("has exactly one primary index per table", () => {
-    for (const table of SCHEMA) {
+    for (const table of TABLES) {
       expect(table.indexes.filter((index) => index.primary)).toHaveLength(1);
+    }
+  });
+});
+
+describe("every view", () => {
+  it("declares the select behind it", () => {
+    for (const view of VIEWS) {
+      expect(view.viewSql, `${view.name} is a view with no viewSql`).toBeDefined();
+    }
+  });
+
+  it("is created as a view rather than a table", () => {
+    for (const view of VIEWS) {
+      expect(createTableStatement(view)).toContain(`CREATE VIEW ${view.name} AS`);
+    }
+  });
+
+  /**
+   * The one that matters.
+   *
+   * A company-scoped view that forgets to select `DATAAREAID` still works, still returns
+   * rows, and quietly returns *every company's* rows — because the scoping predicate the
+   * select compiler adds has nothing to bind to. That is how a convenience becomes a data
+   * leak, and it is invisible in a one-company test environment.
+   */
+  it("selects RECID and DATAAREAID so company scoping still applies", () => {
+    for (const view of VIEWS) {
+      expect(view.viewSql, `${view.name} does not select RECID`).toContain(`AS ${RECID_FIELD}`);
+
+      if (view.saveDataPerCompany) {
+        expect(
+          view.viewSql,
+          `${view.name} is company-scoped but does not select DATAAREAID`,
+        ).toContain(`AS ${DATAAREAID_FIELD}`);
+      }
+    }
+  });
+
+  it("declares no indexes of its own", () => {
+    for (const view of VIEWS) {
+      expect(view.indexes).toEqual([]);
+      expect(createIndexStatements(view)).toEqual([]);
+    }
+  });
+
+  it("is dropped before the tables underneath it", () => {
+    const statements = dropSchemaStatements();
+    const firstTable = statements.findIndex((statement) => statement.startsWith("DROP TABLE"));
+
+    for (const view of VIEWS) {
+      const index = statements.indexOf(`DROP VIEW IF EXISTS ${view.name}`);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(index).toBeLessThan(firstTable);
     }
   });
 });
@@ -105,7 +161,7 @@ describe("every table", () => {
 describe("generated DDL", () => {
   it("produces a create statement and its indexes for every table", () => {
     const statements = createSchemaStatements();
-    for (const table of SCHEMA) {
+    for (const table of TABLES) {
       expect(statements.some((s) => s.startsWith(`CREATE TABLE ${table.name} (`))).toBe(true);
     }
   });

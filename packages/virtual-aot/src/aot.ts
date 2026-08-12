@@ -11,7 +11,7 @@
  */
 
 import { XppErrorCodes, type XppError } from "@xpplab/xpp-core";
-import { BASE_MODEL } from "./model";
+import { BASE_MODEL, isViewMetadata } from "./model";
 import type {
   AotModel,
   AotObjectRef,
@@ -124,7 +124,12 @@ class Aot implements VirtualAot {
 
   listObjects(type?: AotObjectType): AotObjectRef[] {
     const all: AotObjectRef[] = [
-      ...this.#model.tables.map((table) => ({ type: "table" as const, name: table.name })),
+      ...this.#model.tables
+        .filter((table) => !isViewMetadata(table))
+        .map((table) => ({ type: "table" as const, name: table.name })),
+      ...this.#model.tables
+        .filter((table) => isViewMetadata(table))
+        .map((table) => ({ type: "view" as const, name: table.name })),
       ...this.#model.edts.map((edt) => ({ type: "edt" as const, name: edt.name })),
       ...this.#model.enums.map((item) => ({ type: "baseEnum" as const, name: item.name })),
       ...this.#model.forms.map((form) => ({ type: "form" as const, name: form.name })),
@@ -132,6 +137,7 @@ class Aot implements VirtualAot {
         type: "dataEntity" as const,
         name: entity.name,
       })),
+      ...this.#model.reports.map((report) => ({ type: "report" as const, name: report.name })),
     ];
 
     return type === undefined ? all : all.filter((ref) => ref.type === type);

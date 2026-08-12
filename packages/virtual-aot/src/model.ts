@@ -152,6 +152,15 @@ function toTableMetadata(table: TableSchema): TableMetadata {
 
 const TABLES: readonly TableMetadata[] = SCHEMA.map(toTableMetadata);
 
+/** Which of them are views, so the AOT can file them under their own node. */
+const VIEW_LOOKUP = new Set<string>(
+  SCHEMA.filter((entry) => entry.isView === true).map((entry) => entry.name),
+);
+
+export function isViewMetadata(table: TableMetadata): boolean {
+  return VIEW_LOOKUP.has(table.name);
+}
+
 const ENUMS: readonly BaseEnumMetadata[] = BASE_ENUMS.map((baseEnum) => ({
   name: baseEnum.name,
   values: baseEnum.values.map((value) => ({ ...value })),

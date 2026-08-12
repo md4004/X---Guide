@@ -28,7 +28,12 @@ export { SavepointStack } from "./core/savepoints";
 export { TransactionManager } from "./core/transactions";
 export type { TransactionState } from "./core/transactions";
 
-export { createSchemaStatements, createTableStatement, createIndexStatements } from "./core/ddl";
+export {
+  createSchemaStatements,
+  createTableStatement,
+  createIndexStatements,
+  dropSchemaStatements,
+} from "./core/ddl";
 
 export { createRequestHandler } from "./worker/protocol";
 export type { DbRequest, DbResult, RequestHandler, SnapshotPayload } from "./worker/protocol";

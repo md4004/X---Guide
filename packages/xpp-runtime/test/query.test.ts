@@ -212,3 +212,47 @@ qbds.addRange(fieldNum(InventTable, NoSuchField));
     expect(result.errors[0]?.message).toContain("no field called 'NoSuchField'");
   });
 });
+
+describe("views", () => {
+  it("is selected from exactly like a table, and runs the join underneath", async () => {
+    // A view is a select saved as an element. Reading one costs a single statement, and
+    // the join it hides is visible in the trace — which is the honest way to present it.
+    const result = await run(`
+CustSalesOrderView custSalesOrderView;
+int counter;
+
+while select custSalesOrderView
+{
+    info(strFmt("%1 for %2 (%3)", custSalesOrderView.SalesId, custSalesOrderView.CustAccount, custSalesOrderView.CustGroup));
+    counter++;
+}
+
+info(strFmt("%1 orders", counter));
+`);
+
+    expect(result.errors).toEqual([]);
+    expect(result.sqlTrace).toHaveLength(1);
+    expect(result.infolog.map((entry) => entry.message)).toContain("3 orders");
+    // CustGroup lives on CustTable, not on SalesTable — the view is what brings it across.
+    expect(result.infolog.map((entry) => entry.message)).toContain("SO-0001 for C-1000 (RETAIL)");
+  });
+
+  it("is still scoped to the current company", async () => {
+    // The view selects DATAAREAID, so the compiler's scoping predicate has something to
+    // bind to. A view that dropped the column would quietly return every company's rows.
+    const result = await run(`
+CustSalesOrderView custSalesOrderView;
+int counter;
+
+while select crosscompany custSalesOrderView
+{
+    counter++;
+}
+
+info(strFmt("%1 across all companies", counter));
+`);
+
+    expect(result.errors).toEqual([]);
+    expect(result.infolog.map((entry) => entry.message)).toContain("7 across all companies");
+  });
+});

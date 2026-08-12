@@ -47,9 +47,26 @@ describe("Application Explorer", () => {
   it("files each element type under the folder it actually lives in", () => {
     const tree = buildApplicationExplorer(aot());
 
-    expect(labels(findNode(tree, "AOT/Data Model"))).toEqual(["Tables"]);
+    expect(labels(findNode(tree, "AOT/Data Model"))).toEqual(["Tables", "Views", "Data Entities"]);
     expect(labels(findNode(tree, "AOT/Data Types"))).toEqual(["Base Enums", "Extended Data Types"]);
     expect(labels(findNode(tree, "AOT/User Interface"))).toEqual(["Forms"]);
+    expect(labels(findNode(tree, "AOT/Analytics"))).toEqual(["Reports"]);
+  });
+
+  it("files a view under Views rather than Tables", () => {
+    // A view is not a table, and a tree that pretended otherwise would teach that reading
+    // one and inserting into one are the same kind of thing.
+    const tree = buildApplicationExplorer(aot());
+
+    expect(labels(findNode(tree, "AOT/Data Model/Views"))).toEqual(["CustSalesOrderView"]);
+    expect(labels(findNode(tree, "AOT/Data Model/Tables"))).not.toContain("CustSalesOrderView");
+  });
+
+  it("lists the data entities and the report", () => {
+    const tree = buildApplicationExplorer(aot());
+
+    expect(labels(findNode(tree, "AOT/Data Model/Data Entities"))).toContain("CustomerV3Entity");
+    expect(labels(findNode(tree, "AOT/Analytics/Reports"))).toEqual(["ItemSalesReport"]);
   });
 
   it("lists the tables the model actually has", () => {

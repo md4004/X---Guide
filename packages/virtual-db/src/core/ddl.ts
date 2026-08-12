@@ -33,6 +33,15 @@ function storageClass(type: FieldType): string {
  * RecId behaves in F&O.
  */
 export function createTableStatement(table: TableSchema): string {
+  // A view has no storage of its own — it is the select, saved. Creating it for real is
+  // what makes reading one show the join in the SQL trace.
+  if (table.isView === true) {
+    if (table.viewSql === undefined) {
+      throw new Error(`${table.name} is a view but declares no viewSql.`);
+    }
+    return `CREATE VIEW ${table.name} AS ${table.viewSql}`;
+  }
+
   const columns = [
     ...table.fields.map((field) => `  ${field.name} ${storageClass(field.type)}`),
     `  ${RECID_FIELD} INTEGER PRIMARY KEY AUTOINCREMENT`,
@@ -47,6 +56,9 @@ export function createTableStatement(table: TableSchema): string {
  * F&O prefixes its indexes, so per-company lookups are the ones that are cheap.
  */
 export function createIndexStatements(table: TableSchema): string[] {
+  // Nothing to index on a view: the indexes that matter are on the tables underneath it.
+  if (table.isView === true) return [];
+
   return table.indexes.map((index) => {
     const fields = table.saveDataPerCompany ? [DATAAREAID_FIELD, ...index.fields] : index.fields;
     const unique = index.unique ? "UNIQUE " : "";
@@ -60,5 +72,13 @@ export function createSchemaStatements(tables: readonly TableSchema[] = SCHEMA):
 }
 
 export function dropSchemaStatements(tables: readonly TableSchema[] = SCHEMA): string[] {
-  return tables.map((table) => `DROP TABLE IF EXISTS ${table.name}`);
+  // Views first. Dropping a table out from under a view is legal in SQLite but leaves a
+  // broken view behind, and the next create would then fail on the name.
+  const views = tables.filter((table) => table.isView === true);
+  const rest = tables.filter((table) => table.isView !== true);
+
+  return [
+    ...views.map((view) => `DROP VIEW IF EXISTS ${view.name}`),
+    ...rest.map((table) => `DROP TABLE IF EXISTS ${table.name}`),
+  ];
 }
