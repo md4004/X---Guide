@@ -206,4 +206,12 @@ export const EXECUTION_LIMITS = {
   timeoutMs: 3_000,
   /** Interpreter statement cap, to stop runaway loops before the timeout does. */
   maxStatements: 100_000,
+  /**
+   * Method call depth, to stop unbounded recursion.
+   *
+   * Separate from the statement cap because recursion that does almost nothing per frame
+   * would exhaust the JavaScript stack long before it executed 100,000 statements, and a
+   * host stack overflow is not something the engine can turn into a teaching error.
+   */
+  maxCallDepth: 256,
 } as const;

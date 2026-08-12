@@ -71,6 +71,45 @@ name and shortcut in `/studio` traces to a row here.
 | VB-032 | Two kinds of dimension exist: **custom** (values maintained by hand, always shared across legal entities) and **entity-backed** (values come from another table)           | [MS Learn, financial dimensions][15] | 2026-08-12 | Dimension values are at most 30 characters. Entity-backed values are not selectable until the source record is used in a transaction, journal or posting profile                                                                             |
 | VB-033 | A dimension set as **Fixed** on a main account overrides the transaction's value at posting time, including when the fixed value is blank                                  | [MS Learn, default dimensions][14]   | 2026-08-12 | "A **Fixed** dimension always overwrites the dimension value at posting time, even if a user manually enters a different value."                                                                                                             |
 
+### Classes and methods (VB-034 to VB-046)
+
+The access modifiers are where this language quietly differs from the ones people arrive
+from. Two of the defaults are the opposite of C#'s, and getting them wrong produces code
+that compiles and then fails review.
+
+| ID     | Behaviour                                                                                                                                   | Verified against                    | Date       | Notes                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| VB-034 | A method with **no access modifier is implicitly public**                                                                                   | [MS Learn, classes and methods][16] | 2026-08-12 | "Methods without an access modifier are implicitly public." The opposite of C#, where an unmarked member is private             |
+| VB-035 | An instance **field is `protected` by default**                                                                                             | [MS Learn, classes and methods][16] | 2026-08-12 | "Instance fields are **protected** by default … you can access these fields only within the same class or a derived class"      |
+| VB-036 | Every class is **public**. Removing the `public` modifier changes nothing                                                                   | [MS Learn, classes and methods][16] | 2026-08-12 | "All classes are public by default. If you remove the **public** modifier, the system still treats the class as public."        |
+| VB-037 | Every method requires a return type, and `void` is the one for a method that returns nothing                                                | [MS Learn, classes and methods][16] | 2026-08-12 | A bare `return;` is legal in a `void` method, and "There's an implicit return when the method flow reaches the end."            |
+| VB-038 | `private` is callable only from the declaring class and **cannot be overridden**; `protected` reaches subclasses; `public` reaches anywhere | [MS Learn, classes and methods][16] | 2026-08-12 | "You can't override private methods in a subclass."                                                                             |
+| VB-039 | Access modifiers **never** restrict calls between two methods of the same class, whichever of them is static                                | [MS Learn, classes and methods][16] | 2026-08-12 | Including `new`: a static method may call a `private` constructor of its own class                                              |
+| VB-040 | A `static` method cannot refer to instance fields, and is called as `ClassName::methodName()`                                               | [MS Learn, classes and methods][16] | 2026-08-12 | "They aren't invoked on an instance of the class."                                                                              |
+| VB-041 | `this` qualifies instance methods and is **not** usable in a static method, nor to qualify a static method                                  | [MS Learn, classes and methods][16] | 2026-08-12 | "All calls to instance methods must be qualified by either the **this** reference or a variable."                               |
+| VB-042 | A class may define only one `new`. With none defined, a parameterless default constructor exists                                            | [MS Learn, classes and methods][16] | 2026-08-12 | Optional parameters are how a constructor simulates several signatures                                                          |
+| VB-043 | `finalize` is a **naming convention with no special semantics** — nothing ever calls it for you                                             | [MS Learn, classes and methods][16] | 2026-08-12 | "The managed runtime doesn't make implicit calls to the **finalize** method … You must call the method to explicitly clean up." |
+| VB-044 | An overriding method must be **at least as accessible** as the one it overrides                                                             | [MS Learn, classes and methods][16] | 2026-08-12 | "In a subclass, a private method can't override a protected method of the superclass."                                          |
+| VB-045 | A parameter with a default becomes optional; required parameters come first, and a call cannot skip one                                     | [MS Learn, classes and methods][16] | 2026-08-12 | The doc's own example shows `AddThreeInts(1, , 99)` failing to compile                                                          |
+| VB-046 | A `display` method's return value is shown on a page or report and cannot be edited there; `edit` is the modifiable counterpart             | [MS Learn, classes and methods][16] | 2026-08-12 | The modifier grammar is `[edit \| display] [public \| protected \| private] [static \| abstract \| final]`                      |
+
+### Reports and queries (VB-047 to VB-051)
+
+| ID     | Behaviour                                                                                                                                                                                                               | Verified against                         | Date       | Notes                                                                                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VB-047 | An RDP report is **four elements**: a temporary table, a data contract, an RDP class, and a design bound to the RDP's data set                                                                                          | [MS Learn, RDP walkthrough][17]          | 2026-08-12 | "Temporary table … Data contract class – defines the parameters in the report. Report data provider class – processes business logic … and then returns the tables as a dataset" |
+| VB-048 | The contract is `[DataContractAttribute]` on the class and `[DataMemberAttribute("Name")]` on `parm` methods of the form `parmX(T _x = x)`                                                                              | [MS Learn, RDP walkthrough][17]          | 2026-08-12 | The name in the attribute is the parameter name the report design sees                                                                                                           |
+| VB-049 | The RDP extends `SRSReportDataProviderBase`, carries `[SRSReportQueryAttribute]` and `[SRSReportParameterAttribute]`, overrides `processReport()`, and exposes the table through a `[SRSReportDataSetAttribute]` getter | [MS Learn, RDP walkthrough][17]          | 2026-08-12 | Inside `processReport`, `this.parmQuery()` and `this.parmDataContract()` are the base-class methods that read those two attributes                                               |
+| VB-050 | Reports follow **Model–View–Controller**. `SrsReportRunController` is given the report name, builds the parameter UI, validates, and runs it                                                                            | [MS Learn, report programming model][18] | 2026-08-12 | The controller is what a menu item points at — the entry point of a report, not the RDP                                                                                          |
+| VB-051 | A query is built as `new Query()` → `addDataSource(tableNum(…))` → `addRange(fieldNum(…))` → `.value(queryValue(…))`, then walked with `new QueryRun(query)` and `queryRun.next()` / `queryRun.get(tableNum(…))`        | [MS Learn, query objects][19]            | 2026-08-12 | Joins come from `qbds1.addDataSource(...)` plus `relations(true)` and `joinMode(JoinMode::ExistsJoin)`. Ranges take an advanced syntax — `">2"`, wildcards                       |
+
+> **Source age.** VB-047 to VB-050 rest on pages Microsoft has **archived** — they carry
+> the AX 2012 moniker and a "this content is archived" banner. The pattern itself is not
+> archived: `SRSReportDataProviderBase`, `SrsReportRunController` and the attributes are
+> what F&O reports are still written with today, and the current documentation references
+> those classes. But the walkthroughs are old, so the _shape_ is what we teach and the
+> exact current wording is logged in `docs/unverified.md` as needing a live check.
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
 [2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
 [3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
@@ -86,6 +125,10 @@ name and shortcut in `/studio` traces to a row here.
 [13]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-tools/debug-xpp
 [14]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/financial/dimension-defaulting
 [15]: https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/financial-dimensions
+[16]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-classes-methods
+[17]: https://learn.microsoft.com/en-us/dynamicsax-2012/appuser-itpro/walkthrough-creating-a-report-bound-to-a-report-data-provider-class-x-business-logic
+[18]: https://learn.microsoft.com/en-us/dynamicsax-2012/appuser-itpro/report-programming-model
+[19]: https://learn.microsoft.com/en-us/training/modules/build-reports-finance-operations/query-objects-query-builder
 
 ### On VB-030: the merge table is Microsoft's, not ours
 

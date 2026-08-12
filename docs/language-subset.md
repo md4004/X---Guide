@@ -121,6 +121,54 @@ method wrappers calling `next`, `[PostHandlerFor]`, `[PreHandlerFor]`,
 **Out:** delegates, `SysPlugin`, `SysExtension` framework, metadata-driven event
 subscription.
 
+## Subset extension 1 — the Query object model
+
+**Status: accepted, 2026-08-12.** CLAUDE.md's original out-list named
+`Query`/`QueryRun` as out of scope for v1. This is the explicit extension task that
+reverses that, recorded here rather than made silently, as scope discipline requires.
+
+**In:** `Query`, `QueryRun`, `QueryBuildDataSource`, `QueryBuildRange`, and the methods
+`addDataSource`, `dataSourceTable`, `addRange`, `findRange`, `value`, `addSortField`,
+`joinMode`, `relations`, `next`, `get`; the enums `SortOrder` and `JoinMode`; the globals
+`tableNum`, `fieldNum`, `queryStr`, `queryValue`.
+
+**Out:** `QueryFilter`, date-effective queries, `QueryBuildFieldList` beyond field
+selection, computed columns, and the SysDa classes.
+
+**Why the reversal.** Two reasons, and neither is "a lesson wanted it".
+
+The first is that it is _cheap and exact_ here. A query object is a `select` assembled at
+runtime, and this engine already owns a `select`-to-SQL compiler that lessons are built
+around. A `Query` compiles through the same path, which means the SQL trace shows what the
+query actually produced. That is the single most useful thing anyone can be shown about
+query objects, and it falls out of code that already exists rather than needing a second
+implementation that could disagree with the first.
+
+The second is that refusing it distorts the curriculum. Query objects are how forms,
+reports and views get their data — Microsoft's own guidance is to prefer them over naming
+tables directly — so a simulator that teaches `while select` and nothing else leaves a
+learner unable to read the report they have just been taught to write.
+
+**The cost, stated plainly.** This is engine surface, and engine surface is the thing most
+likely to sink this project. The mitigation is the boundary above: the object model is in,
+the framework built on top of it is out.
+
+## Subset extension 2 — executing classes
+
+**Status: accepted, 2026-08-12.** Classes were always _in_ the subset for the parser —
+`docs/language-subset.md` has listed class declarations, modifiers and `new`/`finalize`
+since Phase 2 — but the interpreter refused them at runtime, so nothing could actually
+run. This records making them execute.
+
+**In:** class declarations with fields and methods; `public` / `protected` / `private`
+access with the real defaults (VB-034, VB-035) and the real enforcement (VB-038, VB-039);
+`static` fields and methods with `ClassName::method()` calls; `new` with optional
+parameters; `this`; `extends` with method and field inheritance, `super()`, and `final`.
+
+**Out:** `abstract` enforcement beyond refusing to instantiate an abstract class,
+`implements` checking, `internal` (it is a _model_ boundary, and this simulator has one
+model), nested classes, local functions, and extension methods.
+
 ## Rejection behaviour
 
 Anything outside this subset must produce `XP100` with:

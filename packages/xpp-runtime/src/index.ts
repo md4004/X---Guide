@@ -17,6 +17,7 @@
  *   scope.ts        the scope chain, case-insensitive like X++ identifiers
  *   infolog.ts      the Infolog sink, including the rewind that `retry` needs
  *   builtins.ts     global functions
+ *   classes.ts      the class table, inheritance and the access rules
  *   errors.ts       RuntimeError, ThrownException, Exception:: matching
  *   interpreter.ts  the evaluator
  */
@@ -28,6 +29,22 @@ export { createInfolog } from "./infolog";
 export type { Infolog } from "./infolog";
 
 export { Scope, closestName } from "./scope";
+
+/**
+ * The class table. `buildClassTable` turns declarations into something callable, and
+ * `canAccess` is where `public` / `protected` / `private` stop being decoration —
+ * behaviours VB-034 to VB-046.
+ */
+export {
+  ClassTableError,
+  allFields,
+  buildClassTable,
+  canAccess,
+  findField,
+  findMethod,
+  isSubclassOf,
+} from "./classes";
+export type { Access, RuntimeClass, RuntimeField, RuntimeMethod } from "./classes";
 
 /**
  * The debugger. `DebugController` decides where a run stops; the interpreter gathers the

@@ -45,6 +45,17 @@ import {
 import { createVirtualAot, validateWrite, type VirtualAot } from "@xpplab/virtual-aot";
 import { callBuiltin, formatString, isBuiltin } from "./builtins";
 import {
+  ClassTableError,
+  allFields,
+  buildClassTable,
+  canAccess,
+  findField,
+  findMethod,
+  isSubclassOf,
+  type RuntimeClass,
+  type RuntimeMethod,
+} from "./classes";
+import {
   DebugController,
   type DebugField,
   type DebugFrame,
@@ -78,6 +89,7 @@ import {
   toNumber,
   toSqlValue,
   valuesEqual,
+  type ObjectInstance,
   type TableBuffer,
   type XppValue,
 } from "./values";
@@ -101,6 +113,14 @@ export interface RunOptions {
    * feature — no state is gathered and no promise is awaited per statement.
    */
   debug?: DebugHost;
+  /**
+   * Classes available before a line of learner code is parsed.
+   *
+   * This is how the teaching stubs arrive — our own minimal stand-ins for standard classes
+   * like `SRSReportDataProviderBase`, so a lesson can write `extends` against something
+   * real without shipping Microsoft source. See CLAUDE.md > Legal rule.
+   */
+  classes?: ReadonlyMap<string, RuntimeClass>;
   /**
    * The name of the outermost call-stack frame.
    *
@@ -178,6 +198,25 @@ export class Interpreter {
   readonly #debug: DebugController | undefined;
   #stoppedByDebugger = false;
 
+  /** Declared classes, by lowercased name. Filled in `execute`. */
+  #classes = new Map<string, RuntimeClass>();
+
+  /**
+   * The class whose code is currently running, and the instance it is running on.
+   *
+   * `undefined` at the top level, which is what makes a script an outsider: it sees the
+   * public surface of a class and nothing else (VB-038). Pushed and popped around every
+   * method call, so access is judged from where the call is made rather than from where
+   * the object came from.
+   */
+  #frames: { owner: RuntimeClass | undefined; self: ObjectInstance | undefined }[] = [
+    { owner: undefined, self: undefined },
+  ];
+
+  get #frame(): { owner: RuntimeClass | undefined; self: ObjectInstance | undefined } {
+    return this.#frames[this.#frames.length - 1]!;
+  }
+
   constructor(options: RunOptions) {
     this.#options = options;
     this.#db = options.db;
@@ -203,6 +242,11 @@ export class Interpreter {
     this.#db.clearTrace();
 
     try {
+      // Classes are registered before any statement runs, so a job at the top of the file
+      // can call a class declared at the bottom of it. X++ has no ordering rule here.
+      this.#classes = buildClassTable(this.#options.ast.declarations, this.#options.classes);
+      await this.#initialiseStatics();
+
       for (const statement of this.#options.ast.statements) {
         await this.#statement(statement);
       }
@@ -248,6 +292,19 @@ export class Interpreter {
     // Stop Debugging. The learner asked for this, so it is not a failure — the abort of
     // any open transaction happens in `execute`, which owns that decision.
     if (error instanceof DebugStopSignal) return;
+
+    // A malformed class hierarchy is a compile-time failure in a real environment, so it
+    // is reported before any statement runs rather than as a runtime surprise.
+    if (error instanceof ClassTableError) {
+      this.#errors.push({
+        code: XppErrorCodes.ConstructOutsideSubset,
+        message: error.message,
+        line: 1,
+        column: 1,
+        hint: error.hint,
+      });
+      return;
+    }
 
     if (error instanceof ThrownException) {
       // An uncaught throw ends the run. The message was already written to the Infolog
@@ -355,6 +412,375 @@ export class Interpreter {
     if (this.#options.onStatement?.(line) === false) {
       throw new BudgetExceeded(XppErrorCodes.ExecutionTimeout, "Execution was stopped.", "");
     }
+  }
+
+  // -- classes -------------------------------------------------------------
+
+  /** Static fields exist once per class, so they are created before anything runs. */
+  async #initialiseStatics(): Promise<void> {
+    for (const runtime of this.#classes.values()) {
+      for (const field of runtime.fields.values()) {
+        if (field.isStatic)
+          runtime.statics.set(field.name.toLowerCase(), defaultValueFor(field.type.name));
+      }
+    }
+  }
+
+  #lookupClass(name: string): RuntimeClass | undefined {
+    return this.#classes.get(name.toLowerCase());
+  }
+
+  /**
+   * Builds an instance and runs its constructor.
+   *
+   * Fields come from the whole chain, so an inherited field exists on the instance even
+   * though the subclass never mentioned it.
+   */
+  async #construct(runtime: RuntimeClass, args: XppValue[], span: SourceSpan): Promise<XppValue> {
+    if (runtime.isAbstract) {
+      throw new RuntimeError(
+        XppErrorCodes.ObjectNotFound,
+        `'${runtime.name}' is abstract, so it cannot be instantiated.`,
+        "An abstract class exists to be extended. Instantiate one of its subclasses instead.",
+        "Error",
+        span,
+      );
+    }
+
+    const instance: ObjectInstance = { className: runtime.name, fields: new Map() };
+    for (const field of allFields(runtime)) {
+      if (!field.isStatic)
+        instance.fields.set(field.name.toLowerCase(), defaultValueFor(field.type.name));
+    }
+
+    // VB-042: a class may declare one `new`. Without one there is a parameterless default,
+    // which is why an absent constructor is not an error.
+    const constructor = findMethod(runtime, "new");
+    if (constructor !== undefined) {
+      this.#requireAccess(constructor, runtime, span, "constructor");
+      await this.#invoke(constructor, instance, args, span);
+    } else if (args.length > 0) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${runtime.name}' has no 'new' method, so it takes no arguments.`,
+        "Declare `public void new(...)` on the class to accept construction parameters.",
+        "Error",
+        span,
+      );
+    }
+
+    return { type: "object", instance };
+  }
+
+  #requireAccess(
+    method: RuntimeMethod,
+    _owner: RuntimeClass,
+    span: SourceSpan,
+    what = "method",
+  ): void {
+    if (canAccess(method.access, method.declaringClass, this.#frame.owner)) return;
+
+    const from =
+      this.#frame.owner === undefined
+        ? "from outside the class"
+        : `from '${this.#frame.owner.name}'`;
+
+    throw new RuntimeError(
+      XppErrorCodes.MethodNotFound,
+      `'${method.name}' is ${method.access} in '${method.declaringClass.name}' and cannot be called ${from}.`,
+      method.access === "private"
+        ? `A private ${what} is callable only from methods of the class that declares it. Note that in X++ a method with no access modifier is public — private has to be written.`
+        : `A protected ${what} is callable from its own class and from subclasses of it.`,
+      "Error",
+      span,
+    );
+  }
+
+  /**
+   * Runs a method body in its own scope and frame.
+   *
+   * The frame is what makes access checks mean anything: while this body runs, `private`
+   * and `protected` are judged against `method.declaringClass`, not against wherever the
+   * call came from. It also pushes a real call-stack entry, which is what turns the
+   * debugger's Step Into from a no-op into the thing it is for.
+   */
+  async #invoke(
+    method: RuntimeMethod,
+    self: ObjectInstance | undefined,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    if (method.isAbstract) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${method.name}' is abstract in '${method.declaringClass.name}' and has no body.`,
+        "A subclass must override it before it can be called.",
+        "Error",
+        span,
+      );
+    }
+
+    if (this.#frames.length > EXECUTION_LIMITS.maxCallDepth) {
+      throw new BudgetExceeded(
+        XppErrorCodes.StatementBudgetExceeded,
+        `Call depth passed ${EXECUTION_LIMITS.maxCallDepth}.`,
+        "That is almost always unbounded recursion — check that the method has a case where it stops calling itself.",
+      );
+    }
+
+    const outerScope = this.#scope;
+    this.#scope = this.#globals.child();
+    this.#frames.push({ owner: method.declaringClass, self });
+    this.#callStack.push({
+      name: `${method.declaringClass.name}.${method.name}`,
+      line: span.start.line,
+    });
+
+    try {
+      // VB-045: a parameter with a default is optional, and the default is evaluated in
+      // the callee's scope — which is what lets `parmX(int _x = x)` read the field.
+      for (const [index, parameter] of method.declaration.parameters.entries()) {
+        const supplied = args[index];
+        const value =
+          supplied ??
+          (parameter.defaultValue === undefined
+            ? defaultValueFor(parameter.type.name)
+            : await this.#evaluate(parameter.defaultValue));
+        this.#scope.declare(parameter.name, value, parameter.type.name);
+      }
+
+      if (args.length > method.declaration.parameters.length) {
+        throw new RuntimeError(
+          XppErrorCodes.MethodNotFound,
+          `'${method.name}' takes ${method.declaration.parameters.length} parameter${method.declaration.parameters.length === 1 ? "" : "s"}, but ${args.length} were supplied.`,
+          "Check the method's declaration.",
+          "Error",
+          span,
+        );
+      }
+
+      await this.#statement(method.declaration.body);
+
+      // VB-037: reaching the end of a method is an implicit return. A method with a
+      // declared return type that falls off the end yields its type's default, which is
+      // what X++ does rather than failing.
+      return method.declaration.returnType.name.toLowerCase() === "void"
+        ? VOID
+        : defaultValueFor(method.declaration.returnType.name);
+    } catch (error) {
+      if (error instanceof ReturnSignal) return error.value;
+      throw error;
+    } finally {
+      this.#callStack.pop();
+      this.#frames.pop();
+      this.#scope = outerScope;
+    }
+  }
+
+  /** `obj.method(args)` and `this.method(args)`. */
+  async #callInstanceMethod(
+    instance: ObjectInstance,
+    name: string,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const runtime = this.#lookupClass(instance.className)!;
+    const method = findMethod(runtime, name);
+
+    if (method === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${instance.className}' has no method called '${name}'.`,
+        `Declared methods: ${this.#methodNames(runtime).join(", ") || "none"}.`,
+        "Error",
+        span,
+      );
+    }
+
+    // VB-040: a static method is not invoked on an instance.
+    if (method.isStatic) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${name}' is static, so it is called on the class rather than on an instance.`,
+        `Write ${method.declaringClass.name}::${method.name}(...) instead.`,
+        "Error",
+        span,
+      );
+    }
+
+    this.#requireAccess(method, runtime, span);
+    return this.#invoke(method, instance, args, span);
+  }
+
+  /** `ClassName::method(args)`. */
+  async #callStaticMethod(
+    className: string,
+    name: string,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const runtime = this.#lookupClass(className)!;
+    const method = findMethod(runtime, name);
+
+    if (method === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${className}' has no method called '${name}'.`,
+        `Declared methods: ${this.#methodNames(runtime).join(", ") || "none"}.`,
+        "Error",
+        span,
+      );
+    }
+
+    if (!method.isStatic) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${name}' is an instance method, so it needs an object to run on.`,
+        `Create one with \`new ${runtime.name}()\` and call it on that, or declare the method \`static\`.`,
+        "Error",
+        span,
+      );
+    }
+
+    this.#requireAccess(method, runtime, span);
+    return this.#invoke(method, undefined, args, span);
+  }
+
+  #methodNames(runtime: RuntimeClass): string[] {
+    const names = [...runtime.methods.values()].map((method) => method.name);
+    return runtime.base === undefined ? names : [...names, ...this.#methodNames(runtime.base)];
+  }
+
+  /**
+   * Reads a field off an instance, enforcing its access.
+   *
+   * A field is protected by default (VB-035), so this is where a learner who assumed the
+   * C# rule finds out — reading `point.x` from a job fails unless `x` was written
+   * `public`, and the message says so.
+   */
+  #readField(instance: ObjectInstance, name: string, span: SourceSpan): XppValue {
+    const runtime = this.#lookupClass(instance.className)!;
+    const field = findField(runtime, name);
+
+    if (field === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.FieldNotFound,
+        `'${instance.className}' has no field called '${name}'.`,
+        "Check the spelling, or use an accessor method if the value is meant to be read through one.",
+        "Error",
+        span,
+      );
+    }
+
+    if (!canAccess(field.access, field.declaringClass, this.#frame.owner)) {
+      throw new RuntimeError(
+        XppErrorCodes.FieldNotFound,
+        `'${name}' is ${field.access} in '${field.declaringClass.name}' and cannot be read here.`,
+        "Fields in X++ are protected unless you write `public`. The usual fix is an accessor method — the `parm` convention exists for exactly this.",
+        "Error",
+        span,
+      );
+    }
+
+    if (field.isStatic) return field.declaringClass.statics.get(name.toLowerCase()) ?? NULL;
+    return instance.fields.get(name.toLowerCase()) ?? NULL;
+  }
+
+  #writeField(instance: ObjectInstance, name: string, value: XppValue, span: SourceSpan): void {
+    const runtime = this.#lookupClass(instance.className)!;
+    const field = findField(runtime, name);
+
+    if (field === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.FieldNotFound,
+        `'${instance.className}' has no field called '${name}'.`,
+        "Fields have to be declared in the class body before they can be assigned.",
+        "Error",
+        span,
+      );
+    }
+
+    if (!canAccess(field.access, field.declaringClass, this.#frame.owner)) {
+      throw new RuntimeError(
+        XppErrorCodes.FieldNotFound,
+        `'${name}' is ${field.access} in '${field.declaringClass.name}' and cannot be assigned here.`,
+        "Fields in X++ are protected unless you write `public`. Expose a setter instead of widening the field.",
+        "Error",
+        span,
+      );
+    }
+
+    if (field.isStatic) field.declaringClass.statics.set(name.toLowerCase(), value);
+    else instance.fields.set(name.toLowerCase(), value);
+  }
+
+  /**
+   * `super()` or `super.method()`.
+   *
+   * Resolution starts at the base of the class whose method is *declared here*, not at
+   * the base of the instance's class. Starting from the instance would find this method
+   * again on the way up and recurse forever, which is the classic way to get this wrong.
+   */
+  async #callSuper(
+    member: string | undefined,
+    args: XppValue[],
+    span: SourceSpan,
+  ): Promise<XppValue> {
+    const owner = this.#frame.owner;
+    const self = this.#frame.self;
+
+    if (owner === undefined || self === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        "`super` is only available inside an instance method.",
+        "It calls the base class's version of the method you are in, so there has to be a method to be inside.",
+        "Error",
+        span,
+      );
+    }
+
+    if (owner.base === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${owner.name}' does not extend anything, so it has no \`super\` to call.`,
+        "Add `extends SomeClass` to the declaration, or call the method directly.",
+        "Error",
+        span,
+      );
+    }
+
+    // A bare `super()` means "the base's version of the method I am in", which is why the
+    // frame has to remember the method name as well as the class.
+    const name = member ?? this.#callStack[this.#callStack.length - 1]!.name.split(".").pop()!;
+    const method = findMethod(owner.base, name);
+
+    if (method === undefined) {
+      throw new RuntimeError(
+        XppErrorCodes.MethodNotFound,
+        `'${owner.base.name}' has no method called '${name}' to call with \`super\`.`,
+        "A `super` call needs the base class to declare the method you are overriding.",
+        "Error",
+        span,
+      );
+    }
+
+    return this.#invoke(method, self, args, span);
+  }
+
+  /** The instance `this` refers to, or a refusal that explains why there is none. */
+  #self(span: SourceSpan): ObjectInstance {
+    const self = this.#frame.self;
+    if (self !== undefined) return self;
+
+    throw new RuntimeError(
+      XppErrorCodes.ObjectNotFound,
+      "`this` is not available here.",
+      this.#frame.owner === undefined
+        ? "`this` only means something inside an instance method. At the top level there is no object to refer to."
+        : "`this` cannot be used in a static method — a static method runs on the class, not on an instance (VB-041).",
+      "Error",
+      span,
+    );
   }
 
   // -- debugger ------------------------------------------------------------
@@ -1098,7 +1524,32 @@ export class Interpreter {
         return this.#literal(expression);
 
       case "identifier": {
-        const value = this.#scope.get(expression.name);
+        // `this` is not a variable — it is the frame's instance, and a bare field name
+        // inside a method resolves to that instance's field when no local shadows it.
+        if (expression.name === "this") {
+          return { type: "object", instance: this.#self(expression.span) };
+        }
+
+        const local = this.#scope.get(expression.name);
+        if (local === undefined) {
+          const self = this.#frame.self;
+          const owner = this.#frame.owner;
+          if (
+            self !== undefined &&
+            findField(this.#lookupClass(self.className)!, expression.name)
+          ) {
+            return this.#readField(self, expression.name, expression.span);
+          }
+          // A static method has no instance, but it can still reach its class's statics.
+          if (owner !== undefined) {
+            const staticField = findField(owner, expression.name);
+            if (staticField?.isStatic === true) {
+              return staticField.declaringClass.statics.get(expression.name.toLowerCase()) ?? NULL;
+            }
+          }
+        }
+
+        const value = local;
         if (value === undefined) {
           const suggestion = closestName(expression.name, this.#scope.visibleNames());
           throw new RuntimeError(
@@ -1290,16 +1741,30 @@ export class Interpreter {
       case "like":
         return bool(likeMatches(toDisplayString(left), toDisplayString(right)));
       case "is":
-      case "as":
-        // Class inheritance arrives in Phase 8. Until then these have no meaning worth
-        // faking, so they are refused rather than answered wrongly.
-        throw new RuntimeError(
-          XppErrorCodes.ConstructOutsideSubset,
-          `The '${expression.operator}' operator needs class inheritance, which is not available yet.`,
-          "Class hierarchies arrive with the customisation track.",
-          "Error",
-          expression.span,
-        );
+      case "as": {
+        // `left is Right` asks whether the instance's class is Right or descends from it.
+        // `as` is the same question, answering the object or null rather than a boolean.
+        const className =
+          expression.right.kind === "identifier" ? expression.right.name : undefined;
+        const target = className === undefined ? undefined : this.#lookupClass(className);
+
+        if (target === undefined) {
+          throw new RuntimeError(
+            XppErrorCodes.ObjectNotFound,
+            `The right side of '${expression.operator}' must be a class name.`,
+            "Write `myObject is MyClass`, naming a class declared in this code.",
+            "Error",
+            expression.span,
+          );
+        }
+
+        const matches =
+          left.type === "object" &&
+          isSubclassOf(this.#lookupClass(left.instance.className)!, target);
+
+        if (expression.operator === "is") return bool(matches);
+        return matches ? left : NULL;
+      }
     }
   }
 
@@ -1335,16 +1800,38 @@ export class Interpreter {
 
   async #assignTo(target: Expression, value: XppValue): Promise<void> {
     if (target.kind === "identifier") {
-      if (!this.#scope.set(target.name, value)) {
-        throw new RuntimeError(
-          XppErrorCodes.UndeclaredIdentifier,
-          `'${target.name}' has not been declared.`,
-          "X++ has no implicit declaration — give it a type before assigning to it.",
-          "Error",
-          target.span,
-        );
+      if (this.#scope.set(target.name, value)) return;
+
+      // Not a local. Inside a method, a bare name is the instance's field — which is how
+      // `parmX(int _x = x) { x = _x; }` assigns without writing `this.` everywhere.
+      const self = this.#frame.self;
+      if (self !== undefined && findField(this.#lookupClass(self.className)!, target.name)) {
+        this.#writeField(self, target.name, value, target.span);
+        return;
       }
-      return;
+
+      const owner = this.#frame.owner;
+      const staticField = owner === undefined ? undefined : findField(owner, target.name);
+      if (staticField?.isStatic === true) {
+        staticField.declaringClass.statics.set(target.name.toLowerCase(), value);
+        return;
+      }
+
+      throw new RuntimeError(
+        XppErrorCodes.UndeclaredIdentifier,
+        `'${target.name}' has not been declared.`,
+        "X++ has no implicit declaration — give it a type before assigning to it.",
+        "Error",
+        target.span,
+      );
+    }
+
+    if (target.kind === "memberAccess") {
+      const holder = await this.#evaluate(target.object);
+      if (holder.type === "object") {
+        this.#writeField(holder.instance, target.member, value, target.span);
+        return;
+      }
     }
 
     if (target.kind === "memberAccess" && target.object.kind === "identifier") {
@@ -1381,6 +1868,10 @@ export class Interpreter {
   ): Promise<XppValue> {
     const object = await this.#evaluate(expression.object);
 
+    if (object.type === "object") {
+      return this.#readField(object.instance, expression.member, expression.span);
+    }
+
     if (object.type === "buffer") {
       const buffer = object.buffer;
       const column = this.#column(
@@ -1408,6 +1899,45 @@ export class Interpreter {
   async #call(expression: Extract<Expression, { kind: "call" }>): Promise<XppValue> {
     const args: XppValue[] = [];
     for (const argument of expression.arguments) args.push(await this.#evaluate(argument));
+
+    // `super(...)` — the base class's version of the method we are currently in.
+    if (expression.callee.kind === "identifier" && expression.callee.name === "super") {
+      return this.#callSuper(undefined, args, expression.span);
+    }
+
+    // `ClassName::method(...)`. The parser sees `::` as enum access, because at parse time
+    // `NoYes::Yes` and `MyClass::run()` are the same shape — only a call distinguishes them.
+    if (expression.callee.kind === "enumAccess") {
+      const runtime = this.#lookupClass(expression.callee.enumName);
+      if (runtime !== undefined) {
+        return this.#callStaticMethod(
+          expression.callee.enumName,
+          expression.callee.valueName,
+          args,
+          expression.span,
+        );
+      }
+    }
+
+    if (expression.callee.kind === "memberAccess") {
+      // `super.method(...)`.
+      if (
+        expression.callee.object.kind === "identifier" &&
+        expression.callee.object.name === "super"
+      ) {
+        return this.#callSuper(expression.callee.member, args, expression.span);
+      }
+
+      const receiver = await this.#evaluate(expression.callee.object);
+      if (receiver.type === "object") {
+        return this.#callInstanceMethod(
+          receiver.instance,
+          expression.callee.member,
+          args,
+          expression.span,
+        );
+      }
+    }
 
     // A global function.
     if (expression.callee.kind === "identifier") {
@@ -1639,7 +2169,7 @@ export class Interpreter {
     }
   }
 
-  #new(expression: Extract<Expression, { kind: "new" }>): XppValue {
+  async #new(expression: Extract<Expression, { kind: "new" }>): Promise<XppValue> {
     const name = expression.className.toLowerCase();
 
     if (name === "list")
@@ -1653,10 +2183,17 @@ export class Interpreter {
       };
     }
 
+    const runtime = this.#lookupClass(expression.className);
+    if (runtime !== undefined) {
+      const args: XppValue[] = [];
+      for (const argument of expression.arguments) args.push(await this.#evaluate(argument));
+      return this.#construct(runtime, args, expression.span);
+    }
+
     throw new RuntimeError(
       XppErrorCodes.ObjectNotFound,
       `There is no class called '${expression.className}'.`,
-      "User-defined classes arrive with the customisation track. `List`, `Map` and `Set` are available now.",
+      `Declare it with \`class ${expression.className} { ... }\` in this file. \`List\`, \`Map\` and \`Set\` are built in.`,
       "Error",
       expression.span,
     );
