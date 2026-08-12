@@ -298,6 +298,32 @@ const WRONG: WrongAnswer[] = [
       'SalesLine salesLine;\nInventTable inventTable;\nTmpItemSales tmpItemSales;\nint counter;\n\nttsbegin;\nwhile select salesLine\n    join inventTable\n    where inventTable.ItemId == salesLine.ItemId\n{\n    tmpItemSales.clear();\n    tmpItemSales.ItemGroupId = inventTable.ItemGroupId;\n    tmpItemSales.ItemId = inventTable.ItemId;\n    tmpItemSales.ItemName = inventTable.ItemName;\n    tmpItemSales.SalesQty = salesLine.SalesQty;\n    tmpItemSales.LineAmount = salesLine.LineAmount;\n    tmpItemSales.insert();\n    counter++;\n}\nttscommit;\n\ninfo(strFmt("Aggregated to %1 rows", counter));',
     expect: "Six means you are still writing one row per line",
   },
+
+  // -- 11 Financial dimensions ---------------------------------------------
+  {
+    lesson: "11-financial-dimensions",
+    task: "follow-the-chain",
+    label: "walks every set item, not just the customer's",
+    source:
+      'CustTable custTable;\nDimensionAttributeValueSetItem setItem;\nDimensionAttributeValue dimensionValue;\nDimensionAttribute dimensionAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\n\nwhile select setItem\n    join dimensionValue\n    where dimensionValue.RecId == setItem.DimensionAttributeValue\n    join dimensionAttribute\n    where dimensionAttribute.RecId == dimensionValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", dimensionAttribute.Name, setItem.DisplayValue));\n}',
+    expect: "custTable.DefaultDimension",
+  },
+  {
+    lesson: "11-financial-dimensions",
+    task: "count-the-values",
+    label: "treats every customer as having none",
+    source:
+      'CustTable custTable;\nint without;\nint total;\n\nwhile select custTable\n{\n    total++;\n    info(strFmt("%1 has no dimensions", custTable.AccountNum));\n    without++;\n}\n\ninfo(strFmt("%1 of %2 customers have none", without, total));',
+    expect: "C-1000 does have dimensions",
+  },
+  {
+    lesson: "11-financial-dimensions",
+    task: "merge-two-sets",
+    label: "lets the item's value overwrite the customer's, which is the whole trap",
+    source:
+      'CustTable custTable;\nInventTable inventTable;\nDimensionAttributeValueSetItem targetItem, sourceItem;\nDimensionAttributeValue targetValue, sourceValue;\nDimensionAttribute targetAttribute, sourceAttribute;\n\nselect firstonly custTable where custTable.AccountNum == "C-1000";\nselect firstonly inventTable where inventTable.ItemId == "F-100";\n\nwhile select targetItem\n    where targetItem.DimensionAttributeValueSet == custTable.DefaultDimension\n    join targetValue\n    where targetValue.RecId == targetItem.DimensionAttributeValue\n    join targetAttribute\n    where targetAttribute.RecId == targetValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", targetAttribute.Name, targetItem.DisplayValue));\n}\n\nwhile select sourceItem\n    where sourceItem.DimensionAttributeValueSet == inventTable.DefaultDimension\n    join sourceValue\n    where sourceValue.RecId == sourceItem.DimensionAttributeValue\n    join sourceAttribute\n    where sourceAttribute.RecId == sourceValue.DimensionAttribute\n{\n    info(strFmt("%1 = %2", sourceAttribute.Name, sourceItem.DisplayValue));\n}',
+    expect: "the target wins, it is not last-writer-wins",
+  },
 ];
 
 describe("wrong answers get the message that addresses them", () => {
