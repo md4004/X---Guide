@@ -239,6 +239,66 @@ Free tier = first track + sandbox; paid = full tracks, certificates, team seats.
 
 ---
 
+## Phase 13 — The development environment
+
+A simulated Visual Studio at `/studio`, so a learner meets the tool as well as the
+language. This is the unbuilt half of Phase 7 — "an AOT tree explorer and a property grid
+UI" — grown into the shell those two things actually live in.
+
+- **Application Explorer** over the virtual AOT, in the real tree shape: `AOT` → `Data
+Model` / `Data Types` / `Code` / `User Interface` / `Analytics` (VB-016), with the
+  classic/model view switch (VB-017) and the filter bar.
+- **Solution Explorer** with a project, because the single most consequential fact about
+  this IDE is that Application Explorer cannot edit anything and a project can (VB-015).
+- **Element designers** — the table designer's `Fields` / `Field groups` / `Indexes` /
+  `Relations` / `Methods` nodes, opened per VB-018, edited per VB-019.
+- **Properties window** with the four orderings VB-018 names, driving real metadata.
+- **Output** and **Error List** panes fed by a simulated build (VB-020) and database
+  synchronisation (VB-021).
+
+**Accept:** a learner adds a field to a table through a project, sees it appear in the
+property grid, builds, synchronises, and the new field is present in the virtual database
+and on the rendered form — with every menu path they used matching the real product.
+
+---
+
+## Phase 14 — The debugger
+
+The tree-walking interpreter is already fully asynchronous, which means it can be paused
+between statements without blocking anything. That makes a genuine debugger cheap, and a
+debugger is the single tool that most separates developers who can work in F&O from those
+who cannot.
+
+Breakpoints (VB-022) with conditions and hit counts (VB-025), step over / into / out,
+continue, stop. The windows that matter: **Locals** with table buffers expanding to their
+fields, **Autos** showing company, transaction level and user (VB-023), **Call Stack**,
+**Breakpoints**, and the **Infolog**.
+
+The unselected-field artifact (VB-024) gets its own lesson. It is a documented, genuinely
+confusing behaviour, and the debugger is the only place it is visible.
+
+**Accept:** a learner sets a breakpoint inside a `while select`, steps three iterations,
+watches a buffer field change in **Locals**, and sees `ttsLevel` move in **Autos** as they
+step over `ttsbegin`.
+
+---
+
+## Phase 15 — Financial dimensions
+
+The highest-value functional topic for an F&O developer and the one most often learned
+wrongly, because the data model is genuinely counter-intuitive: values live in a set
+(VB-027), empty is not stored (VB-028), and nothing is ever updated (VB-029).
+
+Schema for `DimensionAttribute`, `DimensionAttributeValue`, `DimensionAttributeValueSet`
+and `DimensionAttributeValueSetItem`, plus `DefaultDimension` on the master tables. Our own
+teaching stub standing in for `DimensionAttributeValueSetStorage`, clearly labelled as a
+stub. Merging follows VB-030, whose worked example is Microsoft's own.
+
+**Accept:** a learner reads a default dimension off a customer, merges it with another set,
+and the SQL trace shows a **new** value set being written rather than the old one changing.
+
+---
+
 ## Decisions to make before Phase 2, not during
 
 1. ~~**Name and domain.**~~ Decided: the brand is **X++Lab**; identifiers stay `xpplab`

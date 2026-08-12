@@ -29,6 +29,24 @@ export type { Infolog } from "./infolog";
 
 export { Scope, closestName } from "./scope";
 
+/**
+ * The debugger. `DebugController` decides where a run stops; the interpreter gathers the
+ * state each stop shows. Behaviours VB-022 to VB-026.
+ */
+export { DebugController } from "./debug";
+export type {
+  Breakpoint,
+  DebugAutos,
+  DebugCommand,
+  DebugField,
+  DebugFrame,
+  DebugHost,
+  DebugPause,
+  DebugVariable,
+  PauseReason,
+  StatementCursor,
+} from "./debug";
+
 export {
   RuntimeError,
   ThrownException,

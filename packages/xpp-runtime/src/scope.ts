@@ -69,6 +69,31 @@ export class Scope {
     return this.parent === undefined ? own : [...own, ...this.parent.visibleNames()];
   }
 
+  /**
+   * Every visible binding, innermost first, for the debugger's Locals window.
+   *
+   * A name declared in an inner scope hides the outer one, so the first occurrence wins
+   * and later ones are dropped. Showing both would put two rows called `counter` in the
+   * window, only one of which is the variable the paused line can actually see.
+   */
+  visibleBindings(): { name: string; typeName: string; value: XppValue }[] {
+    const own = [...this.#bindings.values()].map((binding) => ({
+      name: binding.declaredAs,
+      typeName: binding.typeName,
+      value: binding.value,
+    }));
+
+    if (this.parent === undefined) return own;
+
+    const shadowed = new Set(own.map((binding) => binding.name.toLowerCase()));
+    return [
+      ...own,
+      ...this.parent
+        .visibleBindings()
+        .filter((binding) => !shadowed.has(binding.name.toLowerCase())),
+    ];
+  }
+
   #find(name: string): Binding | undefined {
     const own = this.#bindings.get(name.toLowerCase());
     if (own !== undefined) return own;

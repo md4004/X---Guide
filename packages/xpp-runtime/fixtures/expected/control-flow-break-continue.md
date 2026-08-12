@@ -13,5 +13,5 @@ info: 3
 
 ## Database
 (no row-count change)
-statements executed: 28
+statements executed: 27
 uncommitted transaction depth: 0

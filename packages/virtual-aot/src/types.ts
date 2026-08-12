@@ -79,13 +79,37 @@ export interface TableMethodMetadata {
   fromExtension?: string;
 }
 
+export interface IndexMetadata {
+  name: string;
+  fields: string[];
+  allowDuplicates: boolean;
+  /** The index the table's `PrimaryIndex` property points at. */
+  primary: boolean;
+}
+
+export interface RelationMetadata {
+  name: string;
+  relatedTable: string;
+  /** `[thisField, relatedField]` pairs. */
+  fields: { field: string; relatedField: string }[];
+}
+
 export interface TableMetadata {
   name: string;
   label: string;
   fields: FieldMetadata[];
   fieldGroups: FieldGroupMetadata[];
+  /**
+   * Indexes and relations are carried because they are two of the five nodes a table
+   * designer opens with, and a designer that showed an empty `Indexes` node over a table
+   * that has indexes would misrepresent the element it exists to explain.
+   */
+  indexes: IndexMetadata[];
+  relations: RelationMetadata[];
   /** Methods declared on the table, including `display` methods. */
   methods: TableMethodMetadata[];
+  /** `false` for a table shared across legal entities rather than company-scoped. */
+  saveDataPerCompany: boolean;
 }
 
 // ---------------------------------------------------------------------------

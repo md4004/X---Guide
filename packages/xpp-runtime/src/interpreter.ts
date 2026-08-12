@@ -23,12 +23,13 @@ import {
   type SqlValue,
   type XppError,
 } from "@xpplab/xpp-core";
-import type {
-  Expression,
-  SelectClauses,
-  SourceUnit,
-  Statement,
-  TypeReference,
+import {
+  parse,
+  type Expression,
+  type SelectClauses,
+  type SourceUnit,
+  type Statement,
+  type TypeReference,
 } from "@xpplab/xpp-parser";
 import {
   DATAAREAID_FIELD,
@@ -43,6 +44,15 @@ import {
 } from "@xpplab/virtual-db";
 import { createVirtualAot, validateWrite, type VirtualAot } from "@xpplab/virtual-aot";
 import { callBuiltin, formatString, isBuiltin } from "./builtins";
+import {
+  DebugController,
+  type DebugField,
+  type DebugFrame,
+  type DebugHost,
+  type DebugPause,
+  type DebugVariable,
+  type PauseReason,
+} from "./debug";
 import {
   BudgetExceeded,
   RuntimeError,
@@ -86,6 +96,19 @@ export interface RunOptions {
    * baseline; a caller supplies one when a lesson has extended it.
    */
   aot?: VirtualAot;
+  /**
+   * Attaches the debugger. Absent means an ordinary run, which pays nothing for the
+   * feature — no state is gathered and no promise is awaited per statement.
+   */
+  debug?: DebugHost;
+  /**
+   * The name of the outermost call-stack frame.
+   *
+   * The Studio passes its startup object; the playground has no such thing, so the frame
+   * is named for what it is. This engine executes one top-level statement list and does
+   * not yet call user-defined methods, so there is exactly one frame — see Phase 8.
+   */
+  entryPoint?: string;
 }
 
 export interface RunResult {
@@ -97,6 +120,13 @@ export interface RunResult {
   durationMs: number;
   /** Non-zero means the run ended mid-transaction, which F&O treats as a defect. */
   uncommittedTransactionDepth: number;
+  /**
+   * `true` when the learner pressed Stop Debugging rather than the code finishing.
+   *
+   * Deliberately not an error: stopping a debug session is a normal thing to do, and
+   * dressing it up as a failure would teach the opposite.
+   */
+  stoppedByDebugger?: boolean;
 }
 
 /** Non-local control flow. None of these escape `run`. */
@@ -106,6 +136,8 @@ class RetrySignal {}
 class ReturnSignal {
   constructor(readonly value: XppValue) {}
 }
+/** Stop Debugging. Unwinds the run without recording an error — see `stoppedByDebugger`. */
+class DebugStopSignal {}
 
 export async function run(options: RunOptions): Promise<RunResult> {
   const interpreter = new Interpreter(options);
@@ -137,6 +169,15 @@ export class Interpreter {
   #openScopes: number[] = [];
   #nextScopeId = 1;
 
+  /**
+   * The call stack, outermost first. One frame today, because user-defined methods are
+   * Phase 8 — but the debugger's step-over and step-out are written against depth rather
+   * than against the assumption that there is only ever one frame.
+   */
+  readonly #callStack: DebugFrame[];
+  readonly #debug: DebugController | undefined;
+  #stoppedByDebugger = false;
+
   constructor(options: RunOptions) {
     this.#options = options;
     this.#db = options.db;
@@ -145,6 +186,8 @@ export class Interpreter {
     this.#today = options.today ?? "2026-08-10";
     this.#maxStatements = options.maxStatements ?? EXECUTION_LIMITS.maxStatements;
     this.#deadline = Date.now() + (options.timeoutMs ?? EXECUTION_LIMITS.timeoutMs);
+    this.#callStack = [{ name: options.entryPoint ?? "(script)", line: 0 }];
+    this.#debug = options.debug === undefined ? undefined : new DebugController(options.debug);
   }
 
   get statementsExecuted(): number {
@@ -169,8 +212,15 @@ export class Interpreter {
 
     // VB-007's cousin: work left uncommitted at the end of a run is a defect in F&O,
     // and silently committing it would teach the opposite.
+    //
+    // Stopping the debugger is the exception. Code abandoned halfway is *expected* to be
+    // mid-transaction, and reporting it as a defect would punish the learner for using
+    // the button. The work is still rolled back — it just is not an error.
     const depth = this.#transactionDepth;
-    if (depth > 0) {
+    if (depth > 0 && this.#stoppedByDebugger) {
+      await this.#db.abortTransaction().catch(() => undefined);
+      this.#transactionDepth = 0;
+    } else if (depth > 0) {
       this.#errors.push({
         code: XppErrorCodes.UncommittedDataAtEndOfRun,
         message: `The code finished with ${depth} open transaction${depth === 1 ? "" : "s"}.`,
@@ -190,10 +240,15 @@ export class Interpreter {
       statementsExecuted: this.#statements,
       durationMs: Date.now() - startedAt,
       uncommittedTransactionDepth: depth,
+      ...(this.#stoppedByDebugger ? { stoppedByDebugger: true } : {}),
     };
   }
 
   async #handleTopLevel(error: unknown): Promise<void> {
+    // Stop Debugging. The learner asked for this, so it is not a failure — the abort of
+    // any open transaction happens in `execute`, which owns that decision.
+    if (error instanceof DebugStopSignal) return;
+
     if (error instanceof ThrownException) {
       // An uncaught throw ends the run. The message was already written to the Infolog
       // by error()/warning(), so do not write it twice (VB-010).
@@ -302,10 +357,112 @@ export class Interpreter {
     }
   }
 
+  // -- debugger ------------------------------------------------------------
+
+  /**
+   * Charge the budget for a statement, then give the debugger a chance to stop on it.
+   *
+   * Every place that used to call `#tick` calls this instead, which is why a loop pauses
+   * on its own header line on each iteration rather than only the first time through —
+   * the condition really is re-evaluated there, and the real debugger shows that.
+   */
+  async #at(line: number): Promise<void> {
+    this.#tick(line);
+    if (this.#debug === undefined) return;
+
+    this.#callStack[this.#callStack.length - 1]!.line = line;
+
+    const outcome = await this.#debug.beforeStatement({
+      line,
+      depth: this.#callStack.length - 1,
+      state: (reason) => this.#debugState(line, reason),
+      test: (expression) => this.#testCondition(expression),
+    });
+
+    if (outcome === "stop") {
+      this.#stoppedByDebugger = true;
+      throw new DebugStopSignal();
+    }
+  }
+
+  async #debugState(line: number, reason: PauseReason): Promise<DebugPause> {
+    return {
+      reason,
+      line,
+      statementsExecuted: this.#statements,
+      locals: this.#locals(),
+      // Innermost first, which is the order the Call Stack window lists frames in.
+      callStack: [...this.#callStack].reverse().map((frame) => ({ ...frame })),
+      autos: { company: this.#db.getCompany(), transactionLevel: this.#transactionDepth },
+      infolog: [...this.infolog.entries()],
+    };
+  }
+
+  #locals(): DebugVariable[] {
+    return this.#scope.visibleBindings().map(({ name, typeName, value }) => {
+      const base: DebugVariable = { name, typeName, value: toDisplayString(value) };
+      if (value.type !== "buffer") return base;
+
+      const fields = this.#bufferFields(value.buffer);
+      return fields === undefined ? base : { ...base, fields };
+    });
+  }
+
+  /**
+   * A table buffer expanded to its fields, the way Locals expands one.
+   *
+   * VB-024: a field the `select` field list left out reads as `null` in the debugger even
+   * though the variable really holds its type's default. That falls straight out of how
+   * the engine already works — the row only carries the columns that were selected — so
+   * the artifact is reproduced rather than staged.
+   */
+  #bufferFields(buffer: TableBuffer): DebugField[] | undefined {
+    const schema = getTableSchema(buffer.tableName as TableName);
+    if (schema === undefined) return undefined;
+    if (buffer.isEmpty || buffer.row === undefined) return [];
+
+    const row = buffer.row;
+    const columns = [RECID_FIELD, DATAAREAID_FIELD, ...schema.fields.map((field) => field.name)];
+
+    return columns.map((name) => {
+      const selected = row[name] !== undefined;
+      return {
+        name,
+        value: selected ? String(row[name]) : "null",
+        selected,
+      };
+    });
+  }
+
+  /**
+   * Evaluates a breakpoint condition (VB-025) in the paused scope.
+   *
+   * A condition that does not parse, or that throws, is `false`. A learner mistyping a
+   * condition should get a breakpoint that does not fire, not a run that dies — and the
+   * real debugger is equally forgiving about it.
+   */
+  async #testCondition(expression: string): Promise<boolean> {
+    try {
+      const { ast, errors } = parse(`${expression};`);
+      const first = ast?.statements[0];
+      if (errors.length > 0 || first === undefined || first.kind !== "expressionStatement") {
+        return false;
+      }
+      return toBoolean(await this.#evaluate(first.expression));
+    } catch {
+      return false;
+    }
+  }
+
   // -- statements ----------------------------------------------------------
 
   async #statement(statement: Statement): Promise<void> {
-    this.#tick(statement.span.start.line);
+    // A block is punctuation, not an executable line. Pausing the debugger on a bare `{`
+    // is an artifact of walking the AST — the real debugger steps from a loop header
+    // straight into the first statement of the body. It still costs a tick, so the
+    // statement budget is unchanged.
+    if (statement.kind === "block") this.#tick(statement.span.start.line);
+    else await this.#at(statement.span.start.line);
 
     switch (statement.kind) {
       case "block": {
@@ -343,29 +500,41 @@ export class Interpreter {
         return;
       }
 
+      /**
+       * The loop cases each land on the header line once per condition test, not once per
+       * iteration body.
+       *
+       * The difference is visible: entering the statement is the first test, and the trip
+       * back up after the body is every test after that. Ticking at the top of the body
+       * instead would stop twice on the header the first time round, and would never stop
+       * on it at all for a loop whose condition is false immediately — both of which teach
+       * the wrong thing about when a loop condition is evaluated.
+       */
       case "while": {
-        while (toBoolean(await this.#evaluate(statement.test))) {
-          this.#tick(statement.span.start.line);
+        for (;;) {
+          if (!toBoolean(await this.#evaluate(statement.test))) break;
           try {
             await this.#statement(statement.body);
           } catch (error) {
             if (error instanceof BreakSignal) break;
             if (!(error instanceof ContinueSignal)) throw error;
           }
+          await this.#at(statement.span.start.line);
         }
         return;
       }
 
       case "doWhile": {
-        do {
-          this.#tick(statement.span.start.line);
+        for (;;) {
           try {
             await this.#statement(statement.body);
           } catch (error) {
             if (error instanceof BreakSignal) break;
             if (!(error instanceof ContinueSignal)) throw error;
           }
-        } while (toBoolean(await this.#evaluate(statement.test)));
+          if (!toBoolean(await this.#evaluate(statement.test))) break;
+          await this.#at(statement.span.start.line);
+        }
         return;
       }
 
@@ -375,7 +544,6 @@ export class Interpreter {
           if (statement.test !== undefined && !toBoolean(await this.#evaluate(statement.test))) {
             break;
           }
-          this.#tick(statement.span.start.line);
           try {
             await this.#statement(statement.body);
           } catch (error) {
@@ -383,6 +551,7 @@ export class Interpreter {
             if (!(error instanceof ContinueSignal)) throw error;
           }
           if (statement.update !== undefined) await this.#evaluate(statement.update);
+          await this.#at(statement.span.start.line);
         }
         return;
       }

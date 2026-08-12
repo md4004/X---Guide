@@ -9,6 +9,7 @@
 import { parse } from "@xpplab/xpp-parser";
 import type { VirtualDb } from "@xpplab/virtual-db";
 import type { CompanyId } from "@xpplab/xpp-core";
+import type { DebugHost } from "./debug";
 import { run, type RunResult } from "./interpreter";
 
 export interface RunSourceOptions {
@@ -18,6 +19,10 @@ export interface RunSourceOptions {
   timeoutMs?: number;
   maxStatements?: number;
   today?: string;
+  /** Attaches the debugger. See `RunOptions.debug`. */
+  debug?: DebugHost;
+  /** Names the outermost call-stack frame. See `RunOptions.entryPoint`. */
+  entryPoint?: string;
 }
 
 export interface RunSourceResult extends RunResult {
@@ -48,6 +53,8 @@ export async function runSource(options: RunSourceOptions): Promise<RunSourceRes
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     ...(options.maxStatements === undefined ? {} : { maxStatements: options.maxStatements }),
     ...(options.today === undefined ? {} : { today: options.today }),
+    ...(options.debug === undefined ? {} : { debug: options.debug }),
+    ...(options.entryPoint === undefined ? {} : { entryPoint: options.entryPoint }),
   });
 
   return { ...result, parseFailed: false };

@@ -124,7 +124,22 @@ function toTableMetadata(table: TableSchema): TableMetadata {
     label: table.label,
     fields: table.fields.map((field) => toFieldMetadata(table, field)),
     fieldGroups: FIELD_GROUPS[table.name] ?? [],
+    // Derived, like the fields: the database's indexes and relations *are* the table's,
+    // and two lists that could disagree would be a simulator lying about the one thing
+    // the designer exists to show.
+    indexes: table.indexes.map((index) => ({
+      name: index.name,
+      fields: [...index.fields],
+      allowDuplicates: !index.unique,
+      primary: index.primary === true,
+    })),
+    relations: table.relations.map((relation) => ({
+      name: relation.name,
+      relatedTable: relation.relatedTable,
+      fields: relation.fields.map(([field, relatedField]) => ({ field, relatedField })),
+    })),
     methods: [],
+    saveDataPerCompany: table.saveDataPerCompany,
   };
 }
 
