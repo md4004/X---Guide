@@ -37,6 +37,9 @@ export default defineConfig({
       "@xpplab/xpp-lexer": pkg("xpp-lexer"),
       "@xpplab/xpp-parser": pkg("xpp-parser"),
       "@xpplab/xpp-runtime": pkg("xpp-runtime"),
+      "@xpplab/virtual-db/metadata": fileURLToPath(
+        new URL("./packages/virtual-db/src/metadata.ts", import.meta.url),
+      ),
       "@xpplab/virtual-db": pkg("virtual-db"),
       "@xpplab/virtual-aot": pkg("virtual-aot"),
       "@xpplab/renderers": pkg("renderers"),

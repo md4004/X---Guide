@@ -18,6 +18,7 @@
       "@xpplab/xpp-parser": ["./packages/xpp-parser/src/index.ts"],
       "@xpplab/xpp-runtime": ["./packages/xpp-runtime/src/index.ts"],
       "@xpplab/virtual-db": ["./packages/virtual-db/src/index.ts"],
+      "@xpplab/virtual-db/metadata": ["./packages/virtual-db/src/metadata.ts"],
       "@xpplab/virtual-aot": ["./packages/virtual-aot/src/index.ts"],
       "@xpplab/renderers": ["./packages/renderers/src/index.ts"],
       "@xpplab/validators": ["./packages/validators/src/index.ts"]

@@ -8,6 +8,7 @@ import type { InfologEntry, SqlTraceEntry, XppError } from "@xpplab/xpp-core";
 import type { Row, TableName } from "@xpplab/virtual-db";
 import type { StepView, TaskDefinition } from "@xpplab/validators";
 import type { FormViewModel, ReportViewModel } from "@xpplab/renderers";
+import type { Breakpoint, DebugCommand, DebugPause } from "@xpplab/xpp-runtime";
 
 export interface RunRequest {
   id: number;
@@ -60,7 +61,52 @@ export interface PreviewRequest {
   view?: StepView;
 }
 
-export type EngineRequest = RunRequest | ResetRequest | ReadRequest | TaskRequest | PreviewRequest;
+/**
+ * Starts a debugged run — the Studio's **Start Debugging** (F5).
+ *
+ * Unlike every other request this one is not a single round trip. The worker replies with
+ * `DebugPausedEvent` each time execution stops, waits for a `DebugCommandMessage`, and
+ * only sends the ordinary `EngineReply` when the run finishes or is stopped.
+ */
+export interface DebugRequest {
+  id: number;
+  kind: "debug";
+  source: string;
+  company: string;
+  breakpoints: Breakpoint[];
+  /** Names the outermost call-stack frame — the project's startup object. */
+  entryPoint?: string;
+  tables: TableName[];
+}
+
+export type EngineRequest =
+  RunRequest | ResetRequest | ReadRequest | TaskRequest | PreviewRequest | DebugRequest;
+
+/**
+ * Resumes a paused run.
+ *
+ * Carries the breakpoint list as well as the command, so a breakpoint added or removed
+ * while execution is paused takes effect on resume — which is what the real debugger does,
+ * and is the only way "set a breakpoint further down and press F5" can work.
+ */
+export interface DebugCommandMessage {
+  kind: "debugCommand";
+  command: DebugCommand;
+  breakpoints: Breakpoint[];
+}
+
+/** Sent by the worker every time a debugged run stops. */
+export interface DebugPausedEvent {
+  id: number;
+  kind: "paused";
+  pause: DebugPause;
+}
+
+/** Everything the main thread can post to the worker. */
+export type EngineMessage = EngineRequest | DebugCommandMessage;
+
+/** Everything the worker can post back. */
+export type EngineOutbound = EngineReply | DebugPausedEvent;
 
 /**
  * What a lesson task reports back.
@@ -116,6 +162,8 @@ export interface EngineReply {
     tables: TableSnapshot[];
     companies: string[];
     company: string;
+    /** Set when the run ended because the learner pressed Stop Debugging. */
+    stoppedByDebugger?: boolean;
   };
 }
 

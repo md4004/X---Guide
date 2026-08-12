@@ -127,3 +127,42 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Debugger decorations in the Studio's code window.
+ *
+ * Monaco owns the glyph margin, so these hang off decoration class names rather than
+ * being drawn by React. The shapes are the familiar ones: a filled red circle for an
+ * armed breakpoint, a hollow one for a disabled breakpoint, and a yellow arrow with a
+ * highlighted line for the statement about to execute.
+ */
+.xpp-breakpoint::after,
+.xpp-breakpoint-disabled::after {
+  content: "";
+  display: block;
+  width: 11px;
+  height: 11px;
+  margin: 4px 0 0 4px;
+  border-radius: 9999px;
+}
+
+.xpp-breakpoint::after {
+  background: #e0405d;
+}
+
+.xpp-breakpoint-disabled::after {
+  border: 1.5px solid #e0405d;
+}
+
+.xpp-paused-line {
+  background: rgba(250, 204, 21, 0.14);
+}
+
+.xpp-paused-arrow::after {
+  content: "▶";
+  display: block;
+  margin-left: 3px;
+  color: #facc15;
+  font-size: 11px;
+  line-height: 1.5;
+}

@@ -12,7 +12,12 @@
  * small. See CLAUDE.md > Legal rule: no extracted Microsoft metadata.
  */
 
-import { BASE_ENUMS, SCHEMA, type FieldSchema, type TableSchema } from "@xpplab/virtual-db";
+import {
+  BASE_ENUMS,
+  SCHEMA,
+  type FieldSchema,
+  type TableSchema,
+} from "@xpplab/virtual-db/metadata";
 import type {
   AotModel,
   BaseEnumMetadata,

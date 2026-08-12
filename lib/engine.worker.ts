@@ -12,7 +12,7 @@
  */
 
 import { createVirtualDb, RECID_FIELD, type TableName, type VirtualDb } from "@xpplab/virtual-db";
-import { runSource } from "@xpplab/xpp-runtime";
+import { runSource, type Breakpoint, type DebugCommand, type DebugHost } from "@xpplab/xpp-runtime";
 import { runTask, type StepView } from "@xpplab/validators";
 import { createVirtualAot } from "@xpplab/virtual-aot";
 import {
@@ -22,7 +22,13 @@ import {
   type ReportColumn,
   type ReportViewModel,
 } from "@xpplab/renderers";
-import type { EngineReply, EngineRequest, TableSnapshot } from "./run-protocol.js";
+import type {
+  DebugPausedEvent,
+  EngineMessage,
+  EngineReply,
+  EngineRequest,
+  TableSnapshot,
+} from "./run-protocol.js";
 
 const aot = createVirtualAot();
 
@@ -122,8 +128,71 @@ async function buildView(
   };
 }
 
+/**
+ * The debug session's half-open promise.
+ *
+ * A paused run is literally a promise nobody has resolved yet. The main thread resolves it
+ * by posting a `debugCommand`, which is why the worker stays responsive the whole time the
+ * learner is reading the Locals window.
+ */
+let resumeDebug: ((command: DebugCommand) => void) | undefined;
+let debugBreakpoints: Breakpoint[] = [];
+
+function debugHost(id: number): DebugHost {
+  return {
+    // Read fresh at every arrival, so a breakpoint set while paused counts on resume.
+    breakpoints: () => debugBreakpoints,
+    onPause: (pause) =>
+      new Promise<DebugCommand>((resolve) => {
+        resumeDebug = resolve;
+        const event: DebugPausedEvent = { id, kind: "paused", pause };
+        self.postMessage(event);
+      }),
+  };
+}
+
 async function handle(request: EngineRequest): Promise<EngineReply> {
   const instance = await database();
+
+  if (request.kind === "debug") {
+    if (instance.getCompany() !== request.company) await instance.setCompany(request.company);
+
+    debugBreakpoints = request.breakpoints;
+    const before = await fingerprint(instance, request.tables);
+
+    try {
+      const result = await runSource({
+        source: request.source,
+        db: instance,
+        debug: debugHost(request.id),
+        ...(request.entryPoint === undefined ? {} : { entryPoint: request.entryPoint }),
+        // A debugged run has a human in the loop, so the wall-clock ceiling that protects
+        // an ordinary run would fire while they read a variable. The statement cap still
+        // applies, which is what actually catches a runaway loop.
+        timeoutMs: Number.MAX_SAFE_INTEGER,
+      });
+
+      return {
+        id: request.id,
+        ok: true,
+        result: {
+          infolog: result.infolog,
+          sqlTrace: result.sqlTrace,
+          errors: result.errors,
+          statementsExecuted: result.statementsExecuted,
+          durationMs: result.durationMs,
+          uncommittedTransactionDepth: result.uncommittedTransactionDepth,
+          parseFailed: result.parseFailed,
+          tables: await snapshotTables(instance, request.tables, before),
+          companies: await instance.listCompanies(),
+          company: instance.getCompany(),
+          ...(result.stoppedByDebugger === true ? { stoppedByDebugger: true } : {}),
+        },
+      };
+    } finally {
+      resumeDebug = undefined;
+    }
+  }
 
   if (request.kind === "task") {
     let view: { form?: FormViewModel; report?: ReportViewModel } = {};
@@ -269,8 +338,19 @@ async function handle(request: EngineRequest): Promise<EngineReply> {
   };
 }
 
-self.onmessage = (event: MessageEvent<EngineRequest>) => {
-  const request = event.data;
+self.onmessage = (event: MessageEvent<EngineMessage>) => {
+  const message = event.data;
+
+  // Resuming a paused run is not a request — there is no reply of its own, and the run it
+  // belongs to is still mid-flight waiting on this promise.
+  if (message.kind === "debugCommand") {
+    debugBreakpoints = message.breakpoints;
+    resumeDebug?.(message.command);
+    resumeDebug = undefined;
+    return;
+  }
+
+  const request = message;
   void handle(request)
     .then((reply) => self.postMessage(reply))
     .catch((error: unknown) => {
