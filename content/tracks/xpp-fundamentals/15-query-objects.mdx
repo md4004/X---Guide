@@ -1,10 +1,11 @@
 ---
 slug: 15-query-objects
-title: Query objects
-minutes: 25
+title: Query objects and views
+minutes: 30
 objectives:
   - Build a query at runtime with Query, QueryBuildDataSource and QueryRun
   - Filter with ranges, including the advanced syntax that is not equality
+  - Read a view, and know why a view must select DATAAREAID
   - Recognise when a query object is the right tool and when a select is
 requiresEngine: [db, runtime]
 seed: default
@@ -157,6 +158,64 @@ log only the first item you see:
 
 </Step>
 
+<Step id="a-view-is-a-saved-select">
+
+## A view is a select somebody got tired of writing
+
+A **view** is an AOT element that wraps a query and behaves like a table. You select *from*
+it, and the join it hides runs underneath:
+
+<Snippet lang="xpp">{`CustSalesOrderView custSalesOrderView;
+
+while select custSalesOrderView
+{
+    info(strFmt("%1 for %2 (%3)",
+        custSalesOrderView.SalesId,
+        custSalesOrderView.CustAccount,
+        custSalesOrderView.CustGroup));
+}`}</Snippet>
+
+`CustGroup` is not on `SalesTable`. It lives on `CustTable`, and the view is what brings it
+across — the same de-normalising job a data entity does, one layer lower and read-only.
+
+A view is not a table, and the differences are the ones you would expect:
+
+| | Table | View |
+| --- | --- | --- |
+| Storage | its own | none |
+| Insert / update / delete | yes | no |
+| Indexes | its own | the underlying tables' |
+| Reading it costs | one query | one query, with the join inside |
+
+In Visual Studio: **Add ▸ New Item ▸ Data Model ▸ View**, then drag tables onto its
+**Metadata ▸ Data Sources** node and fields onto **Fields**.
+
+<Aside title="The one that leaks data">
+  A company-scoped view **must select `DATAAREAID`**. It still works without it — it still
+  returns rows — but the scoping predicate has nothing to bind to, so every read silently
+  returns every company's data. That is invisible in a one-company test environment, and it
+  is exactly how a convenience becomes a security incident.
+</Aside>
+
+</Step>
+
+<Step id="read-the-view">
+
+## Your turn
+
+Read `CustSalesOrderView` and log one line per order, in the form:
+
+`SO-0001 for C-1000 (RETAIL)`
+
+Then finish with the count:
+
+`3 orders`
+
+Check the SQL trace afterwards. There should be **one** statement, and the join should be
+inside it — you did not write a join, and one ran anyway.
+
+</Step>
+
 <Step id="when-to-use">
 
 ## When a query object earns its place
@@ -207,6 +266,13 @@ export const steps = [
       'Query query = new Query();\nquery.addDataSource(tableNum(InventTable));\n\nQueryBuildDataSource qbds = query.dataSourceTable(tableNum(InventTable));\nQueryBuildRange qbr = qbds.findRange(fieldNum(InventTable, ItemGroupId));\n\nif (!qbr)\n{\n    info("No range on that field yet, so this is where you would add one.");\n    qbr = qbds.addRange(fieldNum(InventTable, ItemGroupId));\n}\n\nif (!qbr.value())\n{\n    info("It has no value either, so setting one takes nothing away.");\n    qbr.value("FURNITURE");\n}\n\ninfo(strFmt("The range now reads: %1", qbr.value()));\n',
   },
   { id: "sort-and-run", title: "Sort it", taskId: "sort-and-run" },
+  {
+    id: "a-view-is-a-saved-select",
+    title: "A view is a saved select",
+    example:
+      'CustSalesOrderView custSalesOrderView;\n\nwhile select custSalesOrderView\n{\n    info(strFmt("%1 for %2 (%3)", custSalesOrderView.SalesId, custSalesOrderView.CustAccount, custSalesOrderView.CustGroup));\n}\n',
+  },
+  { id: "read-the-view", title: "Read a view", taskId: "read-the-view" },
   {
     id: "when-to-use",
     title: "When to reach for one",
@@ -332,6 +398,53 @@ export const tasks = [
         value: "ORDER BY",
         message:
           "The sort should be in the SQL. Look at the trace: addSortField becomes an ORDER BY, which is the whole reason to use it.",
+      },
+    ],
+  },
+
+  {
+    id: "read-the-view",
+    prompt:
+      "Read CustSalesOrderView, log one line per order as: SO-0001 for C-1000 (RETAIL), then finish with: 3 orders.",
+    starter:
+      "CustSalesOrderView custSalesOrderView;\nint counter;\n\n// Select from it exactly as you would from a table.\n",
+    solution:
+      'CustSalesOrderView custSalesOrderView;\nint counter;\n\nwhile select custSalesOrderView\n{\n    info(strFmt("%1 for %2 (%3)", custSalesOrderView.SalesId, custSalesOrderView.CustAccount, custSalesOrderView.CustGroup));\n    counter++;\n}\n\ninfo(strFmt("%1 orders", counter));\n',
+    hints: [
+      "A view is selected from exactly like a table: `while select custSalesOrderView`.",
+      "The view already carries CustGroup, so there is no join for you to write.",
+      'Log strFmt("%1 for %2 (%3)", …SalesId, …CustAccount, …CustGroup), then the count.',
+    ],
+    validators: [
+      {
+        kind: "output",
+        match: "^SO-0001 for C-1000 \\(RETAIL\\)$",
+        type: "info",
+        message:
+          "The line for SO-0001 is missing. CustGroup comes from the view — you should not need a join to reach it.",
+      },
+      {
+        kind: "output",
+        match: "^3 orders$",
+        type: "info",
+        message:
+          "This company has 3 sales orders. If you got 7, the read is crossing companies — which a view only allows if it selected DATAAREAID, and this one did.",
+      },
+      {
+        // Joining the tables by hand gives the same rows in the same one statement, so
+        // nothing else here can tell the two apart — and the exercise is about the view.
+        kind: "sql",
+        rule: "matches",
+        value: "FROM CustSalesOrderView",
+        message:
+          "Select from the view itself rather than joining CustTable and SalesTable by hand. Both give the right answer; the view is the one that stops you rewriting that join in the next twenty places.",
+      },
+      {
+        kind: "sql",
+        rule: "maxStatements",
+        value: 1,
+        message:
+          "Reading a view is one statement. If the trace shows more, you are querying the underlying tables separately rather than selecting from the view.",
       },
     ],
   },

@@ -429,6 +429,29 @@ const WRONG: WrongAnswer[] = [
   },
   {
     lesson: "15-query-objects",
+    task: "read-the-view",
+    label: "joins the tables by hand instead of reading the view",
+    source: [
+      "SalesTable salesTable;",
+      "CustTable custTable;",
+      "int counter;",
+      "",
+      "while select salesTable",
+      "    join custTable",
+      "    where custTable.AccountNum == salesTable.CustAccount",
+      "{",
+      '    info(strFmt("%1 for %2 (%3)", salesTable.SalesId, salesTable.CustAccount, custTable.CustGroup));',
+      "    counter++;",
+      "}",
+      "",
+      'info(strFmt("%1 orders", counter));',
+    ].join("\n"),
+    // Joining by hand gives the right answer and misses the point: the view already did
+    // it, and doing it again is the habit views exist to remove.
+    expect: "stops you rewriting that join",
+  },
+  {
+    lesson: "15-query-objects",
     task: "sort-and-run",
     label: "sorts the wrong way round",
     source:
