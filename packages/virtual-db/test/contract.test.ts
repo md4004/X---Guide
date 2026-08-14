@@ -180,8 +180,8 @@ describe("generated DDL", () => {
 });
 
 describe("seed data", () => {
-  it("registers the default and empty seeds", () => {
-    expect(Object.keys(SEEDS).sort()).toEqual(["default", "empty"]);
+  it("registers the seeds the app names", () => {
+    expect(Object.keys(SEEDS).sort()).toEqual(["credit", "default", "empty"]);
   });
 
   const seededRows = Object.entries(SEEDS.default!.rows) as [
@@ -189,39 +189,57 @@ describe("seed data", () => {
     ReadonlyArray<Record<string, unknown>>,
   ][];
 
-  it("only seeds tables that exist", () => {
-    for (const [tableName] of seededRows) {
-      expect(getTableSchema(tableName)).toBeDefined();
-    }
-  });
+  const rowsOf = (name: string): [string, ReadonlyArray<Record<string, unknown>>][] =>
+    Object.entries(SEEDS[name]!.rows) as [string, ReadonlyArray<Record<string, unknown>>][];
 
-  it("only seeds columns that exist on the table", () => {
-    for (const [tableName, rows] of seededRows) {
-      const table = getTableSchema(tableName)!;
-      const known = new Set([...table.fields.map((f) => f.name), RECID_FIELD, DATAAREAID_FIELD]);
-      for (const row of rows) {
-        for (const column of Object.keys(row)) {
-          expect({ tableName, column, known: known.has(column) }).toEqual({
-            tableName,
-            column,
-            known: true,
-          });
+  // The structural and legal checks run over *every* seed, not just the default one. A
+  // scenario ships its own dataset, and a seed that names a column the schema does not
+  // have fails at reset with a SQLite error rather than anything a learner can act on.
+  describe.each(Object.keys(SEEDS))("%s", (seedName) => {
+    const rows = rowsOf(seedName);
+
+    it("only seeds tables that exist", () => {
+      for (const [tableName] of rows) {
+        expect(getTableSchema(tableName)).toBeDefined();
+      }
+    });
+
+    it("only seeds columns that exist on the table", () => {
+      for (const [tableName, tableRows] of rows) {
+        const table = getTableSchema(tableName)!;
+        const known = new Set([...table.fields.map((f) => f.name), RECID_FIELD, DATAAREAID_FIELD]);
+        for (const row of tableRows) {
+          for (const column of Object.keys(row)) {
+            expect({ tableName, column, known: known.has(column) }).toEqual({
+              tableName,
+              column,
+              known: true,
+            });
+          }
         }
       }
-    }
-  });
+    });
 
-  it("stamps every row with a real company, or the shared marker", () => {
-    const valid = new Set<string>([...COMPANIES.map((c) => c.id), SHARED_DATAAREAID]);
-    for (const [tableName, rows] of seededRows) {
-      const shared = getTableSchema(tableName)!.saveDataPerCompany === false;
-      for (const row of rows) {
-        const company = row[DATAAREAID_FIELD];
-        expect(valid.has(String(company))).toBe(true);
-        // A shared table's rows must not claim a company, or filtering gets ambiguous.
-        if (shared) expect(company).toBe(SHARED_DATAAREAID);
+    it("stamps every row with a real company, or the shared marker", () => {
+      const valid = new Set<string>([...COMPANIES.map((c) => c.id), SHARED_DATAAREAID]);
+      for (const [tableName, tableRows] of rows) {
+        const shared = getTableSchema(tableName)!.saveDataPerCompany === false;
+        for (const row of tableRows) {
+          const company = row[DATAAREAID_FIELD];
+          expect(valid.has(String(company))).toBe(true);
+          // A shared table's rows must not claim a company, or filtering gets ambiguous.
+          if (shared) expect(company).toBe(SHARED_DATAAREAID);
+        }
       }
-    }
+    });
+
+    it("ships no Microsoft demo company names — CLAUDE.md > Legal rule", () => {
+      const forbidden = ["Contoso", "Fabrikam", "Adventure Works", "Northwind", "Litware"];
+      const serialised = JSON.stringify(SEEDS[seedName]);
+      for (const name of forbidden) {
+        expect(serialised).not.toContain(name);
+      }
+    });
   });
 
   it("puts data in all three legal entities", () => {
@@ -244,13 +262,6 @@ describe("seed data", () => {
     }
   });
 
-  it("ships no Microsoft demo company names", () => {
-    const forbiddenNames = ["Contoso", "Fabrikam", "Adventure Works", "Northwind", "Litware"];
-    const serialised = JSON.stringify(SEEDS.default);
-    for (const name of forbiddenNames) {
-      expect(serialised).not.toContain(name);
-    }
-  });
 });
 
 // selectToSql is covered end to end in selectToSql.test.ts, against real parsed input.

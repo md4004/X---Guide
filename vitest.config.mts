@@ -44,6 +44,7 @@ export default defineConfig({
       "@xpplab/virtual-aot": pkg("virtual-aot"),
       "@xpplab/renderers": pkg("renderers"),
       "@xpplab/validators": pkg("validators"),
+      "@xpplab/scenarios": pkg("scenarios"),
     },
   },
   test: {

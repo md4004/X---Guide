@@ -39,6 +39,7 @@ const nextConfig: NextConfig = {
     "@xpplab/virtual-aot",
     "@xpplab/renderers",
     "@xpplab/validators",
+    "@xpplab/scenarios",
   ],
   typedRoutes: true,
 };

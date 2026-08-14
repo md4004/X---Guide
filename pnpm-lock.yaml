@@ -23,6 +23,9 @@ importers:
       '@xpplab/renderers':
         specifier: workspace:*
         version: link:packages/renderers
+      '@xpplab/scenarios':
+        specifier: workspace:*
+        version: link:packages/scenarios
       '@xpplab/validators':
         specifier: workspace:*
         version: link:packages/validators
@@ -138,6 +141,15 @@ importers:
       '@xpplab/xpp-core':
         specifier: workspace:*
         version: link:../xpp-core
+
+  packages/scenarios:
+    dependencies:
+      '@xpplab/validators':
+        specifier: workspace:*
+        version: link:../validators
+      '@xpplab/virtual-aot':
+        specifier: workspace:*
+        version: link:../virtual-aot
 
   packages/validators:
     dependencies:

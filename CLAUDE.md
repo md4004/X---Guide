@@ -7,10 +7,14 @@
 A browser-based training platform for Dynamics 365 Finance & Operations developers.
 Learners write real X++ in the browser, hit Run, and immediately see what it did:
 Infolog output, changed table rows, the generated SQL, the rendered form, the report
-output, or the OData response. Two modes:
+output, or the OData response. Three modes:
 
 - **Guided** — ordered lessons with objectives, starter code, hints, and automated
   validation of the learner's solution.
+- **Scenarios** — a whole job rather than one construct. A functional consultant asks for
+  something in a chat conversation, the learner works out what the words did not say, does
+  the AOT work, writes it, proves it against named acceptance cases, and then gets it
+  through the real release gates into production. See `docs/scenario-schema.md`.
 - **Sandbox** — free playground with the same engine, no objectives, persistent scratch
   projects.
 
@@ -74,7 +78,7 @@ Do **not** ship Microsoft intellectual property. Specifically:
 ```
 /app                  Next.js routes
 /components           UI components
-/content              Lessons as MDX + task definitions
+/content              Lessons as MDX + task definitions; scenarios as TS
 /e2e                  Playwright specs
 /packages
   /xpp-core           Shared types: SourceSpan, XppError, InfologEntry, SqlTraceEntry
@@ -85,6 +89,7 @@ Do **not** ship Microsoft intellectual property. Specifically:
   /virtual-aot        Metadata model, extension resolution, CoC chain builder
   /renderers          Form renderer, report renderer, OData console
   /validators         Task assertion runners
+  /scenarios          Scenario definitions + the dev→UAT→production release model
 /docs                 Architecture notes, verified-behaviour log, unverified list
 ```
 

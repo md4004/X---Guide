@@ -26,6 +26,13 @@ export type AstValidator = ValidatorBase &
   (
     | { kind: "ast"; rule: "usesStatement"; value: NodeKind }
     | { kind: "ast"; rule: "usesModifier"; value: SelectModifier }
+    /**
+     * No select in the program carries this modifier. The counterpart to `usesModifier`,
+     * and `forbids` cannot stand in for it — that rule takes a node kind, and a modifier
+     * is not a node. Written for `crosscompany`, where reaching across companies is a
+     * correctness bug rather than a style one.
+     */
+    | { kind: "ast"; rule: "forbidsModifier"; value: SelectModifier }
     | { kind: "ast"; rule: "wrappedIn"; value: "transaction" }
     | { kind: "ast"; rule: "callsMethod"; value: string }
     | { kind: "ast"; rule: "forbids"; value: NodeKind }

@@ -115,7 +115,18 @@ export function useEngine() {
     [send],
   );
 
-  const reset = useCallback(() => send({ kind: "reset", tables: PANEL_TABLES }), [send]);
+  /**
+   * Reseeds the database.
+   *
+   * `seed` names a variant in virtual-db. The playground never passes one, so it gets the
+   * default set; a scenario passes its own, because the default rows are deliberately
+   * small-value and nobody in them is anywhere near a credit limit.
+   */
+  const reset = useCallback(
+    (seed?: string) =>
+      send({ kind: "reset", tables: PANEL_TABLES, ...(seed === undefined ? {} : { seed }) }),
+    [send],
+  );
 
   const read = useCallback(
     (company: string) => send({ kind: "read", company, tables: PANEL_TABLES }),

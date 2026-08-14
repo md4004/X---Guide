@@ -36,6 +36,11 @@ export function evaluateAst(validator: AstValidator, ast: SourceUnit): boolean {
         clauses.modifiers.includes(validator.value),
       );
 
+    case "forbidsModifier":
+      return findAll(ast, "selectClauses").every(
+        (clauses) => !clauses.modifiers.includes(validator.value),
+      );
+
     case "wrappedIn":
       return everyMutationIsInATransaction(ast);
 
@@ -156,6 +161,7 @@ export function describeAstFailure(
         statementsFound: [...new Set(ast.statements.map((statement) => statement.kind))],
       };
     case "usesModifier":
+    case "forbidsModifier":
       return {
         wanted: validator.value,
         modifiersFound: findAll(ast, "selectClauses").flatMap((clauses) => clauses.modifiers),

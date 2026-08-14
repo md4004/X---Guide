@@ -1,0 +1,19 @@
+{
+  "name": "@xpplab/scenarios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scenario definitions and the release pipeline model: dev to sandbox to production.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xpplab/validators": "workspace:*",
+    "@xpplab/virtual-aot": "workspace:*"
+  }
+}

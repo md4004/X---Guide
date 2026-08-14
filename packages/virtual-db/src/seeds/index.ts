@@ -1,7 +1,9 @@
+import { creditSeed } from "./credit";
 import { defaultSeed } from "./default";
 import type { SeedDefinition, SeedName } from "./types";
 
 export type { SeedDefinition, SeedName } from "./types";
+export { creditSeed } from "./credit";
 export { defaultSeed } from "./default";
 
 /**
@@ -17,6 +19,7 @@ export const emptySeed: SeedDefinition = {
 export const SEEDS: Readonly<Record<string, SeedDefinition>> = {
   default: defaultSeed,
   empty: emptySeed,
+  credit: creditSeed,
 };
 
 export function getSeed(name: SeedName): SeedDefinition {

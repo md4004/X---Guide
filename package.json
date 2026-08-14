@@ -29,6 +29,7 @@
     "@monaco-editor/react": "4.7.0",
     "@next/mdx": "^16.3.0",
     "@xpplab/renderers": "workspace:*",
+    "@xpplab/scenarios": "workspace:*",
     "@xpplab/validators": "workspace:*",
     "@xpplab/virtual-aot": "workspace:*",
     "@xpplab/virtual-db": "workspace:*",

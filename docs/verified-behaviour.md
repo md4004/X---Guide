@@ -153,6 +153,37 @@ the code below would build.
 | VB-068 | An `int` is **automatically converted** to a `real`, and a `real` assigned into an `int` is truncated          | [MS Learn, X++ primitive types][24] | 2026-08-12 | "An integer is automatically converted to a **boolean**, **enum**, or **real**." The page's own example truncates `3.141528/3` to the int `1`. So a method declared `real` that returns the literal `100` hands back a real, and that is what the Infolog shows |
 | VB-069 | `strFmt` renders a `real` to **two decimal places**, rounding                                                  | [MS Learn, X++ primitive types][24] | 2026-08-12 | The page's own worked output: `real9 = 2.3456` prints as `strFmt says real9 == 2.35`. One documented data point, matched exactly — the engine does not claim to model per-EDT `NoOfDecimals` |
 
+### Getting code to production — ALM and servicing (VB-070 to VB-081)
+
+This is the half of the job no lesson had covered: the code is written, and now it has to
+travel. Every rule below is a **gate the platform enforces**, not a convention a team
+agreed on, which is what makes it teachable as a simulation rather than as prose.
+
+Two flows exist. The rows below describe the **self-service / next-generation
+infrastructure** flow, which is the current one, and VB-081 records the older flow it
+replaced, because a learner will meet both in the wild.
+
+| ID     | Behaviour                                                                                                                                    | Verified against                          | Date       | Notes                                                                                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VB-070 | A **deployable package** is the unit of deployment, created in Visual Studio via **Dynamics 365 > Deploy > Create Deployment Package**        | [MS Learn, create and apply a package][25] | 2026-08-14 | "An AOT package is a deployment and compilation unit of one or more models that you can apply to an environment." Uploaded afterwards to the LCS **Asset library**         |
+| VB-071 | An Application Deployable Package **does not contain source code**                                                                            | [MS Learn, create and apply a package][25] | 2026-08-14 | Verbatim from the doc's own note. Worth teaching — it is why the package is not a backup of your work                                                                      |
+| VB-072 | Packages intended for production must be built on a **build environment**                                                                     | [MS Learn, create and apply a package][25] | 2026-08-14 | "Always use a build environment to create deployable packages that you intend to go to production." A dev-box package is allowed, but not for the production path          |
+| VB-073 | A package uploaded to the Asset library starts as **Not Validated** and must pass validation before it can be applied                         | [MS Learn, apply updates][26]              | 2026-08-14 | "A package must pass validation before you can apply it in an environment." Three kinds: package format, platform version checks, package types                            |
+| VB-074 | Applying an update **causes downtime** — all services stop and the environment is unusable                                                    | [MS Learn, apply updates][26]              | 2026-08-14 | "Application of a single package in an average environment requires about five hours of downtime." Merging packages halves it, which is why merged packages exist          |
+| VB-075 | A sandbox update is applied from **Maintain > Apply updates**, and needs a **unique Update name**                                             | [MS Learn, update an environment][27]      | 2026-08-14 | The Update name is not decoration: it is what you later select when promoting the image to production                                                                      |
+| VB-076 | Sandbox servicing moves **Queued → Servicing → Post-servicing → Deployed**                                                                    | [MS Learn, update an environment][27]      | 2026-08-14 | Post-servicing builds indexes online: users are back in, but performance may be degraded, and no new service request can be triggered                                      |
+| VB-077 | After an update, you **sign off** on it from **History > Environment changes** — "Sign off" or "Sign off with issues"                         | [MS Learn, update an environment][27]      | 2026-08-14 | This is the UAT acceptance step, and it is a real button rather than an email                                                                                             |
+| VB-078 | **You no longer apply packages directly to production.** You promote a sandbox *image*                                                        | [MS Learn, update an environment][27]      | 2026-08-14 | Verbatim: "You no longer apply packages directly to production environments." The image is the whole runtime — Microsoft binary plus all custom code — as one unit         |
+| VB-079 | Promotion requires marking the sandbox update **Mark as release candidate**; production's grid shows only release candidates                  | [MS Learn, update an environment][27]      | 2026-08-14 | Path: History > Environment changes > select the update > **Mark as release candidate**, which sets **Is Release Candidate** to Yes                                        |
+| VB-080 | A production update is **scheduled** — pick the source sandbox, the release candidate, and a **Downtime start**; Downtime end is calculated   | [MS Learn, update an environment][27]      | 2026-08-14 | Path: **Maintain > Update environment**. "No lead time is required." A version lower than production's is refused, to prevent a downgrade                                  |
+| VB-081 | *Historic flow:* you could apply any package to production that had succeeded on a sandbox and was marked a release candidate                 | [MS Learn, update an environment][27]      | 2026-08-14 | Microsoft's own reason for replacing it: "application of package A before package B produced a healthy environment, but a different order led to regressing functionality" |
+
+> **Why the sandbox gate is not bureaucracy.** The doc states the prerequisite twice, in
+> two different articles, in two different flows: "An important prerequisite for applying a
+> package to a production environment is that you successfully apply the package to at least
+> one sandbox environment in the same project." A scenario that let a learner ship straight
+> to production would be teaching a route the platform does not have.
+
 [1]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data/xpp-transaction
 [2]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-operators
 [3]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-variables-data-types
@@ -177,6 +208,9 @@ the code below would build.
 [22]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/data-entities/integration-overview
 [23]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/extensibility/method-wrapping-coc
 [24]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/dev-ref/xpp-data-primitive
+[25]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/deployment/create-apply-deployable-package
+[26]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/deployment/apply-deployable-package-system
+[27]: https://learn.microsoft.com/en-us/dynamics365/fin-ops-core/dev-itpro/deployment/updateenvironment-newinfrastructure
 
 ### On VB-030: the merge table is Microsoft's, not ours
 

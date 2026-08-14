@@ -53,5 +53,12 @@ against a real environment.
 - **Deadlock and update conflict.** Real X++ exceptions, and in the `Exception` enum we
   model, but a single-threaded in-browser SQLite cannot produce either. They stay out of
   the engine and belong in prose.
-- **Classes, inheritance, `is`/`as`, Chain of Command.** Parsed, refused at runtime with a
-  message naming the phase they arrive in, rather than half-executed.
+- **Servicing timings and failure modes.** The release simulator models the *gates*
+  (VB-070 to VB-081), which are documented and enforced. It does not model how long
+  servicing takes, what makes a package fail validation in the Asset library, or what a
+  failed runbook step looks like. The scenario says a production update takes hours and
+  is scheduled for a downtime window; it does not pretend to run one.
+- **The functional/technical conversation itself.** The dialogue in a scenario is
+  fiction, written by us to be representative of a real requirements handover. It is a
+  teaching device, not a documented Microsoft process, and the UI labels it as such.
+  Nothing in the engine depends on it.
